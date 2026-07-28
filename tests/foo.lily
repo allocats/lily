@@ -1,0 +1,19 @@
+module foo;
+
+import std::io;
+
+enum Fruit {
+    Apple;
+    Orange;
+    Banan;
+}
+
+struct Basket {
+    fruits: Fruit[];
+}
+
+const X: i32 = 0;
+
+fn bar() {
+    std::io::println("Hello world! :3");
+}
