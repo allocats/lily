@@ -97,6 +97,8 @@ AstNodeId parse_function_decl(Parser* p) {
 
         param_node -> as.param_decl.type = parse_type(p);
 
+        node -> as.func_decl.params[node -> as.func_decl.param_count++] = param_id;
+
         if (parser_check(p, TOK_RPAREN)) {
             parser_advance(p);
             break;

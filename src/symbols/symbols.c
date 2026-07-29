@@ -26,8 +26,9 @@ static ScopeId scope_enter(SymbolTable* table);
 static ScopeId scope_exit(SymbolTable* table);
 
 static void scope_resize(Scope* scope);
-
 static void table_symbols_resize(SymbolTable* table);
+
+static void sym_add_func(Resolver* r, AstNode* node);
 
 void scope_init(Scope* scope) {
     arena_init(&scope -> arena, 512, ALIGN_8);
@@ -55,21 +56,12 @@ void symbols_register(ModuleId id) {
     for (u32 i = 0; i < count; i++) {
         AstNode* node = &ast -> nodes[i];
 
-        SymbolId sym_id = SYMBOL_ID_NONE;
         StringId name = STRING_ID_NONE;
+        SymbolId sym_id = SYMBOL_ID_NONE;
 
         switch (node -> kind) {
             case AST_FUNCTION:
-                name = node -> as.func_decl.name_id;
-                sym_id = scope_get_sym(&r, name, hash_fnv1a_u32(name));
-
-                if (sym_id != SCOPE_ID_NONE) {
-                    str8 str = STRING_ID_LOOKUP(name).str;
-                    printf("Already found function %.*s\n", str.length, str.pointer);
-                }
-
-
-                sym_id = scope_add_sym(&r, node -> as.func_decl.name_id, SYM_FUNCTION);
+                sym_add_func(&r, node);
                 break;
 
             case AST_STRUCT:
@@ -268,4 +260,50 @@ static void table_symbols_resize(SymbolTable* table) {
 
     table -> symbols = arena_realloc(&table -> arena, table -> symbols, old_size, new_size);
     table -> symbol_capacity *= 2;
+}
+
+static void sym_add_func(Resolver* r, AstNode* node) {
+    StringId name = node -> as.func_decl.name_id;
+    SymbolId sym_id = scope_get_sym(r, name, hash_fnv1a_u32(name));
+
+    if (sym_id != SCOPE_ID_NONE) {
+        // TODO: Errors & diagnostics
+        str8 str = STRING_ID_LOOKUP(name).str;
+        printf("Already found function %.*s\n", str.length, str.pointer);
+    }
+
+    sym_id = scope_add_sym(r, node -> as.func_decl.name_id, SYM_FUNCTION);
+
+    Symbol* symbol = &r -> table -> symbols[sym_id]; 
+
+    u32 param_count = node -> as.func_decl.param_count;
+
+    if (param_count == 0) {
+        symbol -> as.function.count = 0;
+        return;
+    }
+
+    symbol -> as.function.params = arena_alloc(&r -> table -> arena, param_count * sizeof(SymbolId));
+    symbol -> as.function.count = param_count;
+
+    Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
+    Ast* ast = &module -> ast;
+
+    for (u32 i = 0; i < param_count; i++) {
+        AstNodeId param_node_id = node -> as.func_decl.params[i];
+        AstNode* param_node = &ast -> nodes[param_node_id];
+
+        SymbolId param_id = scope_get_sym(
+            r,
+            param_node -> as.param_decl.name_id,
+            hash_fnv1a_u32(param_node -> as.param_decl.name_id)
+        );
+
+        if (param_id != SYMBOL_ID_NONE) {
+            printf("Error already defined\n");
+            continue;
+        }
+        
+        symbol -> as.function.params[i] = scope_add_sym(r, param_node -> as.param_decl.name_id, SYM_PARAMETER);
+    }
 }

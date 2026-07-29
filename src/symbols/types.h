@@ -26,6 +26,16 @@ static const char* SYMBOL_KIND_STRINGS[] = {
     SYMBOLS(GENERATE_STRING)
 };
 
+//
+// function
+//
+typedef struct {
+    SymbolId* params;
+    u32 count;
+
+    SymbolId return_type;
+} SymbolFunction;
+
 typedef struct {
     SymbolId id;
     StringId name;
@@ -36,6 +46,7 @@ typedef struct {
     union {
         // type
         // function
+        SymbolFunction function;
         // parameter
         // constant
         // variable 
