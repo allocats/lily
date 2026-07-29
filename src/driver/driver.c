@@ -65,8 +65,15 @@ void driver_destroy(LilyCtx* driver) {
     arena_destroy(&driver -> file_registry.tokens_arena);
 
     for (u32 i = 0; i < driver -> module_registry.count; i++) {
-        arena_destroy(&driver -> module_registry.entries[i].ast.arena);
-        arena_destroy(&driver -> module_registry.entries[i].symbol_table.arena);
+        Module* module = &driver -> module_registry.entries[i];
+
+        for (u32 k = 0; k < module -> symbol_table.scope_capacity; k++) {
+            arena_destroy(&module -> symbol_table.scopes[k].arena);
+        }
+
+        arena_destroy(&module -> ast.arena);
+        arena_destroy(&module -> symbol_table.arena);
+        arena_destroy(&module -> gpa);
     }
 
     arena_destroy(&driver -> module_registry.arena);

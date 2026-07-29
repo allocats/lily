@@ -107,6 +107,8 @@ void lexer_tokenize_file(FileId id) {
         cursor   = fn ? fn(id, cursor) : lex_invalid(id, cursor);
     }
 
+    driver_ctx.file_registry.entries[id].stage = FILE_LEXED;
+
     if (delimiter_stack.top != -1) {
         for (i32 i = 0; i < delimiter_stack.top + 1; i++) {
             Token* delim_tok = delimiter_stack.items[i];
@@ -120,12 +122,10 @@ void lexer_tokenize_file(FileId id) {
                 "unclosed delimiter",
                 "add closing delimiter"
             );
-
-            driver_ctx.file_registry.entries[id].stage = FILE_ERROR;
         }
+
+        driver_ctx.file_registry.entries[id].stage = FILE_ERROR;
     }
-    
-    driver_ctx.file_registry.entries[id].stage = FILE_LEXED;
 }
 
 char* lex_whitespace(FileId id, char* cursor) {
@@ -714,6 +714,8 @@ void delimiter_match(FileId id, Token* token) {
             null
         );
 
+        driver_ctx.file_registry.entries[id].stage = FILE_ERROR;
+
         return;
     }
 
@@ -729,6 +731,8 @@ void delimiter_match(FileId id, Token* token) {
                     "mismatched delimiters",
                     null
                 );
+
+                driver_ctx.file_registry.entries[id].stage = FILE_ERROR;
             }
         } break;
 
@@ -743,6 +747,8 @@ void delimiter_match(FileId id, Token* token) {
                     "mismatched delimiters",
                     null
                 );
+
+                driver_ctx.file_registry.entries[id].stage = FILE_ERROR;
             }
         } break;
 
@@ -757,6 +763,8 @@ void delimiter_match(FileId id, Token* token) {
                     "mismatched delimiters",
                     null
                 );
+
+                driver_ctx.file_registry.entries[id].stage = FILE_ERROR;
             }
         } break;
 

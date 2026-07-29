@@ -121,8 +121,9 @@ AstNodeId parse_struct_decl(Parser* p) {
         }
 
         AstNodeId field_id  = parser_create_node(p, AST_FIELD);
-        AstNode* field_node = ast_node_get(&p -> module -> ast, id);
+        AstNode* field_node = ast_node_get(&p -> module -> ast, field_id);
 
+        field_node -> source_token = field_name;
         field_node -> as.field_decl.name_id = STRING_INTERNER_LOOKUP_TOKEN(field_name);
         field_node -> as.field_decl.type = field_type;
 

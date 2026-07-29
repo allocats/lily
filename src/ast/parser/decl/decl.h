@@ -9,6 +9,7 @@
 AstNodeId parse_import_decl(Parser* p);
 AstNodeId parse_module_decl(Parser* p);
 AstNodeId parse_enum_decl(Parser* p);
+AstNodeId parse_union_decl(Parser* p);
 AstNodeId parse_struct_decl(Parser* p);
 AstNodeId parse_function_decl(Parser* p);
 

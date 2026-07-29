@@ -13,7 +13,11 @@ typedef u32 SymbolId;
 typedef u32 ScopeId;
 
 #define SYMBOLS(X)      \
-    X(SYM_TYPE)         \
+    X(SYM_UNION)        \
+    X(SYM_STRUCT)       \
+    X(SYM_FIELD)        \
+    X(SYM_ENUM)         \
+    X(SYM_VARIANT)      \
     X(SYM_FUNCTION)     \
     X(SYM_PARAMETER)    \
     X(SYM_CONSTANT)     \
@@ -26,6 +30,14 @@ typedef enum {
 static const char* SYMBOL_KIND_STRINGS[] = {
     SYMBOLS(GENERATE_STRING)
 };
+
+//
+// function
+//
+typedef struct {
+    SymbolId* fields;
+    u32 count;
+} SymbolStruct;
 
 //
 // function
@@ -47,7 +59,10 @@ typedef struct {
     SymbolKind kind;
 
     union {
-        // type
+        // struct 
+        SymbolStruct structs;
+        // union 
+        // enum
         // function
         SymbolFunction function;
         // parameter

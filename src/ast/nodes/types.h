@@ -27,6 +27,7 @@ typedef u32 TypeId;
                         \
     X(AST_FUNCTION)     \
     X(AST_STRUCT)       \
+    X(AST_UNION)        \
     X(AST_ENUM)         \
                         \
     X(AST_BLOCK)        \
@@ -128,7 +129,7 @@ typedef struct {
     AstNodeId* fields;
     u32 field_count;
     u32 field_capacity;
-} AstStructDecl;
+} AstStructDecl, AstUnionDecl;
 
 //
 // ENUMS
@@ -322,6 +323,7 @@ typedef struct AstNode {
 
         AstFunctionDecl func_decl;
         AstStructDecl   struct_decl;
+        AstUnionDecl    union_decl;
         AstEnumDecl     enum_decl;
 
         AstVarDecl var_decl;

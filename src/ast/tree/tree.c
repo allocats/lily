@@ -185,6 +185,21 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
             break;
         }
 
+        case AST_UNION:
+        {
+            const AstUnionDecl* u = &node->as.union_decl;
+
+            printf("UNION ");
+            ast_print_str(u->name_id);
+            ast_print_flags(node->flags);
+            printf("\n");
+
+            for (u32 i = 0; i < u->field_count; i++)
+                ast_print_node(ast, u->fields[i], indent + 1);
+
+            break;
+        }
+
         case AST_FIELD:
         {
             const AstField* f = &node->as.field_decl;
