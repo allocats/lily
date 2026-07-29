@@ -12,6 +12,7 @@
 #include "symbols/symbols.h"
 #include "token/token.h"
 #include "utils/macros.h"
+#include "utils/timer.h"
 #include "utils/types.h"
 
 LilyCtx driver_ctx = {0};
@@ -28,6 +29,10 @@ i32 main(i32 argc, char** argv) {
 
     driver_init(&driver_ctx, argc - 1, argv + 1);
 
+    Timer timer = {0};
+
+    timer_start(&timer);
+
     for (u32 i = 0; i < driver_ctx.file_registry.count; i++) {
         lexer_tokenize_file(i);
         parser_parse_file(i);
@@ -36,6 +41,8 @@ i32 main(i32 argc, char** argv) {
     for (u32 i = 0; i < driver_ctx.module_registry.count; i++) {
         symbols_register(i);
     }
+
+    timer_end(&timer);
 
     if (driver_ctx.flags & LILY_FLAGS_DUMP_TOKENS) {
         for (u32 i = 0; i < driver_ctx.file_registry.count; i++) {
@@ -54,7 +61,29 @@ i32 main(i32 argc, char** argv) {
         }
     } 
 
-    diagnostics_print(&driver_ctx.diagnostics);
+    if (diagnostics_print(&driver_ctx.diagnostics)) {
+        printf(
+            "%s%s%s:%s compiled %ssuccessfully%s in %lfms\n",
+            ANSI_BOLD,
+            ANSI_CYAN,
+            argv[0],
+            ANSI_RESET,
+            ANSI_BOLD,
+            ANSI_RESET,
+            time_elapsed_in_ms(&timer)
+        );
+    } else {
+        printf(
+            "%s%s%s:%s compiler %sfailed%s\n",
+            ANSI_BOLD,
+            ANSI_RED,
+            argv[0],
+            ANSI_RESET,
+            ANSI_BOLD,
+            ANSI_RESET
+        );
+    }
+
     driver_destroy(&driver_ctx);
     return 0;
 }

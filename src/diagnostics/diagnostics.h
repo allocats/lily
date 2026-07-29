@@ -16,10 +16,11 @@ void diagnostic_add_token(
     DiagKind kind,
     Token* tok,
     u8 loc,
-    char* msg,
-    char* help
+    const char* msg,
+    const char* help
 );
 void diagnostic_add_symbol_already_defined(DiagnosticEngine* engine, Module* module, SymbolId symbol, AstNodeId node);
-void diagnostics_print(DiagnosticEngine* engine);
+
+bool diagnostics_print(DiagnosticEngine* engine);
 
 #endif // !LILY_DIAGNOSTICS_H

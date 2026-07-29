@@ -41,6 +41,9 @@ void diagnostic_engine_init(void) {
     diag_engine -> diags    = arena_alloc_array(&diag_engine -> arena, Diagnostic, DIAG_DEFAULT_THRESHOLD);
     diag_engine -> capacity = DIAG_DEFAULT_THRESHOLD;
     diag_engine -> count    = 0;
+
+    // TODO: Make this configurable through cli
+    diag_engine -> threshold_value = DIAG_DEFAULT_THRESHOLD;
 }
 
 static const char* match_level_colour(DiagKind kind) {
@@ -142,6 +145,11 @@ static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
 }
 
 void diagnostic_add_generic(DiagnosticEngine* engine, DiagKind kind, char* fmt, ...) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     char* buffer = null;
     u64 bytes = 0;
     u64 n = 0;
@@ -177,9 +185,14 @@ void diagnostic_add_token(
     DiagKind kind,
     Token* tok,
     u8 loc,
-    char* msg,
-    char* help
+    const char* msg,
+    const char* help
 ) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     u32 line = 1;
     u32 col = 1;
 
@@ -210,10 +223,10 @@ void diagnostic_add_token(
 
     diag -> kind = kind;
 
-    diag -> msg.pointer = msg;
+    diag -> msg.pointer = (char*) msg;
     diag -> msg.length = strlen(msg);
 
-    diag -> help.pointer = help;
+    diag -> help.pointer = (char*) help;
     diag -> help.length  = help ? strlen(help) : 0;
 
     diag -> line = line;
@@ -236,6 +249,16 @@ void diagnostic_add_token(
 
 static const char* symbol_exists_match_def(SymbolKind kind) {
     switch (kind) {
+        case SYM_STRUCT:
+            return "struct is already defined";
+        case SYM_UNION:
+            return "union is already defined";
+        case SYM_ENUM:
+            return "enum is already defined";
+        case SYM_FIELD:
+            return "field is already defined";
+        case SYM_VARIANT:
+            return "variant is already defined";
         case SYM_FUNCTION:
             return "function is already defined";
         case SYM_PARAMETER:
@@ -247,6 +270,16 @@ static const char* symbol_exists_match_def(SymbolKind kind) {
 
 static const char* symbol_exists_match_redef(SymbolKind kind) {
     switch (kind) {
+        case SYM_STRUCT:
+            return "struct is redefined";
+        case SYM_UNION:
+            return "union is redefined";
+        case SYM_ENUM:
+            return "enum is redefined";
+        case SYM_FIELD:
+            return "field is redefined";
+        case SYM_VARIANT:
+            return "variant is redefined";
         case SYM_FUNCTION:
             return "function is redefined";
         case SYM_PARAMETER:
@@ -258,6 +291,16 @@ static const char* symbol_exists_match_redef(SymbolKind kind) {
 
 static const char* symbol_exists_match_def_help(SymbolKind kind) {
     switch (kind) {
+        case SYM_STRUCT:
+            return "struct is redefined here";
+        case SYM_UNION:
+            return "union is redefined here";
+        case SYM_ENUM:
+            return "enum is redefined here";
+        case SYM_FIELD:
+            return "field is redefined here";
+        case SYM_VARIANT:
+            return "variant is redefined here";
         case SYM_FUNCTION:
             return "function is redefined here";
         case SYM_PARAMETER:
@@ -269,6 +312,16 @@ static const char* symbol_exists_match_def_help(SymbolKind kind) {
 
 static const char* symbol_exists_match_redef_help(SymbolKind kind) {
     switch (kind) {
+        case SYM_STRUCT:
+            return "previous struct definition is here";
+        case SYM_UNION:
+            return "previous union definition is here";
+        case SYM_ENUM:
+            return "previous enum definition is here";
+        case SYM_FIELD:
+            return "previous field definition is here";
+        case SYM_VARIANT:
+            return "previous variant definition is here";
         case SYM_FUNCTION:
             return "previous function definition is here";
         case SYM_PARAMETER:
@@ -284,6 +337,11 @@ void diagnostic_add_symbol_already_defined(
     SymbolId symbol_id,
     AstNodeId new_node_id
 ) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     SymbolTable* table = &module->symbol_table;
     Symbol* symbol = &table->symbols[symbol_id];
 
@@ -322,7 +380,11 @@ void diagnostic_add_symbol_already_defined(
     );
 }
 
-void diagnostics_print(DiagnosticEngine* engine) {
+bool diagnostics_print(DiagnosticEngine* engine) {
+    u32 count = MIN(engine -> count, engine -> threshold_value);
+
+    if (count == 0) return true;
+    
     FILE* fd = stdout;
 
     if (engine -> dump_path != null) {
@@ -334,11 +396,15 @@ void diagnostics_print(DiagnosticEngine* engine) {
         }
     }
 
-    for (u32 i = 0; i < engine -> count; i++) {
+    bool no_errors = true;
+
+    for (u32 i = 0; i < count; i++) {
         Diagnostic diag = engine -> diags[i];
 
         const char* level_colour = match_level_colour(diag.kind); 
         const char* level = match_level(diag.kind); 
+
+        if (diag.kind == DIAG_ERROR) no_errors = false;
 
         if (diag.is_generic) {
             fprintf(
@@ -426,4 +492,6 @@ void diagnostics_print(DiagnosticEngine* engine) {
     if (fd != stdout) {
         fclose(fd);
     }
+
+    return no_errors;
 }
