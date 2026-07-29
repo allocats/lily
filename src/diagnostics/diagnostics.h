@@ -1,6 +1,8 @@
 #ifndef LILY_DIAGNOSTICS_H
 #define LILY_DIAGNOSTICS_H
 
+#include "ast/nodes/types.h"
+#include "modules/types.h"
 #include "diagnostics/types.h"
 
 #include "token/types.h"
@@ -17,6 +19,7 @@ void diagnostic_add_token(
     char* msg,
     char* help
 );
+void diagnostic_add_symbol_already_defined(DiagnosticEngine* engine, Module* module, SymbolId symbol, AstNodeId node);
 void diagnostics_print(DiagnosticEngine* engine);
 
 #endif // !LILY_DIAGNOSTICS_H

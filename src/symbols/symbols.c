@@ -1,5 +1,7 @@
 #include "symbols/symbols.h"
 #include "ast/nodes/types.h"
+#include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "driver/types.h"
 #include "hash/hash.h"
 #include "modules/modules.h"
@@ -7,6 +9,7 @@
 #include "string_interner/interner.h"
 #include "string_interner/types.h"
 #include "symbols/types.h"
+#include "token/token.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -17,7 +20,7 @@
 
 extern LilyCtx driver_ctx;
 
-static SymbolId scope_add_sym(Resolver* r, StringId name, SymbolKind kind);
+static SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind kind);
 static SymbolId scope_get_sym(Resolver* r, StringId name, u32 hash);
 
 static SymbolId table_get_sym(Resolver* r, StringId name);
@@ -28,7 +31,7 @@ static ScopeId scope_exit(SymbolTable* table);
 static void scope_resize(Scope* scope);
 static void table_symbols_resize(SymbolTable* table);
 
-static void sym_add_func(Resolver* r, AstNode* node);
+static void sym_add_func(Resolver* r, AstNode* node, AstNodeId node_id);
 
 void scope_init(Scope* scope) {
     arena_init(&scope -> arena, 512, ALIGN_8);
@@ -61,43 +64,43 @@ void symbols_register(ModuleId id) {
 
         switch (node -> kind) {
             case AST_FUNCTION:
-                sym_add_func(&r, node);
+                sym_add_func(&r, node, i);
                 break;
 
             case AST_STRUCT:
                 name = node -> as.struct_decl.name_id;
                 sym_id = scope_get_sym(&r, name, hash_fnv1a_u32(name));
 
-                if (sym_id != SCOPE_ID_NONE) {
+                if (sym_id != SYMBOL_ID_NONE) {
                     str8 str = STRING_ID_LOOKUP(name).str;
                     printf("Already found struct %.*s\n", str.length, str.pointer);
                 }
 
-                sym_id = scope_add_sym(&r, node -> as.struct_decl.name_id, SYM_TYPE);
+                sym_id = scope_add_sym(&r, i, node -> as.struct_decl.name_id, SYM_TYPE);
                 break;
 
             case AST_ENUM:
                 name = node -> as.enum_decl.name_id;
                 sym_id = scope_get_sym(&r, name, hash_fnv1a_u32(name));
 
-                if (sym_id != SCOPE_ID_NONE) {
+                if (sym_id != SYMBOL_ID_NONE) {
                     str8 str = STRING_ID_LOOKUP(name).str;
                     printf("Already found enum %.*s\n", str.length, str.pointer);
                 }
 
-                sym_id = scope_add_sym(&r, node -> as.enum_decl.name_id, SYM_FUNCTION);
+                sym_id = scope_add_sym(&r, i, node -> as.enum_decl.name_id, SYM_TYPE);
                 break;
 
             case AST_CONST:
                 StringId name = node -> as.const_decl.name_id;
                 sym_id = scope_get_sym(&r, name, hash_fnv1a_u32(name));
 
-                if (sym_id != SCOPE_ID_NONE) {
+                if (sym_id != SYMBOL_ID_NONE) {
                     str8 str = STRING_ID_LOOKUP(name).str;
                     printf("Already found const %.*s\n", str.length, str.pointer);
                 }
 
-                sym_id = scope_add_sym(&r, node -> as.const_decl.name_id, SYM_FUNCTION);
+                sym_id = scope_add_sym(&r, i, node -> as.const_decl.name_id, SYM_CONSTANT);
                 break;
 
             default:
@@ -107,7 +110,7 @@ void symbols_register(ModuleId id) {
     }
 }
 
-static SymbolId scope_add_sym(Resolver* r, StringId name, SymbolKind kind) {
+static SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind kind) {
     i32 scope_id = r -> current_scope_id;
 
     Scope* scope = &r -> table-> scopes[scope_id];
@@ -139,6 +142,7 @@ static SymbolId scope_add_sym(Resolver* r, StringId name, SymbolKind kind) {
     scope -> ids[index] = sym_id;
     scope -> str_ids[index] = name;
 
+    sym -> declaration = node_id;
     sym -> name = name;
     sym -> scope = scope_id;
     sym -> kind = kind;
@@ -174,12 +178,12 @@ static SymbolId table_get_sym(Resolver* r, StringId name) {
     while (scope_id >= 0) {
         SymbolId id = scope_get_sym(r, name, hash);
 
-        if (id != SCOPE_ID_NONE) return id;
+        if (id != SYMBOL_ID_NONE) return id;
 
         scope_id--;
     }
 
-    return SCOPE_ID_NONE;
+    return SYMBOL_ID_NONE;
 }
 
 static ScopeId scope_enter(SymbolTable* table) {
@@ -262,17 +266,24 @@ static void table_symbols_resize(SymbolTable* table) {
     table -> symbol_capacity *= 2;
 }
 
-static void sym_add_func(Resolver* r, AstNode* node) {
+static void sym_add_func(Resolver* r, AstNode* node, AstNodeId node_id) {
+    Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
+
     StringId name = node -> as.func_decl.name_id;
     SymbolId sym_id = scope_get_sym(r, name, hash_fnv1a_u32(name));
 
-    if (sym_id != SCOPE_ID_NONE) {
-        // TODO: Errors & diagnostics
-        str8 str = STRING_ID_LOOKUP(name).str;
-        printf("Already found function %.*s\n", str.length, str.pointer);
+    if (sym_id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_already_defined(
+            &driver_ctx.diagnostics,
+            module,
+            sym_id,
+            node_id
+        );
+
+        return;
     }
 
-    sym_id = scope_add_sym(r, node -> as.func_decl.name_id, SYM_FUNCTION);
+    sym_id = scope_add_sym(r, node_id, node -> as.func_decl.name_id, SYM_FUNCTION);
 
     Symbol* symbol = &r -> table -> symbols[sym_id]; 
 
@@ -286,7 +297,6 @@ static void sym_add_func(Resolver* r, AstNode* node) {
     symbol -> as.function.params = arena_alloc(&r -> table -> arena, param_count * sizeof(SymbolId));
     symbol -> as.function.count = param_count;
 
-    Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
     Ast* ast = &module -> ast;
 
     for (u32 i = 0; i < param_count; i++) {
@@ -300,10 +310,21 @@ static void sym_add_func(Resolver* r, AstNode* node) {
         );
 
         if (param_id != SYMBOL_ID_NONE) {
-            printf("Error already defined\n");
+            diagnostic_add_symbol_already_defined(
+                &driver_ctx.diagnostics,
+                module,
+                param_id,
+                param_node_id
+            );
+
             continue;
         }
         
-        symbol -> as.function.params[i] = scope_add_sym(r, param_node -> as.param_decl.name_id, SYM_PARAMETER);
+        symbol -> as.function.params[i] = scope_add_sym(
+            r,
+            param_node_id,
+            param_node -> as.param_decl.name_id,
+            SYM_PARAMETER
+        );
     }
 }

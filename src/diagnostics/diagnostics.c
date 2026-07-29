@@ -1,8 +1,11 @@
 #include "diagnostics/diagnostics.h"
 
+#include "ast/nodes/types.h"
 #include "cli/cli.h"
+#include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "symbols/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -14,6 +17,20 @@
 #include <unistd.h>
 
 extern LilyCtx driver_ctx;
+
+static FileId module_node_file(Module* module, AstNodeId id) {
+    FileId file_id = 0;
+
+    for (u32 i = 0; i < module->file_count; i++) {
+        if (id >= module->ast_offsets[i]) {
+            file_id = module->files[i];
+        } else if (id < module -> ast_offsets[i]) {
+            return file_id;
+        }
+    }
+
+    return file_id;
+}
 
 void diagnostic_engine_init(void) {
     DiagnosticEngine* diag_engine = &driver_ctx.diagnostics;
@@ -215,6 +232,94 @@ void diagnostic_add_token(
     }
 
     diag -> file_id = file_id;
+}
+
+static const char* symbol_exists_match_def(SymbolKind kind) {
+    switch (kind) {
+        case SYM_FUNCTION:
+            return "function is already defined";
+        case SYM_PARAMETER:
+            return "parameter is already defined";
+        default:
+            return "symbol is arleady defined";
+    }
+}
+
+static const char* symbol_exists_match_redef(SymbolKind kind) {
+    switch (kind) {
+        case SYM_FUNCTION:
+            return "function is redefined";
+        case SYM_PARAMETER:
+            return "parameter is redefined";
+        default:
+            return "symbol is redefined";
+    }
+}
+
+static const char* symbol_exists_match_def_help(SymbolKind kind) {
+    switch (kind) {
+        case SYM_FUNCTION:
+            return "function is redefined here";
+        case SYM_PARAMETER:
+            return "parameter is redefined here";
+        default:
+            return "symbol is redefined here";
+    }
+}
+
+static const char* symbol_exists_match_redef_help(SymbolKind kind) {
+    switch (kind) {
+        case SYM_FUNCTION:
+            return "previous function definition is here";
+        case SYM_PARAMETER:
+            return "previous parameter definition is here";
+        default:
+            return "previous symboldefinition is here";
+    }
+}
+
+void diagnostic_add_symbol_already_defined(
+    DiagnosticEngine* engine,
+    Module* module,
+    SymbolId symbol_id,
+    AstNodeId new_node_id
+) {
+    SymbolTable* table = &module->symbol_table;
+    Symbol* symbol = &table->symbols[symbol_id];
+
+    AstNodeId old_node_id = symbol -> declaration;
+
+    AstNode* old_node = &module->ast.nodes[old_node_id];
+    AstNode* new_node = &module->ast.nodes[new_node_id];
+
+    FileId old_file = module_node_file(module, old_node_id);
+    FileId new_file = module_node_file(module, new_node_id);
+
+    const char* def_msg   = symbol_exists_match_def(symbol -> kind);
+    const char* redef_msg = symbol_exists_match_redef(symbol -> kind);
+
+    const char* def_help_msg   = symbol_exists_match_def_help(symbol -> kind);
+    const char* redef_help_msg = symbol_exists_match_redef_help(symbol -> kind);
+
+    diagnostic_add_token(
+        engine,
+        new_file,
+        DIAG_ERROR,
+        new_node->source_token,
+        DIAG_LOC_WHOLE_TOK,
+        redef_msg,
+        def_help_msg
+    );
+
+    diagnostic_add_token(
+        engine,
+        old_file,
+        DIAG_NOTE,
+        old_node->source_token,
+        DIAG_LOC_WHOLE_TOK,
+        def_msg, 
+        redef_help_msg
+    );
 }
 
 void diagnostics_print(DiagnosticEngine* engine) {

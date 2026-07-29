@@ -70,6 +70,14 @@ ModuleId module_intern(NamespaceId id) {
     module -> namespace_id = id;
     module -> hash = hash;
 
+    arena_init(&module -> gpa, ARENA_KB(1), ALIGN_8);
+    debug_printf("Module Registry: Init module %d's general purpose arena with 1KB\n", module_id);
+
+    module -> ast_offsets = arena_alloc_array(&module -> gpa, AstNodeId, 4); 
+    module -> files = arena_alloc_array(&module -> gpa, FileId, 4); 
+    module -> file_count = 0;
+    module -> file_capacity = 4;
+
     arena_init(&module -> ast.arena, ARENA_KB(4), ALIGN_8);
     debug_printf("Module Registry: Init module %d's AST arena with 4KB\n", module_id);
 
@@ -118,6 +126,29 @@ ModuleId module_lookup(NamespaceId id) {
     }
 
     return MODULE_ID_NONE;
+}
+
+void module_file_append(Module* module, FileId id) {
+    if (UNLIKELY(module -> file_capacity >= module -> file_count)) {
+        u64 old_size = module -> file_capacity * sizeof(FileId);
+        u64 new_size = old_size * 2;
+
+        module -> files = arena_realloc(&module -> gpa, module -> files, old_size, new_size);
+
+        old_size = module -> file_capacity * sizeof(AstNodeId);
+        new_size = old_size * 2;
+
+        module -> ast_offsets = arena_realloc(&module -> gpa, module -> ast_offsets, old_size, new_size);
+
+        module -> file_capacity *= 2;
+    }
+
+    module -> files[module -> file_count] = id;
+    module -> ast_offsets[module -> file_count] = module -> ast.count;
+
+    debug_printf("Module: Appended file %u at offset %u\n", id, module -> ast_offsets[module -> file_count]);
+
+    module -> file_count++;
 }
 
 static void module_buckets_resize(ModuleRegistry* registry) {

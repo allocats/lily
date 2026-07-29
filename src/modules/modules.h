@@ -12,4 +12,6 @@ void module_registry_init(void);
 ModuleId module_intern(NamespaceId id);
 ModuleId module_lookup(NamespaceId id);
 
+void module_file_append(Module* module, FileId id);
+
 #endif // !LILY_MODULES_H

@@ -2,6 +2,6 @@ module foo;
 
 import std::io;
 
-fn bar(x: i32, y: i32, x: i32) {
+fn main(x: i32, y: i32, x: i32) {
     std::io::println("Hello world! :3");
 }

@@ -72,7 +72,11 @@ AstNodeId parse_module_decl(Parser* p) {
 
     NamespaceId ns_id = namespace_intern(segments, segment_count);
     ModuleId module_id = module_intern(ns_id);
-    p -> module = MODULE_ID_LOOKUP_REF(module_id);
+    Module* module = MODULE_ID_LOOKUP_REF(module_id);
+
+    module_file_append(module, p -> id);
+
+    p -> module = module;
 
     AstNodeId id  = parser_create_node(p, AST_MODULE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);

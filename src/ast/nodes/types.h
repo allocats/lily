@@ -310,6 +310,8 @@ typedef struct AstNode {
     AstKind kind;
     u16 flags;
 
+    Token* source_token;
+
     union {
         AstModule module_decl;
         AstImport import_decl;

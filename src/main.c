@@ -1,4 +1,3 @@
-#include "symbols/symbols.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
@@ -10,6 +9,7 @@
 #include "driver/driver.h"
 #include "files/types.h"
 #include "lexer/lexer.h"
+#include "symbols/symbols.h"
 #include "token/token.h"
 #include "utils/macros.h"
 #include "utils/types.h"

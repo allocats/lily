@@ -12,10 +12,14 @@
 typedef NamespaceId ModuleId;
 
 typedef struct {
+    // general purpose arena allocator
+    Arena gpa;
+
     NamespaceId namespace_id;
     u32 hash;
 
     FileId* files;
+    AstNodeId* ast_offsets;
     u32 file_count;
     u32 file_capacity;
 

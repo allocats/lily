@@ -110,6 +110,7 @@ AstNodeId parser_create_node(Parser* p, AstKind kind) {
 
     node -> id = id;
     node -> kind = kind;
+    node -> source_token = parser_peek(p);
 
     return id;
 }

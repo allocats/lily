@@ -1,6 +1,7 @@
 #ifndef LILY_SYMBOLS_TYPES_H
 #define LILY_SYMBOLS_TYPES_H
 
+#include "ast/nodes/types.h"
 #include "meowrena/meowrena.h"
 #include "string_interner/types.h"
 #include "utils/types.h"
@@ -41,6 +42,8 @@ typedef struct {
     StringId name;
     ScopeId  scope;
 
+    AstNodeId declaration;
+
     SymbolKind kind;
 
     union {
@@ -78,6 +81,7 @@ typedef struct {
 typedef struct {
     u32 current_module_id;
     u32 current_scope_id;
+    u32 current_file_id;
 
     SymbolTable* table;
 } Resolver;
