@@ -81,7 +81,6 @@ u64   arena_total_capacity(Arena* arena);
 #ifdef MEOWRENA_IMPL
 
 #include <assert.h>
-#include <immintrin.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
