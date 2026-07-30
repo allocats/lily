@@ -38,8 +38,14 @@ i32 main(i32 argc, char** argv) {
         parser_parse_file(i);
     }
 
+    // register top level symbols
     for (u32 i = 0; i < driver_ctx.module_registry.count; i++) {
         symbols_register(i);
+    }
+
+    // resolve symbols
+    for (u32 i = 0; i < driver_ctx.module_registry.count; i++) {
+        // symbols_resolve(i);
     }
 
     timer_end(&timer);
@@ -74,13 +80,14 @@ i32 main(i32 argc, char** argv) {
         );
     } else {
         printf(
-            "%s%s%s:%s compiler %sfailed%s\n",
+            "%s%s%s:%s compiler %sfailed%s took %lfms\n",
             ANSI_BOLD,
             ANSI_RED,
             argv[0],
             ANSI_RESET,
             ANSI_BOLD,
-            ANSI_RESET
+            ANSI_RESET,
+            time_elapsed_in_ms(&timer)
         );
     }
 

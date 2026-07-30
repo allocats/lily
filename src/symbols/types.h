@@ -1,3 +1,5 @@
+// TODO: Add types
+
 #ifndef LILY_SYMBOLS_TYPES_H
 #define LILY_SYMBOLS_TYPES_H
 
@@ -32,12 +34,20 @@ static const char* SYMBOL_KIND_STRINGS[] = {
 };
 
 //
-// function
+// structs and unions
 //
 typedef struct {
     SymbolId* fields;
     u32 count;
-} SymbolStruct;
+} SymbolStruct, SymbolUnion;
+
+//
+// enums
+//
+typedef struct {
+    SymbolId* variants;
+    u32 count;
+} SymbolEnum;
 
 //
 // function
@@ -49,6 +59,26 @@ typedef struct {
     SymbolId return_type;
 } SymbolFunction;
 
+//
+// parameter 
+//
+typedef struct {
+} SymbolParameter;
+
+//
+// constants
+//
+typedef struct {
+    AstNodeId value;
+} SymbolConstant;
+
+//
+// variable
+//
+typedef struct {
+    AstNodeId value;
+} SymbolVariable;
+
 typedef struct {
     SymbolId id;
     StringId name;
@@ -59,15 +89,13 @@ typedef struct {
     SymbolKind kind;
 
     union {
-        // struct 
-        SymbolStruct structs;
-        // union 
-        // enum
-        // function
-        SymbolFunction function;
-        // parameter
-        // constant
-        // variable 
+        SymbolParameter parameter;
+        SymbolFunction  function;
+        SymbolConstant  constant;
+        SymbolVariable  variable;
+        SymbolStruct    structs;
+        SymbolUnion     unions;
+        SymbolEnum      enums;
     } as;
 } Symbol;
 
