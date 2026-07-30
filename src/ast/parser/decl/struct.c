@@ -1,5 +1,7 @@
 #include "ast/nodes/nodes.h"
 #include "ast/parser/decl/decl.h"
+#include "ast/parser/parser.h"
+#include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
 #include "string_interner/interner.h"
 #include "utils/debug.h"
@@ -8,8 +10,6 @@
 AstNodeId parse_struct_decl(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_STRUCT);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
-
-    // node -> as.struct_decl.namespace_id = p -> module -> namespace_id;
 
     node -> as.struct_decl.fields = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 4);
     node -> as.struct_decl.field_capacity = 4;
@@ -82,7 +82,7 @@ AstNodeId parse_struct_decl(Parser* p) {
 
         parser_advance(p);
 
-        TypeId field_type = parse_type(p);
+        AstNodeId field_type_expr = parse_type_expr(p);
 
         if (!parser_check(p, TOK_SEMI)) {
             diagnostic_add_token(
@@ -125,7 +125,7 @@ AstNodeId parse_struct_decl(Parser* p) {
 
         field_node -> source_token = field_name;
         field_node -> as.field_decl.name_id = STRING_INTERNER_LOOKUP_TOKEN(field_name);
-        field_node -> as.field_decl.type = field_type;
+        field_node -> as.field_decl.type_expr = field_type_expr;
 
         node -> as.struct_decl.fields[node -> as.struct_decl.field_count++] = field_id;
     }

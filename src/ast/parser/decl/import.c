@@ -1,5 +1,6 @@
 #include "ast/nodes/nodes.h"
 #include "ast/parser/decl/decl.h"
+#include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
 #include "namespacing/namespacing.h"
 #include "string_interner/interner.h"

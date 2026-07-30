@@ -47,19 +47,19 @@ AstNodeId parse_var_decl(Parser* p) {
 
     parser_advance(p);
 
-    node -> as.var_decl.type = parse_type(p);
+    node -> as.var_decl.type_expr = parse_type_expr(p);
 
     Token* assign_tok = parser_peek(p);
 
     switch (assign_tok -> kind) {
         case TOK_EQ: {
             parser_advance(p);
-            node -> as.var_decl.value = parse_expression(p, 0);
+            node -> as.var_decl.value_expr = parse_expression(p, 0);
         } break;
 
         case TOK_SEMI: {
             parser_advance(p);
-            node -> as.var_decl.value = AST_NODE_ID_NONE;
+            node -> as.var_decl.value_expr = AST_NODE_ID_NONE;
             return id;
         }
 

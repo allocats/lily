@@ -47,7 +47,7 @@ AstNodeId parse_const_decl(Parser* p) {
 
     parser_advance(p);
 
-    node -> as.const_decl.type = parse_type(p);
+    node -> as.const_decl.type_expr = parse_type_expr(p);
 
     if (!parser_check(p, TOK_EQ)) {
         diagnostic_add_token(
@@ -66,7 +66,7 @@ AstNodeId parse_const_decl(Parser* p) {
 
     parser_advance(p);
 
-    node -> as.const_decl.value = parse_expression(p, 0);
+    node -> as.const_decl.value_expr = parse_expression(p, 0);
 
     if (!parser_check(p, TOK_SEMI)) {
         diagnostic_add_token(

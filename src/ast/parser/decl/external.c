@@ -1,5 +1,8 @@
 #include "ast/nodes/nodes.h"
+#include "ast/nodes/types.h"
 #include "ast/parser/decl/decl.h"
+#include "ast/parser/parser.h"
+#include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
 #include "string_interner/interner.h"
 
@@ -119,7 +122,7 @@ static AstNodeId parse_external_function_decl(Parser* p) {
 
         parser_advance(p);
 
-        param_node -> as.param_decl.type = parse_type(p);
+        param_node -> as.param_decl.type_expr = parse_type_expr(p);
 
         if (parser_check(p, TOK_RPAREN)) {
             parser_advance(p);
@@ -147,9 +150,9 @@ static AstNodeId parse_external_function_decl(Parser* p) {
     if (parser_check(p, TOK_ARROW)) {
         parser_advance(p);
 
-        node -> as.func_decl.return_type = parse_type(p);
+        node -> as.func_decl.return_type_expr = parse_type_expr(p);
     } else if (parser_check(p, TOK_SEMI)) {
-        node -> as.func_decl.return_type = TYPE_ID_INVALID;
+        node -> as.func_decl.return_type_expr = AST_NODE_ID_NONE;
     } else {
         diagnostic_add_token(
             &driver_ctx.diagnostics,

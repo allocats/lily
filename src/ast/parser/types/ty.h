@@ -1,10 +1,8 @@
 #ifndef LILY_AST_PARSER_TYPES_TY_H
 #define LILY_AST_PARSER_TYPES_TY_H
 
-#include "ast/parser/parser.h"
+#include "ast/parser/types.h"
 
-typedef u32 TypeId;
-
-TypeId parse_type(Parser* p);
+AstNodeId parse_type_expr(Parser* p);
 
 #endif // !LILY_AST_PARSER_TYPES_TY_H

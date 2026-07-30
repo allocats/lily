@@ -7,7 +7,6 @@
 #include "utils/types.h"
 
 typedef u32 AstNodeId;
-typedef u32 TypeId;
 
 #define AST_NODE_ID_NONE U32_MAX
 
@@ -15,41 +14,48 @@ typedef u32 TypeId;
 #define AST_FLAGS_IS_EXTERNAL   (1 << 0)
 #define AST_FLAGS_IS_INLINE     (1 << 1)
 
-#define AST_NODES(X)    \
-    X(AST_ERROR)        \
-                        \
-    X(AST_MODULE)       \
-    X(AST_IMPORT)       \
-                        \
-    X(AST_PARAM)        \
-    X(AST_FIELD)        \
-    X(AST_VARIANT)      \
-                        \
-    X(AST_FUNCTION)     \
-    X(AST_STRUCT)       \
-    X(AST_UNION)        \
-    X(AST_ENUM)         \
-                        \
-    X(AST_BLOCK)        \
-    X(AST_DEFER)        \
-    X(AST_RETURN)       \
-                        \
-    X(AST_LET)          \
-    X(AST_CONST)        \
-                        \
-    X(AST_BRANCH)       \
-    X(AST_IF)           \
-    X(AST_FOR)          \
-    X(AST_WHILE)        \
-                        \
-    X(AST_BINOP)        \
-    X(AST_UNARY)        \
-    X(AST_ASSIGN)       \
-    X(AST_FUNC_CALL)    \
-    X(AST_IDENT)        \
-    X(AST_LITERAL)      \
-    X(AST_INDEX)        \
-    X(AST_MEMBER_ACCESS)\
+#define AST_NODES(X)        \
+    X(AST_ERROR)            \
+                            \
+    X(AST_MODULE)           \
+    X(AST_IMPORT)           \
+                            \
+    X(AST_PARAM)            \
+    X(AST_FIELD)            \
+    X(AST_VARIANT)          \
+                            \
+    X(AST_FUNCTION)         \
+    X(AST_STRUCT)           \
+    X(AST_UNION)            \
+    X(AST_ENUM)             \
+                            \
+    X(AST_BLOCK)            \
+    X(AST_DEFER)            \
+    X(AST_RETURN)           \
+                            \
+    X(AST_LET)              \
+    X(AST_CONST)            \
+                            \
+    X(AST_BRANCH)           \
+    X(AST_IF)               \
+    X(AST_FOR)              \
+    X(AST_WHILE)            \
+                            \
+    X(AST_BINOP)            \
+    X(AST_UNARY)            \
+    X(AST_ASSIGN)           \
+    X(AST_FUNC_CALL)        \
+    X(AST_IDENT)            \
+    X(AST_LITERAL)          \
+    X(AST_INDEX)            \
+    X(AST_MEMBER_ACCESS)    \
+                            \
+    X(AST_TYPE_BASE)        \
+    X(AST_TYPE_ARRAY)       \
+    X(AST_TYPE_POINTER)     \
+    X(AST_TYPE_FUNCTION)    \
+                            \
+    X(AST_KINDS_COUNT)      \
 
 typedef enum {
     AST_NODES(GENERATE_ENUM)
@@ -100,7 +106,7 @@ typedef struct {
 //
 typedef struct {
     StringId name_id;
-    TypeId type;
+    AstNodeId type_expr;
 } AstParam;
 
 typedef struct {
@@ -112,7 +118,7 @@ typedef struct {
 
     AstNodeId block;
 
-    TypeId return_type;
+    AstNodeId return_type_expr;
 } AstFunctionDecl;
 
 //
@@ -120,7 +126,7 @@ typedef struct {
 //
 typedef struct {
     StringId name_id;
-    TypeId type;
+    AstNodeId type_expr;
 } AstField;
 
 typedef struct {
@@ -136,14 +142,14 @@ typedef struct {
 //
 typedef struct {
     StringId  name_id;
-    AstNodeId value;
+    AstNodeId value_expr;
 } AstVariant;
 
 typedef struct {
     StringId name_id;
 
     // only integers are allowed
-    TypeId type;
+    AstNodeId type_expr;
 
     AstNodeId* variants;
     u32 variant_count;
@@ -178,8 +184,8 @@ typedef struct {
 //
 typedef struct {
     StringId  name_id;
-    AstNodeId value;
-    TypeId    type;
+    AstNodeId value_expr;
+    AstNodeId type_expr;
 } AstVarDecl;
 
 //
@@ -243,7 +249,7 @@ typedef struct {
     TokenKind op;
 
     AstNodeId target;
-    AstNodeId value;
+    AstNodeId value_expr;
 } AstAssign;
 
 //
@@ -303,6 +309,27 @@ typedef struct {
     StringId name_id;
 } AstIdent;
 
+typedef struct {
+    StringId name;
+} AstTypeBase;
+
+typedef struct {
+    AstNodeId element;
+    AstNodeId size_expr;
+} AstTypeArray;
+
+typedef struct {
+    AstNodeId base_type;
+} AstTypePointer;
+
+typedef struct {
+    AstNodeId* params;
+    u32 count;
+    u32 capacity;
+
+    AstNodeId return_type;
+} AstTypeFunction;
+
 //
 // NODE
 //
@@ -348,6 +375,11 @@ typedef struct AstNode {
         AstMemberAccess member_access;
 
         AstBlock block;
+
+        AstTypeBase     type_base_expr;
+        AstTypeArray    type_array_expr;
+        AstTypePointer  type_pointer_expr;
+        AstTypeFunction type_function_expr;
     } as;
 } AstNode;
 

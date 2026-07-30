@@ -8,14 +8,6 @@
 
 extern LilyCtx driver_ctx;
 
-// Temporary, still working on type parsing
-// AST PRINT SYSTEM (updated for AstNodeId-based children)
-//
-// ASSUMPTION: node ids map directly to indices in ast->nodes (ast->nodes[id]).
-// If you actually resolve ids through a different lookup (e.g. an arena with
-// an AST_NODE_ID_LOOKUP-style macro like STRING_ID_LOOKUP), just swap out the
-// body of ast_get_node() below for that lookup instead.
-
 static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent);
 
 static void ast_print_indent(u32 indent) {
@@ -141,7 +133,7 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
             printf("\n");
 
             ast_print_indent(indent + 1);
-            printf("Return: Type=%d\n", fn->return_type);
+            printf("Return: Type=%d\n", fn->return_type_expr);
 
             ast_print_indent(indent + 1);
             printf("Params:\n");
@@ -163,7 +155,7 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
 
             printf("PARAM ");
             ast_print_str(p->name_id);
-            printf(" : Type=%d", p->type);
+            printf(" : Type=%d", p->type_expr);
             ast_print_flags(node->flags);
             printf("\n");
 
@@ -206,7 +198,7 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
 
             printf("FIELD ");
             ast_print_str(f->name_id);
-            printf(" : Type=%d", f->type);
+            printf(" : Type=%d", f->type_expr);
             ast_print_flags(node->flags);
             printf("\n");
 
@@ -219,7 +211,7 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
 
             printf("ENUM ");
             ast_print_str(e->name_id);
-            printf(" (Type=%d)", e->type);
+            printf(" (Type=%d)", e->type_expr);
             ast_print_flags(node->flags);
             printf("\n");
 
@@ -238,10 +230,10 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
             ast_print_flags(node->flags);
             printf("\n");
 
-            if (v->value != AST_NODE_ID_NONE) {
+            if (v->value_expr != AST_NODE_ID_NONE) {
                 ast_print_indent(indent + 1);
                 printf("Value:\n");
-                ast_print_node(ast, v->value, indent + 2);
+                ast_print_node(ast, v->value_expr, indent + 2);
             }
 
             break;
@@ -283,11 +275,11 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
 
             printf("LET ");
             ast_print_str(v->name_id);
-            printf(" : Type=%d", v->type);
+            printf(" : Type=%d", v->type_expr);
             ast_print_flags(node->flags);
             printf("\n");
 
-            ast_print_node(ast, v->value, indent + 1);
+            ast_print_node(ast, v->value_expr, indent + 1);
 
             break;
         }
@@ -298,11 +290,11 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
 
             printf("CONST ");
             ast_print_str(v->name_id);
-            printf(" : Type=%d", v->type);
+            printf(" : Type=%d", v->type_expr);
             ast_print_flags(node->flags);
             printf("\n");
 
-            ast_print_node(ast, v->value, indent + 1);
+            ast_print_node(ast, v->value_expr, indent + 1);
 
             break;
         }
@@ -427,7 +419,7 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
             printf("\n");
 
             ast_print_node(ast, node->as.assign.target, indent + 1);
-            ast_print_node(ast, node->as.assign.value, indent + 1);
+            ast_print_node(ast, node->as.assign.value_expr, indent + 1);
 
             break;
         }

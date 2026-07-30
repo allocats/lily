@@ -1,4 +1,5 @@
 #include "ast/parser/decl/decl.h"
+#include "ast/parser/types/ty.h"
 #include "ast/parser/parser.h"
 #include "ast/nodes/nodes.h"
 #include "diagnostics/diagnostics.h"
@@ -11,8 +12,6 @@ AstNodeId parse_enum_decl(Parser* p) {
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> kind = AST_ENUM;
-
-    // node -> as.enum_decl.namespace_id = p -> module -> namespace_id;
 
     node -> as.enum_decl.variants = arena_alloc(&p -> module -> ast.arena, sizeof (AstNodeId) * 4);
     node -> as.enum_decl.variant_capacity = 4;
@@ -39,7 +38,7 @@ AstNodeId parse_enum_decl(Parser* p) {
     if (parser_check(p, TOK_COLON)) {
         parser_advance(p);
 
-        node -> as.enum_decl.type = parse_type(p);
+        node -> as.enum_decl.type_expr = parse_type_expr(p);
     }
 
     if (!parser_check(p, TOK_LBRACE)) {

@@ -1,8 +1,10 @@
 #include "ast/nodes/nodes.h"
+#include "ast/nodes/types.h"
 #include "ast/parser/decl/decl.h"
+#include "ast/parser/parser.h"
+#include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
 #include "string_interner/interner.h"
-#include "token/token.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -81,7 +83,7 @@ AstNodeId parse_union_decl(Parser* p) {
 
         parser_advance(p);
 
-        TypeId field_type = parse_type(p);
+        AstNodeId field_type_expr = parse_type_expr(p);
 
         if (!parser_check(p, TOK_SEMI)) {
             diagnostic_add_token(
@@ -124,7 +126,7 @@ AstNodeId parse_union_decl(Parser* p) {
 
         field_node -> source_token = field_name;
         field_node -> as.field_decl.name_id = STRING_INTERNER_LOOKUP_TOKEN(field_name);
-        field_node -> as.field_decl.type = field_type;
+        field_node -> as.field_decl.type_expr = field_type_expr;
 
         node -> as.union_decl.fields[node -> as.union_decl.field_count++] = field_id;
     }

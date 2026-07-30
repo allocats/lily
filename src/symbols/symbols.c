@@ -553,5 +553,5 @@ static void sym_add_const(Resolver* r, AstNode* node, AstNodeId node_id) {
 
     Symbol* symbol = &r -> table -> symbols[sym_id]; 
 
-    symbol -> as.constant.value = node -> as.const_decl.value; 
+    symbol -> as.constant.value = node -> as.const_decl.value_expr;
 }

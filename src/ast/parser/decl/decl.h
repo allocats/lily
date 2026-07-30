@@ -3,7 +3,6 @@
 
 #include "ast/nodes/types.h"
 #include "ast/parser/types.h"
-#include "ast/parser/types/ty.h"
 
 // parsing
 AstNodeId parse_import_decl(Parser* p);
