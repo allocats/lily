@@ -7,6 +7,7 @@
 #include "string_interner/interner.h"
 #include "token/types.h"
 
+// TODO: Make this recursive? Need to explore that idea
 AstNodeId parse_type_expr(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_TYPE_BASE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
@@ -42,6 +43,20 @@ AstNodeId parse_type_expr(Parser* p) {
 
     if (parser_check(p, TOK_LBRACKET)) {
         parser_advance(p);
+
+        if (parser_check(p, TOK_RBRACKET)) {
+            diagnostic_add_token(
+                &driver_ctx.diagnostics,
+                p -> id,
+                DIAG_ERROR,
+                parser_peek_previous(p),
+                DIAG_LOC_END_OF_TOK,
+                "sadly no vectors just yet",
+                "TODO: Add slices/vectors?"
+            );
+
+            return AST_NODE_ID_NONE;
+        }
 
         AstNodeId size_expr = parse_expression(p, 0);
 
