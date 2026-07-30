@@ -48,7 +48,7 @@ NamespaceId namespace_intern(StringId ns[NAMESPACE_MAX_DEPTH], u32 count) {
             entry -> count == count &&
             memcmp(entry -> segments, ns, count * sizeof(StringId)) == 0
         ) {
-            debug_printf("Namespace Interner: namespace_intern() returned %d\n", index);
+            debug_printf("Namespace Interner: namespace_intern() returned %d\n", id);
             return id;
         }
 
@@ -57,6 +57,7 @@ NamespaceId namespace_intern(StringId ns[NAMESPACE_MAX_DEPTH], u32 count) {
 
     if (UNLIKELY(interner -> count >= interner -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
         namespace_interner_buckets_resize(interner);
+        index = (index + 1) & interner -> bucket_capacity;
     }
 
     if (UNLIKELY(interner -> count >= interner -> entry_capacity)) {
@@ -99,7 +100,7 @@ NamespaceId namespace_lookup(StringId ns[NAMESPACE_MAX_DEPTH], u32 count) {
             entry -> count == count &&
             memcmp(entry -> segments, ns, count * sizeof(StringId)) == 0
         ) {
-            debug_printf("Namespace Interner: namespace_lookup() returned %d\n", index);
+            debug_printf("Namespace Interner: namespace_lookup() returned %d\n", id);
             return id;
         }
 
