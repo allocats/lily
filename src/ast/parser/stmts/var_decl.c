@@ -1,4 +1,5 @@
 #include "ast/nodes/nodes.h"
+#include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ast/parser/types/ty.h"
@@ -47,7 +48,13 @@ AstNodeId parse_var_decl(Parser* p) {
 
     parser_advance(p);
 
-    node -> as.var_decl.type_expr = parse_type_expr(p);
+    AstNodeId var_type_expr = parse_type_expr(p);
+
+    if (var_type_expr == AST_NODE_ID_NONE) {
+        return parser_error_stmt(p, node);
+    }
+
+    node -> as.var_decl.type_expr = var_type_expr;
 
     Token* assign_tok = parser_peek(p);
 

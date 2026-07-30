@@ -122,7 +122,13 @@ static AstNodeId parse_external_function_decl(Parser* p) {
 
         parser_advance(p);
 
-        param_node -> as.param_decl.type_expr = parse_type_expr(p);
+        AstNodeId param_type_expr = parse_type_expr(p);
+
+        if (param_type_expr == AST_NODE_ID_NONE) {
+            return parser_error_decl(p, node);
+        }
+
+        param_node -> as.param_decl.type_expr = param_type_expr;
 
         if (parser_check(p, TOK_RPAREN)) {
             parser_advance(p);
@@ -150,7 +156,13 @@ static AstNodeId parse_external_function_decl(Parser* p) {
     if (parser_check(p, TOK_ARROW)) {
         parser_advance(p);
 
-        node -> as.func_decl.return_type_expr = parse_type_expr(p);
+        AstNodeId return_type_expr = parse_type_expr(p);
+
+        if (return_type_expr == AST_NODE_ID_NONE) {
+            return parser_error_decl(p, node);
+        }
+
+        node -> as.func_decl.return_type_expr = return_type_expr;
     } else if (parser_check(p, TOK_SEMI)) {
         node -> as.func_decl.return_type_expr = AST_NODE_ID_NONE;
     } else {

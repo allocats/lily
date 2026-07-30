@@ -84,6 +84,10 @@ AstNodeId parse_struct_decl(Parser* p) {
 
         AstNodeId field_type_expr = parse_type_expr(p);
 
+        if (field_type_expr == AST_NODE_ID_NONE) {
+            return parser_error_decl(p, node);
+        }
+
         if (!parser_check(p, TOK_SEMI)) {
             diagnostic_add_token(
                 &driver_ctx.diagnostics,

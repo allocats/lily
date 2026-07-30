@@ -38,7 +38,13 @@ AstNodeId parse_enum_decl(Parser* p) {
     if (parser_check(p, TOK_COLON)) {
         parser_advance(p);
 
-        node -> as.enum_decl.type_expr = parse_type_expr(p);
+        AstNodeId enum_type_expr = parse_type_expr(p);
+    
+        if (enum_type_expr == AST_NODE_ID_NONE) {
+            return parser_error_decl(p, node);
+        }
+
+        node -> as.enum_decl.type_expr = enum_type_expr;
     }
 
     if (!parser_check(p, TOK_LBRACE)) {
