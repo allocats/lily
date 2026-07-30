@@ -24,6 +24,7 @@
     X(TOK_MODULE)       \
                         \
     X(TOK_EXTERNAL)     \
+    X(TOK_MACRO)        \
     X(TOK_FN)           \
                         \
     X(TOK_ENUM)         \
@@ -75,6 +76,8 @@
     X(TOK_EQ_EQ)        \
     X(TOK_BANG)         \
     X(TOK_BANG_EQ)      \
+                        \
+    X(TOK_HASHTAG)      \
                         \
     X(TOK_AMP)          \
     X(TOK_AMP_AMP)      \

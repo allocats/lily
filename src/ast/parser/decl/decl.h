@@ -11,6 +11,7 @@ AstNodeId parse_enum_decl(Parser* p);
 AstNodeId parse_union_decl(Parser* p);
 AstNodeId parse_struct_decl(Parser* p);
 AstNodeId parse_function_decl(Parser* p);
+AstNodeId parse_macro_decl(Parser* p);
 
 // can be a struct or function 
 AstNodeId parse_external_decl(Parser* p);

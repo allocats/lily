@@ -15,6 +15,7 @@ static  ParseFn  TOP_LEVEL_PARSE_FUNCTIONS[TOKEN_KIND_COUNT] = {
     [TOK_EXTERNAL] = parse_external_decl,
     [TOK_STRUCT]   = parse_struct_decl,
     [TOK_UNION]    = parse_union_decl,
+    [TOK_MACRO]    = parse_macro_decl,
     [TOK_ENUM]     = parse_enum_decl,
     [TOK_FN]       = parse_function_decl,
     [TOK_CONST]    = parse_const_decl
@@ -87,7 +88,7 @@ void parser_parse_file(FileId id) {
                 token,
                 DIAG_LOC_WHOLE_TOK,
                 "unexpected token",
-                "expected (import | struct | union | enum | fn | const)"
+                "expected (import | struct | union | enum | fn | macro | const)"
             );
 
             parser_recover_decl(&p);

@@ -2,6 +2,26 @@ module foo;
 
 import std::io;
 
+import lilyc::types;
+
+macro get_type() -> Type {
+    const size: isize = #sizeof(isize);
+
+    if size == 8 {
+        return i32;
+    } else if size == 4 {
+        return i16;
+    }
+}
+
+fn some_fn() -> #get_type() {
+    let id: #get_type();
+
+    // do some nonsense
+
+    return id;
+}
+
 fn main(x: i32**[23]) {
     std::io::println("Hello world! :3");
 }

@@ -2,7 +2,7 @@
 #define LILY_AST_PARSER_STMTS_H
 
 #include "ast/nodes/types.h"
-#include "ast/parser/types.h"
+#include "ast/parser/parser.h"
 
 // recovery
 void     parser_recover_stmt(Parser* p);

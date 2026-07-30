@@ -1,7 +1,7 @@
 #ifndef LILY_AST_PARSER_EXPR_H
 #define LILY_AST_PARSER_EXPR_H
 
-#include "../parser.h"
+#include "ast/parser/types.h"
 
 typedef struct {
     u8 lbp;   // left binding power — 0 means "not an infix/postfix operator"

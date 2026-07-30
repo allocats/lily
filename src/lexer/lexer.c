@@ -196,6 +196,7 @@ char* lex_word(FileId id, char* cursor) {
                 case 'c': token->kind = (memcmp(start, "const", 5) == 0) ? TOK_CONST : TOK_IDENT; break;
                 case 'd': token->kind = (memcmp(start, "defer", 5) == 0) ? TOK_DEFER : TOK_IDENT; break;
                 case 'f': token->kind = (memcmp(start, "false", 5) == 0) ? TOK_FALSE : TOK_IDENT; break;
+                case 'm': token->kind = (memcmp(start, "macro", 5) == 0) ? TOK_MACRO : TOK_IDENT; break;
                 case 'u': token->kind = (memcmp(start, "union", 5) == 0) ? TOK_UNION : TOK_IDENT; break;
                 case 'w': token->kind = (memcmp(start, "while", 5) == 0) ? TOK_WHILE : TOK_IDENT; break;
                 default:  token->kind = TOK_IDENT;
@@ -270,6 +271,10 @@ char* lex_operator(FileId id, char* cursor) {
     char* start = cursor++;
 
     switch (*start) {
+        case '#': {
+            token -> kind = TOK_HASHTAG;
+        } break;
+
         case '=': {
             if (*cursor == '=') {
                 token -> kind = TOK_EQ_EQ;
@@ -726,7 +731,7 @@ void delimiter_match(FileId id, Token* token) {
                     &driver_ctx.diagnostics,
                     id,
                     DIAG_ERROR,
-                    token,
+                    popped,
                     DIAG_LOC_WHOLE_TOK,
                     "mismatched delimiters",
                     null
@@ -742,7 +747,7 @@ void delimiter_match(FileId id, Token* token) {
                     &driver_ctx.diagnostics,
                     id,
                     DIAG_ERROR,
-                    token,
+                    popped,
                     DIAG_LOC_WHOLE_TOK,
                     "mismatched delimiters",
                     null
@@ -758,7 +763,7 @@ void delimiter_match(FileId id, Token* token) {
                     &driver_ctx.diagnostics,
                     id,
                     DIAG_ERROR,
-                    token,
+                    popped,
                     DIAG_LOC_WHOLE_TOK,
                     "mismatched delimiters",
                     null

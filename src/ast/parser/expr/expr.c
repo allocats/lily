@@ -1,5 +1,6 @@
 #include "ast/nodes/nodes.h"
 #include "ast/parser/expr/expr.h"
+#include "ast/parser/parser.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
 #include "namespacing/namespacing.h"
@@ -13,6 +14,8 @@
 static AstNodeId nud(Parser* p, Token* tok);
 static AstNodeId led(Parser* p, Token* tok, AstNodeId left);
 static u8        lbp_of(TokenKind kind);
+
+static void parse_call_args(Parser* p, AstNodeId** args, u32* count, u32* capacity);
 
 AstNodeId parse_expression(Parser* p, i32 min_bp) {
     Token* tok = parser_advance(p);
@@ -105,6 +108,73 @@ static AstNodeId nud(Parser* p, Token* tok) {
             return id;
         }
 
+        case TOK_HASHTAG: {
+            if (!parser_check(p, TOK_IDENT)) {
+                diagnostic_add_token(
+                    &driver_ctx.diagnostics,
+                    p->id,
+                    DIAG_ERROR,
+                    parser_peek(p),
+                    DIAG_LOC_WHOLE_TOK,
+                    "expected identifier after '#'",
+                    "write #name(...) or #ns::name(...)"
+                );
+
+                AstNodeId id  = parser_create_node(p, AST_ERROR);
+                AstNode* node = ast_node_get(&p -> module -> ast, id);
+                return parser_error_stmt(p, node);
+            }
+
+            AstNodeId path = parse_expression(p, 150);
+
+            if (!parser_check(p, TOK_LPAREN)) {
+                diagnostic_add_token(
+                    &driver_ctx.diagnostics,
+                    p->id,
+                    DIAG_ERROR,
+                    parser_peek_previous(p),
+                    DIAG_LOC_END_OF_TOK,
+                    "macro call requires parentheses",
+                    "add () after the macro name"
+                );
+
+                AstNodeId id  = parser_create_node(p, AST_ERROR);
+                AstNode* node = ast_node_get(&p -> module -> ast, id);
+                return parser_error_stmt(p, node);
+            }
+
+            parser_advance(p);
+
+            AstNodeId id  = parser_create_node(p, AST_MACRO_CALL);
+            AstNode* node = ast_node_get(&p->module->ast, id);
+
+            node->as.macro_call.ident = path;
+
+            parse_call_args(
+                p,
+                &node->as.macro_call.args,
+                &node->as.macro_call.arg_count,
+                &node->as.macro_call.arg_capacity
+            );
+
+            if (!parser_check(p, TOK_RPAREN)) {
+                diagnostic_add_token(
+                    &driver_ctx.diagnostics,
+                    p->id,
+                    DIAG_ERROR,
+                    parser_peek_previous(p),
+                    DIAG_LOC_END_OF_TOK,
+                    "expected ')'",
+                    "add a ')' here"
+                );
+
+                return parser_error_stmt(p, node);
+            }
+
+            parser_advance(p);
+            return id;
+        }
+
         case TOK_IDENT: {
             StringId segments[NAMESPACE_MAX_DEPTH];
             u32 count = 0;
@@ -127,7 +197,8 @@ static AstNodeId nud(Parser* p, Token* tok) {
                         "add a valid identifier here"
                     );
 
-                    AstNode* node = arena_alloc(&p->module->ast.arena, sizeof(*node));
+                    AstNodeId id  = parser_create_node(p, AST_ERROR);
+                    AstNode* node = ast_node_get(&p -> module -> ast, id);
                     return parser_error_stmt(p, node);
                 }
 
@@ -142,7 +213,8 @@ static AstNodeId nud(Parser* p, Token* tok) {
                         "shorten the namespacing, max of 8 segments is supported"
                     );
 
-                    AstNode* node = arena_alloc(&p->module->ast.arena, sizeof(*node));
+                    AstNodeId id  = parser_create_node(p, AST_ERROR);
+                    AstNode* node = ast_node_get(&p -> module -> ast, id);
                     return parser_error_stmt(p, node);
                 }
 
@@ -214,32 +286,12 @@ static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
 
             node -> as.func_call.ident = left;
 
-            node -> as.func_call.args = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 4);
-            node -> as.func_call.arg_capacity = 4;
-            node -> as.func_call.arg_count = 0;
-
-            if (!parser_check(p, TOK_RPAREN)) {
-                do {
-                    AstNodeId arg = parse_expression(p, 0);
-                    
-                    if (UNLIKELY(node -> as.func_call.arg_count >= node -> as.func_call.arg_capacity)) {
-                        u64 size = sizeof(AstNodeId) * node -> as.func_call.arg_capacity;
-                        
-                        node -> as.func_call.args = arena_realloc(
-                            &p -> module -> ast.arena,
-                            node -> as.func_call.args,
-                            size,
-                            size * 2
-                        );
-                        node -> as.func_call.arg_capacity *= 2;
-
-                        debug_printf("Function call args realloc from %ld -> %ld bytes\n", size, size * 2);
-                    }
-
-                    node -> as.func_call.args[node -> as.func_call.arg_count++] = arg;
-
-                } while (parser_check(p, TOK_COMMA) && parser_advance(p));
-            }
+            parse_call_args(
+                p,
+                &node -> as.func_call.args,
+                &node -> as.func_call.arg_count,
+                &node -> as.func_call.arg_capacity
+            );
 
             if (!parser_check(p, TOK_RPAREN)) {
                 diagnostic_add_token(
@@ -334,4 +386,25 @@ static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
 static u8 lbp_of(TokenKind kind) {
     if ((u32)kind >= OP_TABLE_LEN) return 0;
     return op_table[kind].lbp;
+}
+
+static void parse_call_args(Parser* p, AstNodeId** args, u32* count, u32* capacity) {
+    *args = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 4);
+    *capacity = 4;
+    *count = 0;
+
+    if (parser_check(p, TOK_RPAREN)) return;
+
+    do {
+        AstNodeId arg = parse_expression(p, 0);
+
+        if (UNLIKELY(*count >= *capacity)) {
+            u64 size = sizeof(AstNodeId) * (*capacity);
+            *args = arena_realloc(&p -> module -> ast.arena, *args, size, size * 2);
+            *capacity *= 2;
+            debug_printf("Call args realloc from %ld -> %ld bytes\n", size, size * 2);
+        }
+
+        (*args)[(*count)++] = arg;
+    } while (parser_check(p, TOK_COMMA) && parser_advance(p));
 }

@@ -4,31 +4,35 @@
 #include "ast/parser/expr/expr.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
-#include "string_interner/interner.h"
 #include "token/types.h"
 
-// TODO: Make this recursive? Need to explore that idea
 AstNodeId parse_type_expr(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_TYPE_BASE);
-    AstNode* node = ast_node_get(&p -> module -> ast, id);
+    AstNodeId primary = parse_expression(p, 140);
 
-    Token* base_type_token = parser_advance(p);
+    if (primary == AST_NODE_ID_NONE) {
+        return AST_NODE_ID_NONE;
+    }
 
-    if (base_type_token -> kind != TOK_IDENT) {
+    AstNode* primary_node = ast_node_get(&p -> module -> ast, primary);
+
+    if (primary_node -> kind != AST_IDENT && primary_node -> kind != AST_MACRO_CALL) {
         diagnostic_add_token(
             &driver_ctx.diagnostics,
             p -> id,
             DIAG_ERROR,
-            base_type_token,
+            primary_node -> source_token,
             DIAG_LOC_WHOLE_TOK,
-            "expected identifier for type",
-            "add a valid identifier here"
+            "expected type name or macro call",
+            "type must be an identifier or #macro(...)"
         );
 
         return AST_NODE_ID_NONE;
     }
 
-    node -> as.type_base_expr.name = string_intern_str8(base_type_token -> lexeme);
+    AstNodeId id  = parser_create_node(p, AST_TYPE_BASE);
+    AstNode* node = ast_node_get(&p -> module -> ast, id);
+
+    node -> as.type_base_expr.ident = primary;
 
     while (parser_check(p, TOK_STAR)) {
         AstNodeId pointer_id = parser_create_node(p, AST_TYPE_POINTER);

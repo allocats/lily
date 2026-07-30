@@ -24,6 +24,9 @@ typedef u32 AstNodeId;
     X(AST_FIELD)            \
     X(AST_VARIANT)          \
                             \
+    X(AST_MACRO)            \
+    X(AST_MACRO_CALL)       \
+                            \
     X(AST_FUNCTION)         \
     X(AST_STRUCT)           \
     X(AST_UNION)            \
@@ -119,7 +122,7 @@ typedef struct {
     AstNodeId block;
 
     AstNodeId return_type_expr;
-} AstFunctionDecl;
+} AstFunctionDecl, AstMacroDecl;
 
 //
 // STRUCTS
@@ -261,7 +264,7 @@ typedef struct {
     AstNodeId* args;
     u32 arg_count;
     u32 arg_capacity;
-} AstFnCall;
+} AstFnCall, AstMacroCall;
 
 // 
 // LITERAL
@@ -310,7 +313,7 @@ typedef struct {
 } AstIdent;
 
 typedef struct {
-    StringId name;
+    AstNodeId ident;
 } AstTypeBase;
 
 typedef struct {
@@ -347,6 +350,9 @@ typedef struct AstNode {
         AstParam   param_decl;
         AstField   field_decl;
         AstVariant variant_decl;
+
+        AstMacroDecl macro_decl;
+        AstMacroCall macro_call;
 
         AstFunctionDecl func_decl;
         AstStructDecl   struct_decl;
