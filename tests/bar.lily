@@ -2,6 +2,6 @@ module bar;
 
 import std::io;
 
-fn bar() {
+fn main() {
     std::io::println("bar");
 }

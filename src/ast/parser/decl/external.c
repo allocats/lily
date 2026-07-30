@@ -148,7 +148,7 @@ static AstNodeId parse_external_function_decl(Parser* p) {
         parser_advance(p);
 
         node -> as.func_decl.return_type = parse_type(p);
-    } else if (parser_check(p, TOK_LBRACE)) {
+    } else if (parser_check(p, TOK_SEMI)) {
         node -> as.func_decl.return_type = TYPE_ID_INVALID;
     } else {
         diagnostic_add_token(

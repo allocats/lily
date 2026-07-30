@@ -4,8 +4,6 @@
 #include "driver/types.h"
 #include "hash/hash.h"
 #include "modules/modules.h"
-#include "modules/types.h"
-#include "string_interner/types.h"
 #include "symbols/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -46,7 +44,7 @@ void scope_init(Scope* scope) {
     arena_memset(scope -> ids, 0xff, 32 * sizeof(SymbolId));
 }
 
-void symbols_register(ModuleId id) {
+void symbols_register_top_level_declarations(ModuleId id) {
     Module* module = MODULE_ID_LOOKUP_REF(id);
     Ast* ast = &module -> ast;
     u32 count = ast -> count;

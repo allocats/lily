@@ -2,6 +2,7 @@
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
 
+#include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
 #include "ast/tree/tree.h"
 #include "cli/cli.h"
@@ -19,6 +20,7 @@ LilyCtx driver_ctx = {0};
 
 i32 main(i32 argc, char** argv) {
     static_assert(sizeof(Token) == 16 && "Token != 16 bytes\n");
+    static_assert(sizeof(AstNode) == 48 && "AstNode != 48 bytes\n");
 
     cli_init_ansi_codes();
 
@@ -27,11 +29,11 @@ i32 main(i32 argc, char** argv) {
         return 1;
     }
 
-    driver_init(&driver_ctx, argc - 1, argv + 1);
-
     Timer timer = {0};
 
     timer_start(&timer);
+
+    driver_init(&driver_ctx, argc - 1, argv + 1);
 
     for (u32 i = 0; i < driver_ctx.file_registry.count; i++) {
         lexer_tokenize_file(i);
@@ -40,7 +42,7 @@ i32 main(i32 argc, char** argv) {
 
     // register top level symbols
     for (u32 i = 0; i < driver_ctx.module_registry.count; i++) {
-        symbols_register(i);
+        symbols_register_top_level_declarations(i);
     }
 
     // resolve symbols
@@ -69,7 +71,7 @@ i32 main(i32 argc, char** argv) {
 
     if (diagnostics_print(&driver_ctx.diagnostics)) {
         printf(
-            "%s%s%s:%s compiled %ssuccessfully%s in %lfms\n",
+            "%s%s%s:%s compiled %ssuccessfully%s in %.3fms\n",
             ANSI_BOLD,
             ANSI_CYAN,
             argv[0],
@@ -80,7 +82,7 @@ i32 main(i32 argc, char** argv) {
         );
     } else {
         printf(
-            "%s%s%s:%s compiler %sfailed%s took %lfms\n",
+            "%s%s%s:%s compiler %sfailed%s took %.3fms\n",
             ANSI_BOLD,
             ANSI_RED,
             argv[0],

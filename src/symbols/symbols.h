@@ -6,6 +6,6 @@
 
 void scope_init(Scope* scope);
 
-void symbols_register(ModuleId id);
+void symbols_register_top_level_declarations(ModuleId id);
 
 #endif // !LILY_SYMBOLS_H
