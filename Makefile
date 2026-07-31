@@ -1,10 +1,12 @@
 CC = clang
-CF = -std=c23 -Isrc -Wall -O3 -flto -march=native -g -fno-omit-frame-pointer
+CF = -std=c23 -Isrc -Wall -O3 -flto -march=native -g -fno-omit-frame-pointer -D_DEFAULT_SOURCE
 DF = -DDEBUG_MODE
 
 SRC_DIR = src
 BUILD_DIR = build
 BIN_DIR = $(BUILD_DIR)/bin
+
+STD_PATH = $(HOME)/.local/lily
 
 BINARY = $(BIN_DIR)/lilyc
 
@@ -13,6 +15,9 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
 $(BINARY): $(OBJS) | $(BIN_DIR)
 	$(CC) $(CF) -o $@ $(OBJS)
+	rm -rf $(STD_PATH)
+	mkdir -p $(STD_PATH)
+	cp -r ./std $(STD_PATH)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	mkdir -p $(dir $@)

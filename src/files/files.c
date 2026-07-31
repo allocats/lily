@@ -10,8 +10,9 @@
 #include "types.h"
 
 #include <assert.h>
+#include <dirent.h>
 #include <fcntl.h>
-#include <string.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -49,6 +50,37 @@ void file_registry_init(u32 count) {
     file_registry -> count = 0;
 
     arena_memset(file_registry -> buckets, U8_MAX, sizeof(FileId) * count);
+}
+
+void files_load_stdlib(str8 path) {
+    struct dirent* entry;
+    DIR* dir = opendir(path.pointer);
+
+    if (dir == null) {
+        diagnostic_add_generic(
+            &driver_ctx.diagnostics,
+            DIAG_ERROR,
+            "unable to open stdlib: %s",
+            path
+        );
+
+        return;
+    }
+
+    while ((entry = readdir(dir)) != null) {
+        if (entry -> d_type != DT_REG) continue;
+
+        char* file_name = entry -> d_name;
+        u64 size = path.length + strlen(file_name) + 2;
+
+        char* complete_path = arena_alloc(driver_ctx.gpa, size);
+
+        i32 n = snprintf(complete_path, size, "%s/%s", path.pointer, file_name);
+
+        files_intern((str8) { .pointer = complete_path, .length = n });
+    }
+
+    closedir(dir);
 }
 
 FileId files_intern(str8 path) {
@@ -187,8 +219,9 @@ static str8 allocate_buffer(str8 path) {
         diagnostic_add_generic(
             &driver_ctx.diagnostics,
             DIAG_ERROR,
-            "unable to open file: %s",
-            path.pointer 
+            "unable to open file: %.*s",
+            path.length,
+            path.pointer
         );
 
         goto exit;

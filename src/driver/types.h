@@ -15,6 +15,8 @@
 typedef struct {
     u64 flags;
 
+    Arena* gpa;
+
     FileRegistry file_registry;
 
     DiagnosticEngine diagnostics;

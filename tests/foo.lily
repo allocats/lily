@@ -2,8 +2,6 @@ module foo;
 
 import std::io;
 
-import lilyc::types;
-
 fn main(x: ...) {
     std::io::println("Hello world! :3");
 }

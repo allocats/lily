@@ -4,6 +4,7 @@
 #include "files/types.h"
 
 void file_registry_init(u32 count);
+void files_load_stdlib(str8 path);
 
 // Interns the file, allocates the file's contents into buffer_arena. 
 // path MUST be a null terminated cstring 

@@ -8,7 +8,6 @@
 #include "cli/cli.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
-#include "files/types.h"
 #include "lexer/lexer.h"
 #include "symbols/symbols.h"
 #include "token/token.h"
@@ -24,6 +23,8 @@
 
 LilyCtx driver_ctx = {0};
 char lily_stdlib_path[STDLIB_PATH_SIZE] = {0};
+
+static Arena gpa = {0};
 
 i32 main(i32 argc, char** argv) {
     // compile time asserts used to ensure behaviour is as expected
@@ -45,10 +46,15 @@ i32 main(i32 argc, char** argv) {
     }
 
     // get real path to the stdlib
-    snprintf(lily_stdlib_path, sizeof(lily_stdlib_path), "%s/%s", home_dir, STDLIB_PATH);
+    i32 n = snprintf(lily_stdlib_path, sizeof(lily_stdlib_path), "%s/%s", home_dir, STDLIB_PATH);
 
-    // sets up the entire compiler
-    driver_init(&driver_ctx, argc - 1, argv + 1);
+    str8 lily_stdlib_path_str8 = {
+        .pointer = lily_stdlib_path,
+        .length = n
+    };
+
+    // sets up the entire compiler, loads stdlib
+    driver_init(&driver_ctx, &gpa, lily_stdlib_path_str8, argc - 1, argv + 1);
 
     // timer for the frontend (lexing -> IR generation)
     Timer frontend_timer = {0};

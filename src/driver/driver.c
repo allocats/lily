@@ -7,12 +7,18 @@
 #include "modules/modules.h"
 #include "namespacing/namespacing.h"
 #include "string_interner/interner.h"
+#include "utils/debug.h"
 
 #include <string.h>
 
 #define FLAG_MATCHES(len, flag, str) ((len == sizeof(str) - 1) && strncmp(flag, str, len) == 0)
 
-void driver_init(LilyCtx* driver, i32 argc, char** argv) {
+void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char** argv) {
+    arena_init(gpa, ARENA_KB(8), ALIGN_8);
+    debug_printf("Driver: Init gpa with 8KB\n");
+
+    driver -> gpa = gpa;
+
     i32 estimated_count = ARENA_ALIGN_UP(ALIGN_2, argc);
 
     file_registry_init(estimated_count);
@@ -20,6 +26,8 @@ void driver_init(LilyCtx* driver, i32 argc, char** argv) {
     string_intnerner_init();
     namespace_interner_init();
     module_registry_init();
+
+    files_load_stdlib(stdlib_path);
 
     for (i32 i = 0; i < argc; i++) {
         char* arg = argv[i];
@@ -78,4 +86,6 @@ void driver_destroy(LilyCtx* driver) {
 
     arena_destroy(&driver -> module_registry.arena);
     arena_destroy(&driver -> namespace_interner.arena);
+
+    arena_destroy(driver -> gpa);
 }
