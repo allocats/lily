@@ -20,6 +20,7 @@ typedef u32 ScopeId;
     X(SYM_FIELD)        \
     X(SYM_ENUM)         \
     X(SYM_VARIANT)      \
+    X(SYM_MACRO)        \
     X(SYM_FUNCTION)     \
     X(SYM_PARAMETER)    \
     X(SYM_CONSTANT)     \
@@ -57,7 +58,7 @@ typedef struct {
     u32 count;
 
     SymbolId return_type;
-} SymbolFunction;
+} SymbolFunction, SymbolMacro;
 
 //
 // parameter 
@@ -94,6 +95,7 @@ typedef struct {
         SymbolConstant  constant;
         SymbolVariable  variable;
         SymbolStruct    structs;
+        SymbolMacro     macro;
         SymbolUnion     unions;
         SymbolEnum      enums;
     } as;

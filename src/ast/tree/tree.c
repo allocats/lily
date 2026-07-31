@@ -1,5 +1,6 @@
 #include "tree.h"
 
+#include "ast/nodes/types.h"
 #include "driver/types.h"
 #include "namespacing/namespacing.h"
 #include "string_interner/interner.h"
@@ -40,7 +41,7 @@ static void ast_print_namespace(NamespaceId id) {
     }
 }
 
-// Prints " [EXTERNAL]", " [INLINE]", both, or nothing if flags == AST_FLAGS_NONE.
+// Prints " [EXTERNAL]", " [VARIADIC]", both, or nothing if flags == AST_FLAGS_NONE.
 static void ast_print_flags(u32 flags) {
     if (flags == AST_FLAGS_NONE) return;
 
@@ -51,8 +52,8 @@ static void ast_print_flags(u32 flags) {
         printf("EXTERNAL");
         first = false;
     }
-    if (flags & AST_FLAGS_IS_INLINE) {
-        printf("%sINLINE", first ? "" : ", ");
+    if (flags & AST_FLAGS_IS_VARIADIC) {
+        printf("%sVARIADIC", first ? "" : ", ");
     }
     printf("]");
 }

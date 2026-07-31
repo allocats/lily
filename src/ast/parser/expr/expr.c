@@ -271,10 +271,26 @@ static AstNodeId nud(Parser* p, Token* tok) {
             return id;
         }
 
+        case TOK_ELLIPSIS: {
+            diagnostic_add_token(
+                &driver_ctx.diagnostics,
+                p -> id,
+                DIAG_ERROR,
+                tok,
+                DIAG_LOC_WHOLE_TOK,
+                "'...' is only valid as a variadic parameter type",
+                "use 'name: ...' as the last parameter of a function or macro"
+            );
+
+            AstNodeId id = parser_create_node(p, AST_ERROR);
+            return parser_error_stmt(p, ast_node_get(&p -> module -> ast, id));
+        }
+
         default: {
             AstNodeId id  = parser_create_node(p, AST_ERROR);
             return parser_error_stmt(p, ast_node_get(&p -> module -> ast, id));
         }
+
     }
 }
 

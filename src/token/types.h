@@ -53,7 +53,7 @@
                         \
     X(TOK_DOT)          \
     X(TOK_DOT_DOT)      \
-    X(TOK_DOT_DOT_DOT)  \
+    X(TOK_ELLIPSIS)     \
     X(TOK_COMMA)        \
     X(TOK_COLON)        \
     X(TOK_COLON_COLON)  \

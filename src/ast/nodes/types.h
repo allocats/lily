@@ -12,7 +12,7 @@ typedef u32 AstNodeId;
 
 #define AST_FLAGS_NONE          (0 << 0)
 #define AST_FLAGS_IS_EXTERNAL   (1 << 0)
-#define AST_FLAGS_IS_INLINE     (1 << 1)
+#define AST_FLAGS_IS_VARIADIC   (1 << 1)
 
 #define AST_NODES(X)        \
     X(AST_ERROR)            \
@@ -57,6 +57,7 @@ typedef u32 AstNodeId;
     X(AST_TYPE_ARRAY)       \
     X(AST_TYPE_POINTER)     \
     X(AST_TYPE_FUNCTION)    \
+    X(AST_TYPE_VARIADIC)    \
                             \
     X(AST_KINDS_COUNT)      \
 
@@ -333,6 +334,10 @@ typedef struct {
     AstNodeId return_type;
 } AstTypeFunction;
 
+typedef struct {
+    AstNodeId element_type;
+} AstTypeVariadic;
+
 //
 // NODE
 //
@@ -386,6 +391,7 @@ typedef struct AstNode {
         AstTypeArray    type_array_expr;
         AstTypePointer  type_pointer_expr;
         AstTypeFunction type_function_expr;
+        AstTypeVariadic type_variadic_expr;
     } as;
 } AstNode;
 

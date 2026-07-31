@@ -1,10 +1,26 @@
 #include "ast/nodes/nodes.h"
 #include "ast/nodes/types.h"
-#include "ast/parser/parser.h"
 #include "ast/parser/expr/expr.h"
+#include "ast/parser/parser.h"
+#include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "token/types.h"
+
+AstNodeId parse_param_type(Parser* p) {
+    if (parser_check(p, TOK_ELLIPSIS)) {
+        parser_advance(p);
+
+        AstNodeId id  = parser_create_node(p, AST_TYPE_VARIADIC);
+        AstNode* node = ast_node_get(&p -> module -> ast, id);
+
+        node -> as.type_variadic_expr.element_type = AST_NODE_ID_NONE;
+
+        return id;
+    }
+
+    return parse_type_expr(p);
+}
 
 AstNodeId parse_type_expr(Parser* p) {
     AstNodeId primary = parse_expression(p, 140);
@@ -34,59 +50,66 @@ AstNodeId parse_type_expr(Parser* p) {
 
     node -> as.type_base_expr.ident = primary;
 
-    while (parser_check(p, TOK_STAR)) {
-        AstNodeId pointer_id = parser_create_node(p, AST_TYPE_POINTER);
-        AstNode* pointer_node = ast_node_get(&p -> module -> ast, pointer_id);
+    while (p -> cursor < p -> token_count) {
+        if (parser_check(p, TOK_STAR)) {
+            AstNodeId ptr_id = parser_create_node(p, AST_TYPE_POINTER);
+            AstNode* ptr_node = ast_node_get(&p -> module -> ast, ptr_id);
 
-        pointer_node -> as.type_pointer_expr.base_type = id;
+            ptr_node -> as.type_pointer_expr.base_type = id;
 
-        id = pointer_id;
+            id = ptr_id;
 
-        parser_advance(p);
-    }
+            parser_advance(p);
 
-    if (parser_check(p, TOK_LBRACKET)) {
-        parser_advance(p);
-
-        if (parser_check(p, TOK_RBRACKET)) {
-            diagnostic_add_token(
-                &driver_ctx.diagnostics,
-                p -> id,
-                DIAG_ERROR,
-                parser_peek_previous(p),
-                DIAG_LOC_END_OF_TOK,
-                "sadly no vectors just yet",
-                "TODO: Add slices/vectors?"
-            );
-
-            return AST_NODE_ID_NONE;
+            continue;
         }
 
-        AstNodeId size_expr = parse_expression(p, 0);
+        if (parser_check(p, TOK_LBRACKET)) {
+            parser_advance(p);
 
-        if (!parser_check(p, TOK_RBRACKET)) {
-            diagnostic_add_token(
-                &driver_ctx.diagnostics,
-                p -> id,
-                DIAG_ERROR,
-                parser_peek_previous(p),
-                DIAG_LOC_END_OF_TOK,
-                "expected ']'",
-                "add a ']' here"
-            );
+            if (parser_check(p, TOK_RBRACKET)) {
+                diagnostic_add_token(
+                    &driver_ctx.diagnostics,
+                    p -> id,
+                    DIAG_ERROR,
+                    parser_peek_previous(p),
+                    DIAG_LOC_END_OF_TOK,
+                    "sadly no vectors just yet",
+                    "TODO: Add slices/vectors?"
+                );
 
-            return AST_NODE_ID_NONE;
+                return AST_NODE_ID_NONE;
+            }
+
+            AstNodeId size_expr = parse_expression(p, 0);
+
+            if (!parser_check(p, TOK_RBRACKET)) {
+                diagnostic_add_token(
+                    &driver_ctx.diagnostics,
+                    p -> id,
+                    DIAG_ERROR,
+                    parser_peek_previous(p),
+                    DIAG_LOC_END_OF_TOK,
+                    "expected ']'",
+                    "add a ']' here"
+                );
+
+                return AST_NODE_ID_NONE;
+            }
+
+            parser_advance(p);
+
+            AstNodeId arr_id = parser_create_node(p, AST_TYPE_ARRAY);
+            AstNode* arr_node = ast_node_get(&p -> module -> ast, arr_id);
+
+            arr_node -> as.type_array_expr.element = id;
+            arr_node -> as.type_array_expr.size_expr = size_expr;
+
+            id = arr_id;
+            continue;
         }
 
-        parser_advance(p);
-
-        AstNodeId array_id = parser_create_node(p, AST_TYPE_ARRAY);
-        AstNode* array_node = ast_node_get(&p -> module -> ast, array_id);
-
-        array_node -> as.type_array_expr.element = id;
-        array_node -> as.type_array_expr.size_expr = size_expr;
-
-        id = array_id;
+        break;
     }
 
     return id;

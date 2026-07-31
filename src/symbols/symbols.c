@@ -27,6 +27,7 @@ static void scope_resize(Scope* scope);
 static void table_symbols_resize(SymbolTable* table);
 
 static void sym_add_func(Resolver* r, AstNode* node, AstNodeId node_id);
+static void sym_add_macro(Resolver* r, AstNode* node, AstNodeId node_id);
 static void sym_add_struct(Resolver* r, AstNode* node, AstNodeId node_id);
 static void sym_add_union(Resolver* r, AstNode* node, AstNodeId node_id);
 static void sym_add_enum(Resolver* r, AstNode* node, AstNodeId node_id);
@@ -63,6 +64,10 @@ void symbols_register_top_level_declarations(ModuleId id) {
                 sym_add_func(&r, node, i);
                 break;
 
+            case AST_MACRO:
+                sym_add_macro(&r, node, i);
+                break;
+
             case AST_STRUCT:
                 sym_add_struct(&r, node, i);
                 break;
@@ -83,6 +88,10 @@ void symbols_register_top_level_declarations(ModuleId id) {
                 break;
         }
     }
+}
+
+void symbols_resolve(ModuleId id) {
+
 }
 
 static SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind kind) {
@@ -321,6 +330,72 @@ static void sym_add_func(Resolver* r, AstNode* node, AstNodeId node_id) {
         }
         
         symbol -> as.function.params[i] = scope_add_sym(
+            r,
+            param_node_id,
+            param_node -> as.param_decl.name_id,
+            SYM_PARAMETER
+        );
+    }
+
+    scope_exit(r);
+}
+
+static void sym_add_macro(Resolver* r, AstNode* node, AstNodeId node_id) {
+    Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
+
+    StringId name = node -> as.macro_decl.name_id;
+    SymbolId sym_id = scope_get_sym(r, name, hash_fnv1a_u32(name));
+
+    if (sym_id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_already_defined(
+            &driver_ctx.diagnostics,
+            module,
+            sym_id,
+            node_id
+        );
+
+        return;
+    }
+
+    sym_id = scope_add_sym(r, node_id, node -> as.macro_decl.name_id, SYM_MACRO);
+
+    Symbol* symbol = &r -> table -> symbols[sym_id]; 
+
+    u32 param_count = node -> as.macro_decl.param_count;
+
+    if (param_count == 0) {
+        symbol -> as.macro.count = 0;
+        return;
+    }
+
+    scope_enter(r);
+
+    symbol -> as.macro.params = arena_alloc(&r -> table -> arena, param_count * sizeof(SymbolId));
+    symbol -> as.macro.count = param_count;
+
+    Ast* ast = &module -> ast;
+
+    for (u32 i = 0; i < param_count; i++) {
+        AstNodeId param_node_id = node -> as.macro_decl.params[i];
+        AstNode* param_node = &ast -> nodes[param_node_id];
+
+        SymbolId param_id = table_get_sym(
+            r,
+            param_node -> as.param_decl.name_id
+        );
+
+        if (param_id != SYMBOL_ID_NONE) {
+            diagnostic_add_symbol_already_defined(
+                &driver_ctx.diagnostics,
+                module,
+                param_id,
+                param_node_id
+            );
+
+            continue;
+        }
+        
+        symbol -> as.macro.params[i] = scope_add_sym(
             r,
             param_node_id,
             param_node -> as.param_decl.name_id,

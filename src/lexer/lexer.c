@@ -467,7 +467,7 @@ char* lex_operator(FileId id, char* cursor) {
                 cursor++;
 
                 if (*cursor == '.') {
-                    token -> kind = TOK_DOT_DOT;
+                    token -> kind = TOK_ELLIPSIS;
                     cursor++;
                 }
 
