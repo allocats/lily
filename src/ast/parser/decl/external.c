@@ -122,13 +122,55 @@ static AstNodeId parse_external_function_decl(Parser* p) {
 
         parser_advance(p);
 
-        AstNodeId param_type_expr = parse_type_expr(p);
+        AstNodeId param_type_expr = parse_param_type(p);
 
         if (param_type_expr == AST_NODE_ID_NONE) {
             return parser_error_decl(p, node);
         }
 
+        AstNode* param_type_node = ast_node_get(&p -> module -> ast, param_type_expr);
+
+        if (param_type_node -> kind == AST_TYPE_VARIADIC) {
+            node -> flags |= AST_FLAGS_IS_VARIADIC;
+
+            if (parser_check(p, TOK_COMMA)) {
+                diagnostic_add_token(
+                    &driver_ctx.diagnostics,
+                    p -> id,
+                    DIAG_ERROR,
+                    parser_peek(p),
+                    DIAG_LOC_WHOLE_TOK,
+                    "variadic parameter must be the last parameter",
+                    "remove the parameters after '...'"
+                );
+
+                return parser_error_decl(p, node);
+            }
+
+            param_node -> as.param_decl.type_expr = param_type_expr;
+            node -> as.func_decl.params[node -> as.func_decl.param_count++] = param_id;
+
+            if (!parser_check(p, TOK_RPAREN)) {
+                diagnostic_add_token(
+                    &driver_ctx.diagnostics,
+                    p -> id,
+                    DIAG_ERROR,
+                    parser_peek_previous(p),
+                    DIAG_LOC_END_OF_TOK,
+                    "expected ')'",
+                    "add a ')' here"
+                );
+
+                return parser_error_decl(p, node);
+            }
+
+            parser_advance(p);
+            break;
+        }
+
         param_node -> as.param_decl.type_expr = param_type_expr;
+
+        node -> as.func_decl.params[node -> as.func_decl.param_count++] = param_id;
 
         if (parser_check(p, TOK_RPAREN)) {
             parser_advance(p);
