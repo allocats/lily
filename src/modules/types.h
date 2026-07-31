@@ -3,6 +3,7 @@
 
 #include "ids.h"
 #include "ast/tree/types.h"
+#include "meowrena/meowrena.h"
 #include "symbols/types.h"
 
 typedef struct {

@@ -2,8 +2,6 @@
 #define LILY_AST_NODES_TYPES_H
 
 #include "ids.h"
-#include "namespacing/types.h"
-#include "string_interner/types.h"
 #include "token/types.h"
 #include "utils/types.h"
 

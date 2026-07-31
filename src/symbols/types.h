@@ -3,10 +3,8 @@
 #ifndef LILY_SYMBOLS_TYPES_H
 #define LILY_SYMBOLS_TYPES_H
 
-#include "ast/nodes/types.h"
 #include "ids.h"
 #include "meowrena/meowrena.h"
-#include "string_interner/types.h"
 #include "utils/types.h"
 
 #define SYMBOLS(X)      \

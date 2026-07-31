@@ -5,10 +5,6 @@
 #include "ast/parser/types.h"
 #include "driver/types.h"
 
-typedef u32 TypeId;
-
-#define TYPE_ID_INVALID 0
-
 extern LilyCtx driver_ctx;
 
 void parser_parse_file(FileId id);

@@ -2,7 +2,7 @@
 #define LILY_NAMESPACING_TYPES_H
 
 #include "ids.h"
-#include "string_interner/types.h"
+#include "meowrena/meowrena.h"
 
 #define NAMESPACE_INTERNER_INIT_CAPACITY 32
 #define NAMESPACE_MAX_DEPTH 8
