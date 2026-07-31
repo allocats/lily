@@ -4,15 +4,10 @@
 #define LILY_SYMBOLS_TYPES_H
 
 #include "ast/nodes/types.h"
+#include "ids.h"
 #include "meowrena/meowrena.h"
 #include "string_interner/types.h"
 #include "utils/types.h"
-
-#define SYMBOL_ID_NONE U32_MAX
-#define SCOPE_ID_NONE  U32_MAX
-
-typedef u32 SymbolId;
-typedef u32 ScopeId;
 
 #define SYMBOLS(X)      \
     X(SYM_UNION)        \
@@ -33,6 +28,13 @@ typedef enum {
 static const char* SYMBOL_KIND_STRINGS[] = {
     SYMBOLS(GENERATE_STRING)
 };
+
+#undef SYMBOLS
+
+typedef struct {
+    ModuleId module_id;
+    SymbolId symbol_id;
+} SymbolRef;
 
 //
 // structs and unions
@@ -104,6 +106,9 @@ typedef struct {
 typedef struct {
     // small arena for hash table, start off with like 1kb 
     Arena arena; 
+
+    // AstNodeId owner; // could be useful for attaching the scope to the block it is declared by 
+    ScopeId parent;
 
     StringId* str_ids;
     SymbolId* ids;

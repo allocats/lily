@@ -1,14 +1,11 @@
 #ifndef LILY_AST_NODES_TYPES_H
 #define LILY_AST_NODES_TYPES_H
 
+#include "ids.h"
 #include "namespacing/types.h"
 #include "string_interner/types.h"
 #include "token/types.h"
 #include "utils/types.h"
-
-typedef u32 AstNodeId;
-
-#define AST_NODE_ID_NONE U32_MAX
 
 #define AST_FLAGS_NONE          (0 << 0)
 #define AST_FLAGS_IS_EXTERNAL   (1 << 0)
@@ -311,6 +308,8 @@ typedef struct {
 typedef struct {
     NamespaceId namespace_id;
     StringId name_id;
+
+    SymbolId symbol_id;
 } AstIdent;
 
 typedef struct {

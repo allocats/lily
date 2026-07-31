@@ -1,13 +1,10 @@
 #ifndef LILY_FILES_TYPES_H
 #define LILY_FILES_TYPES_H
 
+#include "ids.h"
 #include "meowrena/meowrena.h"
 #include "token/types.h"
 #include "utils/types.h"
-
-#define FILE_ID_NONE U32_MAX
-
-typedef u32 FileId;
 
 typedef enum {
     FILE_LOADED  = 0,

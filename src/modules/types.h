@@ -1,15 +1,9 @@
 #ifndef LILY_MODULES_TYPES_H
 #define LILY_MODULES_TYPES_H
 
+#include "ids.h"
 #include "ast/tree/types.h"
-#include "files/types.h"
-#include "namespacing/types.h"
-#include "string_interner/types.h"
 #include "symbols/types.h"
-
-#define MODULE_ID_NONE U32_MAX
-
-typedef NamespaceId ModuleId;
 
 typedef struct {
     // general purpose arena allocator
