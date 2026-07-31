@@ -385,14 +385,14 @@ bool diagnostics_print(DiagnosticEngine* engine) {
 
     if (count == 0) return true;
     
-    FILE* fd = stdout;
+    FILE* fd = stderr;;
 
     if (engine -> dump_path != null) {
         fd = fopen((char*) engine -> dump_path, "w+");
 
         if (fd == null) {
             // add diag for this
-            fd = stdout;
+            fd = stderr;
         }
     }
 
@@ -489,7 +489,9 @@ bool diagnostics_print(DiagnosticEngine* engine) {
         fprintf(fd, "%s %s|%s\n\n", line_indent, ANSI_BOLD, ANSI_RESET);
     }
 
-    if (fd != stdout) {
+    fflush(fd);
+
+    if (fd != stderr) {
         fclose(fd);
     }
 

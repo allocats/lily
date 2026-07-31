@@ -1,4 +1,5 @@
 #include "cli/cli.h"
+#include "utils/timer.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -36,4 +37,16 @@ void cli_init_ansi_codes(void) {
 
 void cli_print_usage(const char* arg) {
     fprintf(stderr, "%s: %serror:%s %sno input files%s\n", arg, ANSI_RED, ANSI_RESET, ANSI_BOLD, ANSI_RESET);
+    fflush(stderr);
+}
+
+void cli_print_home_error(const char* arg) {
+    fprintf(stderr, "%s: %serror:%s %scannot get home path%s\n", arg, ANSI_RED, ANSI_RESET, ANSI_BOLD, ANSI_RESET);
+    fflush(stderr);
+}
+
+// TODO: Backend and linker timer (When we get there :3)
+void cli_print_compiler_stats(Timer* frontend_timer) {
+    fprintf(stderr, "Frontend time: %.6fs\n\n", timer_elapsed_seconds(frontend_timer) * 1000);
+    fflush(stderr);
 }

@@ -19,10 +19,15 @@ static inline void timer_end(Timer* timer) {
     clock_gettime(CLOCK_MONOTONIC, &timer -> end);
 }
 
-static inline f64 time_elapsed_in_ms(Timer* timer) {
-    f64 start = timer -> start.tv_sec * 1000.0 + timer -> start.tv_nsec / 1000000.0;
-    f64 end = timer -> end.tv_sec * 1000.0 + timer -> end.tv_nsec / 1000000.0;
-    return end - start;
+static inline f64 timer_elapsed_seconds(const Timer* timer) {
+    time_t sec = timer -> end.tv_sec - timer -> start.tv_sec;
+    long nsec = timer -> end.tv_nsec - timer -> start.tv_nsec;
+
+    return (f64)sec + (f64)nsec / 1e9;
+}
+
+static inline f64 timer_elapsed_milliseconds(const Timer* timer) {
+    return timer_elapsed_seconds(timer) * 1000.0;
 }
 
 #endif // !LILY_UTILS_TIMER_H
