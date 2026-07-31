@@ -39,34 +39,34 @@ void symbols_register_top_level_declarations(ModuleId id) {
     for (u32 i = 0; i < count; i++) {
         AstNode* node = &ast -> nodes[i];
 
-        // switch (node -> kind) {
-        //     case AST_FUNCTION:
-        //         sym_add_function(&r, node, i);
-        //         break;
-        //
-        //     case AST_MACRO:
-        //         sym_add_macro(&r, node, i);
-        //         break;
-        //
-        //     case AST_STRUCT:
-        //         sym_add_struct(&r, node, i);
-        //         break;
-        //
-        //     case AST_UNION:
-        //         sym_add_union(&r, node, i);
-        //         break;
-        //
-        //     case AST_ENUM:
-        //         sym_add_enum(&r, node, i);
-        //         break;
-        //
-        //     case AST_CONST:
-        //         sym_add_const(&r, node, i);
-        //         break;
-        //
-        //     default:
-        //         break;
-        // }
+        switch (node -> kind) {
+            case AST_FUNCTION:
+                sym_add_function(&r, node, i);
+                break;
+
+            case AST_MACRO:
+                sym_add_macro(&r, node, i);
+                break;
+
+            case AST_STRUCT:
+                sym_add_struct(&r, node, i);
+                break;
+
+            case AST_UNION:
+                sym_add_union(&r, node, i);
+                break;
+
+            case AST_ENUM:
+                sym_add_enum(&r, node, i);
+                break;
+
+            case AST_CONST:
+                sym_add_const(&r, node, i);
+                break;
+
+            default:
+                break;
+        }
     }
 }
 
@@ -83,14 +83,14 @@ void symbols_resolve(ModuleId id) {
     for (u32 i = 0; i < count; i++) {
         Symbol* sym = &r.table -> symbols[i];
 
-        // resolve_symbol(&r,sym);
+        resolve_symbol(&r,sym);
     }
 }
 
 void resolve_symbol(Resolver* r, Symbol* sym) {
     switch (sym->kind) {
         case SYM_FUNCTION:
-            // resolve_function(r, sym);
+            resolve_function(r, sym);
             break;
 
         case SYM_MACRO:

@@ -142,6 +142,8 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
             for (u32 i = 0; i < fn->param_count; i++)
                 ast_print_node(ast, fn->params[i], indent + 2);
 
+            if (node->flags & AST_FLAGS_IS_EXTERNAL) break;
+
             ast_print_indent(indent + 1);
             printf("Body:\n");
 

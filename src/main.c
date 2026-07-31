@@ -74,7 +74,7 @@ i32 main(i32 argc, char** argv) {
 
     // resolve symbols
     for (u32 i = 0; i < driver_ctx.module_registry.count; i++) {
-        // symbols_resolve(i);
+        symbols_resolve(i);
     }
 
     timer_end(&frontend_timer);
