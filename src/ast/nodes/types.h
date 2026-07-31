@@ -2,6 +2,7 @@
 #define LILY_AST_NODES_TYPES_H
 
 #include "ids.h"
+#include "symbols/types.h"
 #include "token/types.h"
 #include "utils/types.h"
 
@@ -307,7 +308,7 @@ typedef struct {
     NamespaceId namespace_id;
     StringId name_id;
 
-    SymbolId symbol_id;
+    SymbolRef symbol_ref;
 } AstIdent;
 
 typedef struct {

@@ -39,6 +39,7 @@ typedef struct {
 //
 typedef struct {
     SymbolId* fields;
+    SymbolRef* types;
     u32 count;
 } SymbolStruct, SymbolUnion;
 
@@ -46,6 +47,7 @@ typedef struct {
 // enums
 //
 typedef struct {
+    SymbolRef type;
     SymbolId* variants;
     u32 count;
 } SymbolEnum;
@@ -57,13 +59,14 @@ typedef struct {
     SymbolId* params;
     u32 count;
 
-    SymbolId return_type;
+    SymbolRef return_type;
 } SymbolFunction, SymbolMacro;
 
 //
 // parameter 
 //
 typedef struct {
+    SymbolRef type;
 } SymbolParameter;
 
 //
@@ -71,6 +74,7 @@ typedef struct {
 //
 typedef struct {
     AstNodeId value;
+    SymbolRef type;
 } SymbolConstant;
 
 //
@@ -78,6 +82,7 @@ typedef struct {
 //
 typedef struct {
     AstNodeId value;
+    SymbolRef type;
 } SymbolVariable;
 
 typedef struct {
