@@ -18,6 +18,10 @@
 #define STDLIB_PATH ".local/lily/std"
 #define STDLIB_PATH_SIZE 1024
 
+// todo: one day write it all myself :p or llvm LOL
+#define LINKER_PATH "cc"
+#define QBE_PATH    "qbe"
+
 LilyCtx driver_ctx = {0};
 char lily_stdlib_path[STDLIB_PATH_SIZE] = {0};
 
@@ -110,6 +114,10 @@ i32 main(i32 argc, char** argv) {
             ANSI_RESET
         );
     }
+
+    // going to use execvp() to call qbe and cc for linking
+    //execvp(qbe);
+    //execvp(linker);
 
     driver_destroy(&driver_ctx);
     return 0;
