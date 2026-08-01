@@ -3,6 +3,7 @@
 #include "hash/hash.h"
 #include "modules/modules.h"
 #include "symbols/symbols.h"
+#include "symbols/register/register.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -34,6 +35,7 @@ void symbols_register_top_level_declarations(ModuleId id) {
     u32 count = ast -> count;
 
     Resolver r = {
+        .current_namespace_id = module -> namespace_id,
         .current_module_id = id,
         .current_scope_id = 0,
         .table = &module -> symbol_table
@@ -51,6 +53,7 @@ void symbols_resolve(ModuleId id) {
     u32 count = module -> symbol_table.symbol_count;
 
     Resolver r = {
+        .current_namespace_id = module -> namespace_id,
         .current_module_id = id,
         .current_scope_id = 0,
         .table = &module -> symbol_table
@@ -65,6 +68,30 @@ void symbols_resolve(ModuleId id) {
 
 static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id) {
     switch (node -> kind) {
+        case AST_FUNCTION:
+            sym_register_function(r, node, node_id);
+            break;
+
+        case AST_MACRO:
+            sym_register_macro(r, node, node_id);
+            break;
+
+        case AST_STRUCT:
+            sym_register_struct(r, node, node_id);
+            break;
+
+        case AST_UNION:
+            sym_register_union(r, node, node_id);
+            break;
+
+        case AST_CONST:
+            sym_register_constant(r, node, node_id);
+            break;
+
+        case AST_ENUM:
+            sym_register_enum(r, node, node_id);
+            break;
+
         default:
             break;
     }

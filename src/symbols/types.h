@@ -35,6 +35,12 @@ typedef struct {
 } SymbolRef;
 
 //
+// fields, parameters
+//
+typedef struct {
+    SymbolRef type;
+} SymbolField, SymbolParameter;
+
 // structs and unions
 //
 typedef struct {
@@ -61,13 +67,6 @@ typedef struct {
 
     SymbolRef return_type;
 } SymbolFunction, SymbolMacro;
-
-//
-// parameter 
-//
-typedef struct {
-    SymbolRef type;
-} SymbolParameter;
 
 //
 // constants
@@ -100,6 +99,7 @@ typedef struct {
         SymbolConstant  constant;
         SymbolVariable  variable;
         SymbolStruct    structs;
+        SymbolField     field;
         SymbolMacro     macro;
         SymbolUnion     unions;
         SymbolEnum      enums;
@@ -132,9 +132,9 @@ typedef struct {
 } SymbolTable;
 
 typedef struct {
-    u32 current_module_id;
-    u32 current_scope_id;
-    u32 current_file_id;
+    NamespaceId current_namespace_id;
+    ModuleId current_module_id;
+    ScopeId current_scope_id;
 
     SymbolTable* table;
 } Resolver;

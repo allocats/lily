@@ -3,6 +3,5 @@ module foo;
 import std::io;
 
 fn main() {
-    let x: i32 = 0;
     std::io::printf("Hello world! :3");
 }

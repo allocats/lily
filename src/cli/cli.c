@@ -46,7 +46,9 @@ void cli_print_home_error(const char* arg) {
 }
 
 // TODO: Backend and linker timer (When we get there :3)
-void cli_print_compiler_stats(Timer* frontend_timer) {
-    fprintf(stderr, "Frontend time: %.6fs\n\n", timer_elapsed_seconds(frontend_timer));
+void cli_print_compiler_stats(Timer* frontend_timer, Timer* backend_timer, Timer* linker_timer) {
+    fprintf(stderr, "\nFrontend time: %.6fs\n", timer_elapsed_seconds(frontend_timer));
+    fprintf(stderr, "Backend time: %.6fs\n", timer_elapsed_seconds(backend_timer));
+    fprintf(stderr, "Linker time: %.6fs\n\n", timer_elapsed_seconds(linker_timer));
     fflush(stderr);
 }

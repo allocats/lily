@@ -79,6 +79,14 @@ i32 main(i32 argc, char** argv) {
 
     timer_end(&frontend_timer);
 
+    Timer backend_timer = {0}; 
+    timer_start(&backend_timer);
+    timer_end(&backend_timer);
+
+    Timer linker_timer = {0}; 
+    timer_start(&linker_timer);
+    timer_end(&linker_timer);
+
     if (driver_ctx.flags & LILY_FLAGS_DUMP_TOKENS) {
         for (u32 i = 0; i < driver_ctx.file_registry.count; i++) {
             File* file = &driver_ctx.file_registry.entries[i];
@@ -96,7 +104,7 @@ i32 main(i32 argc, char** argv) {
         }
     }
 
-    cli_print_compiler_stats(&frontend_timer);
+    cli_print_compiler_stats(&frontend_timer, &backend_timer, &linker_timer);
 
     bool has_errors = diagnostics_print(&driver_ctx.diagnostics);
     if (has_errors) {

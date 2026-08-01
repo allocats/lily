@@ -3,5 +3,5 @@ module bar;
 import std::io;
 
 fn main() {
-    std::io::println("bar");
+    std::io::printf("bars");
 }

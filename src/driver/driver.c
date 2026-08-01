@@ -13,13 +13,16 @@
 
 #define FLAG_MATCHES(len, flag, str) ((len == sizeof(str) - 1) && strncmp(flag, str, len) == 0)
 
+#define STDLIB_FILE_COUNT 1
+
 void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char** argv) {
     arena_init(gpa, ARENA_KB(8), ALIGN_8);
     debug_printf("Driver: Init gpa with 8KB\n");
 
     driver -> gpa = gpa;
 
-    i32 estimated_count = ARENA_ALIGN_UP(ALIGN_2, argc);
+    i32 estimated_count = ARENA_ALIGN_UP(ALIGN_2, argc + STDLIB_FILE_COUNT);
+    debug_printf("Driver: Allocating for %d files\n", estimated_count);
 
     file_registry_init(estimated_count);
     diagnostic_engine_init();

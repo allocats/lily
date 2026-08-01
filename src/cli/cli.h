@@ -16,6 +16,6 @@ void cli_init_ansi_codes(void);
 void cli_print_usage(const char* arg);
 void cli_print_home_error(const char* arg);
 
-void cli_print_compiler_stats(Timer* frontend_timer);
+void cli_print_compiler_stats(Timer* frontend_timer, Timer* backend_timer, Timer* linker_timer);
 
 #endif // !LILY_CLI_H
