@@ -39,6 +39,10 @@ NamespaceId namespace_intern(StringId ns[NAMESPACE_MAX_DEPTH], u32 count) {
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask;
 
+    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
+        namespace_interner_buckets_resize(interner);
+    }
+
     while (interner -> buckets[index] != NAMESPACE_ID_NONE) {
         NamespaceId id = interner -> buckets[index];
         NamespaceEntry* entry = &interner -> entries[id];
@@ -53,11 +57,6 @@ NamespaceId namespace_intern(StringId ns[NAMESPACE_MAX_DEPTH], u32 count) {
         }
 
         index = (index + 1) & mask;
-    }
-
-    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
-        namespace_interner_buckets_resize(interner);
-        index = (index + 1) & interner -> bucket_capacity;
     }
 
     if (UNLIKELY(interner -> count >= interner -> entry_capacity)) {
@@ -119,7 +118,7 @@ static void namespace_interner_buckets_resize(NamespaceInterner* interner) {
 
     debug_printf("Namespace interner new buckets resize from %ld to %ld\n", size / 2, size);
 
-    for (u32 i = 1; i < interner -> count; i++) {
+    for (u32 i = 0; i < interner -> count; i++) {
         NamespaceEntry* entry = &interner -> entries[i];
 
         u32 new_index = entry -> hash & (new_capacity - 1);

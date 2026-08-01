@@ -35,6 +35,10 @@ void string_intnerner_init(void) {
 StringId string_intern_str8(str8 str) {
     StringInterner* interner = &driver_ctx.string_interner;
 
+    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
+        string_interner_buckets_resize(interner);
+    }
+
     u32 hash  = hash_fnv1a_str8(str);
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask;
@@ -53,11 +57,6 @@ StringId string_intern_str8(str8 str) {
         }
 
         index = (index + 1) & mask;
-    }
-
-    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
-        string_interner_buckets_resize(interner);
-        index = (index + 1) & (interner -> bucket_capacity - 1);
     }
 
     if (UNLIKELY(interner -> count >= interner -> entry_capacity)) {
@@ -116,7 +115,7 @@ static void string_interner_buckets_resize(StringInterner* interner) {
 
     debug_printf("string interner new buckets resize from %ld to %ld\n", size / 2, size);
 
-    for (u32 i = 1; i < interner -> count; i++) {
+    for (u32 i = 0; i < interner -> count; i++) {
         StringEntry* entry = &interner -> entries[i];
 
         u32 new_index = entry -> hash & (new_capacity - 1);

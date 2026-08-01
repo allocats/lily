@@ -35,6 +35,10 @@ void module_registry_init(void) {
 ModuleId module_intern(NamespaceId id) {
     ModuleRegistry* registry = &driver_ctx.module_registry;
 
+    if (UNLIKELY(registry -> count >= registry -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
+        module_buckets_resize(registry);
+    }
+
     u32 hash  = hash_fnv1a_u32(id);
     u32 mask  = registry -> bucket_capacity - 1;
     u32 index = hash & mask;
@@ -55,11 +59,6 @@ ModuleId module_intern(NamespaceId id) {
 
     if (UNLIKELY(registry -> count >= registry -> entry_capacity)) {
         module_entries_resize(registry);
-    }
-
-    if (UNLIKELY(registry -> count >= registry -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
-        module_buckets_resize(registry);
-        index = (index + 1) & (registry -> bucket_capacity - 1);
     }
 
     ModuleId module_id = registry -> count++;
@@ -160,7 +159,7 @@ static void module_buckets_resize(ModuleRegistry* registry) {
 
     debug_printf("string registry new buckets resize from %ld to %ld\n", size / 2, size);
 
-    for (u32 i = 1; i < registry -> count; i++) {
+    for (u32 i = 0; i < registry -> count; i++) {
         Module* entry = &registry -> entries[i];
 
         u32 new_index = entry -> hash & (new_capacity - 1);

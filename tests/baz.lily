@@ -1,0 +1,7 @@
+module baz;
+
+import std::io;
+
+fn main() {
+    std::io::print("testign");
+}

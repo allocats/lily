@@ -102,8 +102,8 @@ void lexer_tokenize_file(FileId id) {
 
     char* cursor = buffer_start;
 
-    while (cursor <= buffer_end) {
-        LexFn fn = LEXER_DISPATCH[(u8) *cursor];
+    while (cursor < buffer_end) {
+        LexFn fn = LEXER_DISPATCH[(unsigned char) *cursor];
         cursor   = fn ? fn(id, cursor) : lex_invalid(id, cursor);
     }
 

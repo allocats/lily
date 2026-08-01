@@ -85,9 +85,14 @@ void files_load_stdlib(str8 path) {
 
 FileId files_intern(str8 path) {
     FileRegistry* interner = &driver_ctx.file_registry;
+    
+    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
+        files_buckets_resize(interner);
+    }
 
     u32 hash  = hash_fnv1a_str8(path);
-    u32 index = hash & (interner -> bucket_capacity - 1); 
+    u32 mask  = interner -> bucket_capacity - 1;
+    u32 index = hash & mask; 
 
     while (interner -> buckets[index] != FILE_ID_NONE) {
         FileId id  = interner -> buckets[index];
@@ -102,7 +107,7 @@ FileId files_intern(str8 path) {
             return id;
         }
 
-        index = (index + 1) & (interner -> bucket_capacity - 1);
+        index = (index + 1) & mask;
     }
 
     str8 buffer = allocate_buffer(path);
@@ -115,11 +120,6 @@ FileId files_intern(str8 path) {
     if (UNLIKELY(interner -> count >= interner -> entry_capacity)) {
         files_entries_resize(interner);
         files_tokens_resize(interner);
-    }
-    
-    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * INTERNER_LOAD_FACTOR)) {
-        files_buckets_resize(interner);
-        index = hash & (interner->bucket_capacity - 1);
     }
 
     FileId id  = interner -> count++;
@@ -177,7 +177,7 @@ static void files_buckets_resize(FileRegistry* interner) {
 
     debug_printf("File interner: Buckets resize %ld -> %ld\n", old_size , new_size);
 
-    for (u32 i = 1; i < interner -> count; i++) {
+    for (u32 i = 0; i < interner -> count; i++) {
         File* entry = &interner -> entries[i];
 
         u32 new_index = entry -> hash & (new_capacity - 1);
@@ -239,7 +239,7 @@ static str8 allocate_buffer(str8 path) {
         goto exit_fd_open;
     }
 
-    u64 buffer_size = st.st_size;
+    u64 buffer_size = st.st_size + 1;
 
     // Empty file
     if (UNLIKELY(buffer_size == 0)) {
@@ -259,6 +259,8 @@ static str8 allocate_buffer(str8 path) {
 
     buffer.pointer = arena_alloc(&registry -> buffers_arena, buffer_size);
     buffer.length = buffer_size;
+
+    // buffer.pointer[buffer_size] = 0;
 
     u64 bytes_read = 0;
 

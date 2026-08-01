@@ -46,7 +46,7 @@ void tokens_print(TokenArray* tokens) {
         Token token = tokens -> items[i];
 
         printf(
-            "Token %d {\n  Kind: %s\n  Lexeme: %.*s\n Length: %d\n}",
+            "Token %d {\n  Kind: %s\n  Lexeme: %.*s\n  Length: %d\n}",
             i,
             TOKEN_KIND_STRS[token.kind],
             token.lexeme.length,

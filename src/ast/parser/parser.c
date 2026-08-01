@@ -22,6 +22,8 @@ static  ParseFn  TOP_LEVEL_PARSE_FUNCTIONS[TOKEN_KIND_COUNT] = {
 };
 
 void parser_parse_file(FileId id) {
+    debug_printf("Parser: Now parsing file id %d\n", id);
+
     File* file = &driver_ctx.file_registry.entries[id];
     if (file -> stage == FILE_ERROR) return;
 
@@ -31,6 +33,8 @@ void parser_parse_file(FileId id) {
 
     TokenArray* tokens = &driver_ctx.file_registry.tokens[id];
     if (tokens -> count == 0) return;
+
+    debug_printf("Parser: Loaded tokens(count=%d) %p\n", tokens -> count, tokens);
 
     Parser p = {
         .id = id,
@@ -73,8 +77,10 @@ void parser_parse_file(FileId id) {
     }
 
     while (p.cursor < p.token_count) {
+        debug_printf("Parser: Cursor = %d\n", p.cursor);
+
         Token* token = parser_advance(&p);
-        if (token -> kind == TOK_EOF) break;
+        if (token -> kind == TOK_EOF) return;
 
         ParseFn fn = TOP_LEVEL_PARSE_FUNCTIONS[token -> kind];
 
