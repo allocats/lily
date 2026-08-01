@@ -2,7 +2,6 @@
 #define LILY_SYMBOLS_H
 
 #include "driver/types.h"
-#include "modules/types.h"
 #include "symbols/types.h"
 
 extern LilyCtx driver_ctx;

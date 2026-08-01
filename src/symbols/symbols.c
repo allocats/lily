@@ -13,6 +13,9 @@
 static void scope_resize(Scope* scope);
 static void table_symbols_resize(SymbolTable* table);
 
+static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id);
+static void resolve_symbol(Resolver* r, Symbol* sym);
+
 void scope_init(Scope* scope) {
     arena_init(&scope -> arena, 512, ALIGN_8);
     debug_printf("Module Registry: Init module's scope arena with 512B\n");
@@ -39,34 +42,7 @@ void symbols_register_top_level_declarations(ModuleId id) {
     for (u32 i = 0; i < count; i++) {
         AstNode* node = &ast -> nodes[i];
 
-        // switch (node -> kind) {
-        //     case AST_FUNCTION:
-        //         sym_add_function(&r, node, i);
-        //         break;
-        //
-        //     case AST_MACRO:
-        //         sym_add_macro(&r, node, i);
-        //         break;
-        //
-        //     case AST_STRUCT:
-        //         sym_add_struct(&r, node, i);
-        //         break;
-        //
-        //     case AST_UNION:
-        //         sym_add_union(&r, node, i);
-        //         break;
-        //
-        //     case AST_ENUM:
-        //         sym_add_enum(&r, node, i);
-        //         break;
-        //
-        //     case AST_CONST:
-        //         sym_add_const(&r, node, i);
-        //         break;
-        //
-        //     default:
-        //         break;
-        // }
+        register_symbol(&r, node, i);
     }
 }
 
@@ -83,22 +59,26 @@ void symbols_resolve(ModuleId id) {
     for (u32 i = 0; i < count; i++) {
         Symbol* sym = &r.table -> symbols[i];
 
-        // resolve_symbol(&r,sym);
+        resolve_symbol(&r,sym);
     }
 }
 
-void resolve_symbol(Resolver* r, Symbol* sym) {
+static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id) {
+    switch (node -> kind) {
+        default:
+            break;
+    }
+}
+
+static void resolve_symbol(Resolver* r, Symbol* sym) {
     switch (sym->kind) {
         case SYM_FUNCTION:
-            // resolve_function(r, sym);
             break;
 
         case SYM_MACRO:
-            // resolve_macro(r, sym);
             break;
 
         case SYM_CONSTANT:
-            // resolve_expr(r, sym -> as.constant.value);
             break;
 
         case SYM_STRUCT:
