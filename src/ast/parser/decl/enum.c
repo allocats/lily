@@ -3,6 +3,7 @@
 #include "ast/parser/parser.h"
 #include "ast/nodes/nodes.h"
 #include "diagnostics/diagnostics.h"
+#include "ids.h"
 #include "string_interner/interner.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -16,6 +17,8 @@ AstNodeId parse_enum_decl(Parser* p) {
     node -> as.enum_decl.variants = arena_alloc(&p -> module -> ast.arena, sizeof (AstNodeId) * 4);
     node -> as.enum_decl.variant_capacity = 4;
     node -> as.enum_decl.variant_count = 0;
+
+    node -> as.enum_decl.type_expr = AST_NODE_ID_NONE;
 
     Token* name = parser_advance(p);
 

@@ -3,6 +3,7 @@
 #include "hash/hash.h"
 #include "ids.h"
 #include "modules/modules.h"
+#include "modules/types.h"
 #include "string_interner/interner.h"
 #include "symbols/symbols.h"
 #include "types/ty.h"
@@ -10,6 +11,10 @@
 #include "types/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+
+#include <stdio.h>
+
+#define ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(n) ((n + sizeof(void*) - 1) & (-sizeof(void*)))
 
 #define LOAD_FACTOR 0.75
 
@@ -26,6 +31,8 @@ static TypeId type_table_nominal_lookup(AstNode* ident);
 static void type_table_structural_buckets_resize(TypeTable* table);
 static void type_table_nominal_buckets_resize(TypeTable* table);
 static void type_table_entries_resize(TypeTable* table);
+
+static u32 hash_nominal(NamespaceId ns, StringId name);
 
 void type_table_init(void) {
     TypeTable* table = &driver_ctx.type_table;
@@ -67,14 +74,23 @@ TypeId resolve_type_base(Module* module, AstNode* expr) {
     AstNode* ident = &ast -> nodes[expr -> as.type_base_expr.ident];
 
     if (ident -> as.ident.namespace_id == NAMESPACE_ID_NONE) {
-        TypeId id = builtin_lookup_primitive(ident -> as.ident.name_id);
+        TypeId builtin = builtin_lookup_primitive(ident -> as.ident.name_id);
 
-        if (id == TYPE_ID_NONE) {
-            id = type_table_nominal_lookup(ident);
+        if (builtin != TYPE_ID_NONE) {
+            return builtin;
         }
 
-        return id;
+        // TODO: ponder this
+        ident -> as.ident.namespace_id = module -> namespace_id;
     }
+
+    TypeId id = type_table_nominal_lookup(ident);
+
+    if (id == TYPE_ID_NONE) {
+        printf("Unknown type\n");
+    }
+
+    return id;
 }
 
 TypeId resolve_type(ModuleId module_id, AstNodeId type_expr_id) {
@@ -99,6 +115,7 @@ TypeId resolve_type(ModuleId module_id, AstNodeId type_expr_id) {
             return TYPE_ID_NONE;
     }
 
+    return TYPE_ID_NONE;
 }
 
 static TypeId builtin_add_primitive(TypeBuiltin type) {
@@ -173,13 +190,174 @@ static TypeId builtin_lookup_primitive(StringId name_id) {
             type_entry -> name == name_id
         ) {
             debug_printf(
-                "Types: Builtin lookup primitive %.*s already exists at id=%d\n",
-                type.name.length,
-                type.name.pointer,
+                "Types: Builtin lookup primitive returned id=%d\n",
                 type_id
             );
 
             return type_id;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    return TYPE_ID_NONE;
+}
+
+static TypeId type_table_nominal_add(u32 hash, StringId name, u32 size, u32 align) {
+    TypeTable* table = &driver_ctx.type_table;
+
+    if (UNLIKELY(table -> count >= table -> nominal_bucket_capacity * LOAD_FACTOR)) {
+        type_table_nominal_buckets_resize(table);
+    }
+
+    u32 mask  = table -> nominal_bucket_capacity - 1;
+    u32 index = hash & mask;
+
+    while (table -> nominal_buckets[index] != TYPE_ID_NONE) {
+        TypeId id = table -> nominal_buckets[index];
+        TypeEntry* entry = &table -> entries[id];
+
+        if (
+            entry -> hash == hash && 
+            entry -> name == name
+        ) {
+            debug_printf("Types: Nominal add returned %d\n", id);
+            return TYPE_ID_NONE;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table -> count >= table -> entry_capacity)) {
+        type_table_entries_resize(table);
+    }
+
+    TypeId id = table -> count++;
+
+    table -> nominal_buckets[index] = id;
+
+    TypeEntry* entry = &table -> entries[id];
+
+    entry -> name  = name;
+    entry -> hash  = hash;
+    entry -> size  = size;
+    entry -> align = align;
+
+    return id;
+}
+
+TypeId type_table_add_struct(Module* module, AstNode* node) {
+    TypeTable* table = &driver_ctx.type_table;
+
+    StringId name = node -> as.struct_decl.name_id;
+
+    u32 hash = hash_nominal(module -> namespace_id, name);
+    u32 size = 0;
+    u32 align = 0;
+
+    u32 field_count = node -> as.struct_decl.field_count;
+
+    for (u32 i = 0; i < field_count; i++) {
+        AstNodeId field_id  = node -> as.struct_decl.fields[i];
+        AstNode* field_node = &module -> ast.nodes[field_id];
+
+        TypeId field_type_id = resolve_type(module -> id, field_node -> as.field_decl.type_expr);
+        TypeEntry* field_type = &table -> entries[field_type_id];
+
+        if (field_type_id == table -> builtins.type_void) {
+            // TODO: Error
+            printf("Found void!\n");
+            continue;
+        }
+
+        size += field_type -> size;
+    }
+
+    align = ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(size); 
+
+    debug_printf("Types: Adding struct (size = %d, align = %d)\n", size, align);
+
+    return type_table_nominal_add(hash, name, size, align);
+}
+
+TypeId type_table_add_union(Module* module, AstNode* node) {
+    TypeTable* table = &driver_ctx.type_table;
+
+    StringId name = node -> as.union_decl.name_id;
+
+    u32 hash = hash_nominal(module -> namespace_id, name);
+    u32 size = 0;
+    u32 align = 0;
+
+    u32 field_count = node -> as.union_decl.field_count;
+
+    for (u32 i = 0; i < field_count; i++) {
+        AstNodeId field_id  = node -> as.union_decl.fields[i];
+        AstNode* field_node = &module -> ast.nodes[field_id];
+
+        TypeId field_type_id = resolve_type(module -> id, field_node -> as.field_decl.type_expr);
+        TypeEntry* field_type = &table -> entries[field_type_id];
+
+        if (field_type_id == table -> builtins.type_void) {
+            // TODO: Error
+            printf("Found void!\n");
+            continue;
+        }
+
+        size = MAX(field_type -> size, size);
+    }
+
+    align = ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(size); 
+
+    debug_printf("Types: Adding union (size = %d, align = %d)\n", size, align);
+
+    return type_table_nominal_add(hash, name, size, align);
+}
+
+TypeId type_table_add_enum(Module* module, AstNode* node) {
+    TypeTable* table = &driver_ctx.type_table;
+
+    TypeId underlying_type_id = TYPE_ID_NONE;
+
+    if (node -> as.enum_decl.type_expr == AST_NODE_ID_NONE) {
+        underlying_type_id = table -> builtins.type_i32;
+    } else {
+        underlying_type_id = resolve_type(module -> id, node -> as.enum_decl.type_expr);
+
+        if (underlying_type_id == TYPE_ID_NONE) {
+            // TODO: Error
+            return TYPE_ID_NONE;
+        }
+    }
+
+    TypeEntry* underlying_type = &table -> entries[underlying_type_id];
+
+    StringId name = node -> as.enum_decl.name_id;
+    u32 hash = hash_nominal(module -> namespace_id, name);
+
+    debug_printf("Types: Adding enum (size = %d, align = %d)\n", underlying_type -> size, underlying_type -> align);
+
+    return type_table_nominal_add(hash, name, underlying_type -> size, underlying_type -> align);
+}
+
+static TypeId type_table_nominal_lookup(AstNode* ident) {
+    TypeTable* table = &driver_ctx.type_table;
+
+    u32 hash  = hash_nominal(ident -> as.ident.namespace_id, ident -> as.ident.name_id);
+    u32 mask  = table -> nominal_bucket_capacity - 1;
+    u32 index = hash & mask;
+
+    while (table -> nominal_buckets[index] != TYPE_ID_NONE) {
+        TypeId id = table -> nominal_buckets[index];
+        TypeEntry* entry = &table -> entries[id];
+
+        if (
+            entry -> hash == hash && 
+            entry -> name == ident -> as.ident.name_id
+        ) {
+            debug_printf("Types: Nominal lookup returned %d\n", id);
+
+            return id;
         }
 
         index = (index + 1) & mask;
@@ -245,4 +423,20 @@ static void type_table_entries_resize(TypeTable* table) {
     table -> entry_capacity *= 2;
 
     debug_printf("Types: Table entries realloc from %ld -> %ld bytes\n", size, size * 2);
+}
+
+static u32 hash_id(u32 hash, u32 id) {
+    hash ^= id;
+    hash *= FNV1A32_PRIME;
+
+    return hash;
+}
+
+static u32 hash_nominal(NamespaceId ns, StringId name) {
+    u32 hash = FNV1A32_BASIS;
+
+    hash = hash_id(hash, ns);
+    hash = hash_id(hash, name);
+
+    return hash;
 }

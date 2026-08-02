@@ -10,6 +10,8 @@ typedef struct {
     // general purpose arena allocator
     Arena gpa;
 
+    ModuleId id;
+
     NamespaceId namespace_id;
     u32 hash;
 

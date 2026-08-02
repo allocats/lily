@@ -2,6 +2,17 @@ module foo;
 
 import std::io;
 
-fn main() -> i32 {
+struct Vec {
+    y: i32;
+    z: Vecs;
+}
+
+union Vecs {
+    x: i32;
+    y: i32;
+    y: f64;
+}
+
+fn main() {
     std::io::printf("Hello world! :3");
 }

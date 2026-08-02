@@ -3,6 +3,9 @@
 #include "ids.h"
 #include "modules/modules.h"
 #include "symbols/symbols.h"
+#include "types/ty.h"
+
+#include <stdio.h>
 
 void sym_register_struct(Resolver* r, AstNode* node, AstNodeId node_id) {
     Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
@@ -33,4 +36,10 @@ void sym_register_struct(Resolver* r, AstNode* node, AstNodeId node_id) {
 
     symbol -> as.structs.fields = arena_alloc(&r -> table -> arena, field_count * sizeof(SymbolId));
     symbol -> as.structs.count = field_count;
+
+    TypeId type_id = type_table_add_struct(module, node);
+
+    if (type_id == TYPE_ID_NONE) {
+        printf("struct is already defined!");
+    }
 }

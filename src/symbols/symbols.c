@@ -13,6 +13,7 @@
 #include "utils/macros.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 #define LOAD_FACTOR 0.75
 
@@ -140,7 +141,7 @@ void symbols_resolve(ModuleId id) {
 static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id) {
     switch (node -> kind) {
         case AST_FUNCTION:
-            resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);
+            // resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);
             sym_register_function(r, node, node_id);
             break;
 

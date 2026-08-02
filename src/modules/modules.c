@@ -68,6 +68,7 @@ ModuleId module_intern(NamespaceId id) {
 
     module -> namespace_id = id;
     module -> hash = hash;
+    module -> id = module_id;
 
     arena_init(&module -> gpa, ARENA_KB(1), ALIGN_8);
     debug_printf("Module Registry: Init module %d's general purpose arena with 1KB\n", module_id);

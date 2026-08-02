@@ -3,6 +3,7 @@
 #include "ids.h"
 #include "modules/modules.h"
 #include "symbols/symbols.h"
+#include "types/ty.h"
 
 void sym_register_union(Resolver* r, AstNode* node, AstNodeId node_id) {
     Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
@@ -33,4 +34,6 @@ void sym_register_union(Resolver* r, AstNode* node, AstNodeId node_id) {
 
     symbol -> as.unions.fields = arena_alloc(&r -> table -> arena, field_count * sizeof(SymbolId));
     symbol -> as.unions.count = field_count;
+
+    type_table_add_union(module, node);
 }
