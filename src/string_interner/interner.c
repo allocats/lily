@@ -15,7 +15,7 @@ extern LilyCtx driver_ctx;
 static void string_interner_buckets_resize(StringInterner* interner);
 static void string_interner_entries_resize(StringInterner* interner);
 
-void string_intnerner_init(void) {
+void string_interner_init(void) {
     StringInterner* interner = &driver_ctx.string_interner;
 
     arena_init(&interner -> arena, ARENA_KB(2), ALIGN_8);
