@@ -64,6 +64,7 @@ void type_table_init(void) {
 
     table -> count = 0;
 
+    arena_memset(table -> structural_buckets, 0xff, 32 * sizeof(TypeId));
     arena_memset(table -> nominal_buckets, 0xff, 32 * sizeof(TypeId));
 
     for (u32 i = 0; i < BUILTIN_NOMINAL_TYPES_COUNT; i++) {
