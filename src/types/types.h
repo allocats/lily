@@ -3,6 +3,7 @@
 
 #include "ids.h"
 #include "meowrena/meowrena.h"
+#include "types/builtins.h"
 
 typedef struct {
     StringId name;
@@ -11,6 +12,12 @@ typedef struct {
     u32 size;
     u32 align;
 } TypeEntry;
+
+typedef struct {
+    #define X(id, name, size, align) TypeId type_##id;
+        BUILTIN_TYPES(X)
+    #undef X
+} TypeBuiltinIds;
 
 typedef struct {
     Arena arena;
@@ -28,6 +35,8 @@ typedef struct {
     u32 nominal_bucket_capacity;
     u32 structural_bucket_capacity;
     u32 entry_capacity;
+
+    TypeBuiltinIds builtins;
 } TypeTable;
 
 #endif // !LILY_TYPES_TYPES_H

@@ -2,6 +2,6 @@ module foo;
 
 import std::io;
 
-fn main() {
+fn main() -> i32 {
     std::io::printf("Hello world! :3");
 }

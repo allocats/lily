@@ -7,6 +7,7 @@
 #include "symbols/symbols.h"
 #include "symbols/register/register.h"
 #include "symbols/types.h"
+#include "types/ty.h"
 #include "types/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -139,6 +140,7 @@ void symbols_resolve(ModuleId id) {
 static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id) {
     switch (node -> kind) {
         case AST_FUNCTION:
+            resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);
             sym_register_function(r, node, node_id);
             break;
 
