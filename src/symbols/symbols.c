@@ -1,9 +1,13 @@
 #include "symbols/symbols.h"
 #include "ast/nodes/types.h"
+#include "ast/parser/parser.h"
+#include "files/types.h"
 #include "hash/hash.h"
 #include "modules/modules.h"
 #include "symbols/symbols.h"
 #include "symbols/register/register.h"
+#include "symbols/types.h"
+#include "types/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -16,6 +20,70 @@ static void table_symbols_resize(SymbolTable* table);
 
 static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id);
 static void resolve_symbol(Resolver* r, Symbol* sym);
+
+void symbol_table_builtins_init(void) {
+    SymbolTable* table = &driver_ctx.builtins;
+
+    arena_init(&table -> arena, ARENA_KB(2), ALIGN_8);
+    debug_printf("Driver: Init builtins' symbol table arena with 2KB\n");
+
+    table -> symbols = arena_alloc_array(&table -> arena, Symbol, 32);
+    table -> symbol_count = 0;
+    table -> symbol_capacity = 32;
+
+    table -> scopes = arena_alloc(&table -> arena, sizeof(Scope) * 4);
+    table -> scope_count = 0;
+    table -> scope_capacity = 4;
+
+    for (u32 i = 0; i < table -> scope_capacity; i++) {
+        scope_init(&table -> scopes[i]);
+    }
+}
+
+SymbolId builtins_register_type(TypeId id) {
+    TypeTable* types = &driver_ctx.type_table;
+    SymbolTable* table = &driver_ctx.builtins;
+
+    TypeEntry* type = &types -> entries[id];
+
+    Scope* scope = &table -> scopes[0];
+
+    if (UNLIKELY(scope -> count >= scope -> capacity * LOAD_FACTOR)) {
+        scope_resize(scope);
+    }
+
+    u32 hash  = type -> hash;
+    u32 mask  = scope -> capacity - 1;
+    u32 index = hash & mask;
+
+    while (scope -> ids[index] != SYMBOL_ID_NONE) {
+        if (scope -> str_ids[index] == type -> name) {
+            return scope -> ids[index];
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table -> symbol_count >= table -> symbol_capacity)) {
+        table_symbols_resize(table);
+    }
+
+    SymbolId sym_id = table -> symbol_count++;
+
+    scope -> ids[index] = sym_id;
+    scope -> str_ids[index] = type -> name;
+
+    Symbol* symbol = &table -> symbols[sym_id];
+
+    symbol -> kind = SYM_TYPE;
+
+    symbol -> id = sym_id;
+    symbol -> name = type -> name;
+    symbol -> scope = 0;
+    symbol -> as.type = id;
+
+    return sym_id;
+}
 
 void scope_init(Scope* scope) {
     arena_init(&scope -> arena, 512, ALIGN_8);
@@ -38,6 +106,7 @@ void symbols_register_top_level_declarations(ModuleId id) {
         .current_namespace_id = module -> namespace_id,
         .current_module_id = id,
         .current_scope_id = 0,
+        .builtins = &driver_ctx.builtins,
         .table = &module -> symbol_table
     };
 
@@ -56,6 +125,7 @@ void symbols_resolve(ModuleId id) {
         .current_namespace_id = module -> namespace_id,
         .current_module_id = id,
         .current_scope_id = 0,
+        .builtins = &driver_ctx.builtins,
         .table = &module -> symbol_table
     };
 
@@ -127,6 +197,10 @@ SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind
 
     Scope* scope = &r -> table-> scopes[scope_id];
 
+    if (UNLIKELY(scope -> count >= scope -> capacity * LOAD_FACTOR)) {
+        scope_resize(scope);
+    }
+
     u32 hash  = hash_fnv1a_u32(name);
     u32 mask  = scope -> capacity - 1;
     u32 index = hash & mask; 
@@ -137,11 +211,6 @@ SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind
         }
 
         index = (index + 1) & mask;
-    }
-
-    if (UNLIKELY(scope -> count >= scope -> capacity * LOAD_FACTOR)) {
-        scope_resize(scope);
-        index = (index + 1) & (scope -> capacity - 1);
     }
 
     if (UNLIKELY(r -> table -> symbol_count >= r -> table -> symbol_capacity)) {
@@ -169,6 +238,23 @@ SymbolId scope_get_sym(Resolver* r, StringId name, u32 hash) {
     i32 scope_id = r -> current_scope_id;
 
     Scope* scope = &r -> table-> scopes[scope_id];
+
+    u32 mask  = scope -> capacity - 1;
+    u32 index = hash & mask; 
+
+    while (scope -> ids[index] != SYMBOL_ID_NONE) {
+        if (scope -> str_ids[index] == name) {
+            return scope -> ids[index];
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    return SYMBOL_ID_NONE;
+}
+
+SymbolId builtins_get_sym(Resolver* r, StringId name, u32 hash) {
+    Scope* scope = r -> builtins -> scopes;
 
     u32 mask  = scope -> capacity - 1;
     u32 index = hash & mask; 
@@ -269,11 +355,11 @@ static void scope_resize(Scope* scope) {
     u32 new_mask = new_cap - 1;
 
     for (u32 i = 0; i < old_cap; i++) {
-        SymbolId id = scope->ids[i];
+        SymbolId id = scope -> ids[i];
 
         if (id == SYMBOL_ID_NONE) continue;
 
-        StringId str_id = scope->str_ids[i];
+        StringId str_id = scope -> str_ids[i];
 
         u32 hash = hash_fnv1a_u32(str_id);
         u32 index = hash & new_mask;

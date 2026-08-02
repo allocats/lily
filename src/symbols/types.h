@@ -1,5 +1,3 @@
-// TODO: Add types
-
 #ifndef LILY_SYMBOLS_TYPES_H
 #define LILY_SYMBOLS_TYPES_H
 
@@ -8,6 +6,7 @@
 #include "utils/types.h"
 
 #define SYMBOLS(X)      \
+    X(SYM_TYPE)         \
     X(SYM_UNION)        \
     X(SYM_STRUCT)       \
     X(SYM_FIELD)        \
@@ -40,6 +39,13 @@ typedef struct {
 typedef struct {
     SymbolRef type;
 } SymbolField, SymbolParameter;
+
+//
+// variants
+//
+typedef struct {
+    AstNodeId value;
+} SymbolVariant;
 
 // structs and unions
 //
@@ -98,11 +104,14 @@ typedef struct {
         SymbolFunction  function;
         SymbolConstant  constant;
         SymbolVariable  variable;
+        SymbolVariant   variant;
         SymbolStruct    structs;
         SymbolField     field;
         SymbolMacro     macro;
         SymbolUnion     unions;
         SymbolEnum      enums;
+
+        TypeId type;
     } as;
 } Symbol;
 
@@ -137,6 +146,7 @@ typedef struct {
     ScopeId current_scope_id;
 
     SymbolTable* table;
+    SymbolTable* builtins; // points to builtin symbol table from driver_ctx
 } Resolver;
 
 #endif // !LILY_SYMBOLS_TYPES_H

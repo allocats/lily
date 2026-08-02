@@ -7,6 +7,7 @@
 #include "modules/types.h"
 #include "namespacing/types.h"
 #include "string_interner/types.h"
+#include "types/types.h"
 
 #define LILY_FLAGS_NONE         (0 << 0)
 #define LILY_FLAGS_DUMP_TOKENS  (1 << 0)
@@ -26,6 +27,9 @@ typedef struct {
     NamespaceInterner namespace_interner;
 
     ModuleRegistry module_registry;
+
+    SymbolTable builtins;
+    TypeTable type_table;
 } LilyCtx;
 
 #endif // !LILY_DRIVER_TYPES_H

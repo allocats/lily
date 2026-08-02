@@ -6,6 +6,10 @@
 
 extern LilyCtx driver_ctx;
 
+void symbol_table_builtins_init(void);
+SymbolId builtins_get_sym(Resolver* r, StringId name, u32 hash);
+SymbolId builtins_register_type(TypeId id);
+
 void scope_init(Scope* scope);
 
 void symbols_register_top_level_declarations(ModuleId id);

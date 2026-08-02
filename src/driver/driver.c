@@ -7,6 +7,8 @@
 #include "modules/modules.h"
 #include "namespacing/namespacing.h"
 #include "string_interner/interner.h"
+#include "symbols/symbols.h"
+#include "types/ty.h"
 #include "utils/debug.h"
 
 #include <string.h>
@@ -26,9 +28,11 @@ void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char**
 
     file_registry_init(estimated_count);
     diagnostic_engine_init();
-    string_intnerner_init();
+    string_interner_init();
     namespace_interner_init();
     module_registry_init();
+    symbol_table_builtins_init();
+    type_table_init();
 
     files_load_stdlib(stdlib_path);
 
@@ -86,6 +90,14 @@ void driver_destroy(LilyCtx* driver) {
         arena_destroy(&module -> symbol_table.arena);
         arena_destroy(&module -> gpa);
     }
+
+    for (u32 i = 0; i < driver -> builtins.scope_capacity; i++) {
+        arena_destroy(&driver -> builtins.scopes[i].arena);
+    }
+
+    arena_destroy(&driver -> builtins.arena);
+
+    arena_destroy(&driver -> type_table.arena);
 
     arena_destroy(&driver -> module_registry.arena);
     arena_destroy(&driver -> namespace_interner.arena);

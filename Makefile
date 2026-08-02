@@ -1,5 +1,5 @@
 CC = clang
-CF = -std=c23 -Isrc -Wall -O3 -flto -march=native -g -fno-omit-frame-pointer -D_DEFAULT_SOURCE
+CF = -std=c23 -Isrc -Wall -O2 -flto -march=native -g -fno-omit-frame-pointer -D_DEFAULT_SOURCE
 DF = -DDEBUG_MODE
 
 SRC_DIR = src

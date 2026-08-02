@@ -380,6 +380,56 @@ void diagnostic_add_symbol_already_defined(
     );
 }
 
+void diagnostic_add_symbol_is_builtin(
+    DiagnosticEngine* engine,
+    Module* module,
+    SymbolId symbol_id,
+    AstNodeId node_id
+) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    SymbolTable* table = &module -> symbol_table;
+    Symbol* symbol = &table -> symbols[symbol_id];
+
+    AstNode* node = &module -> ast.nodes[node_id];
+
+    FileId file = module_node_file(module, node_id);
+
+    Token* token = node -> source_token;
+
+    char* is_a_msg = null;
+    u32 size = token -> lexeme.length + 1;
+
+    switch (symbol -> kind) {
+        case SYM_TYPE:
+            is_a_msg = "is a builtin type";
+            size += sizeof("is a builtin type");
+            break;
+
+        default:
+            is_a_msg = "is a builtin symbol";
+            size += sizeof("is a builtin symbol");
+            break;
+    }
+
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    snprintf(msg, size, "%.*s %s", token->lexeme.length, token->lexeme.pointer, is_a_msg);
+
+    diagnostic_add_token(
+        engine,
+        file,
+        DIAG_ERROR,
+        token,
+        DIAG_LOC_WHOLE_TOK,
+        msg,
+        null
+    );
+}
+
 bool diagnostics_print(DiagnosticEngine* engine) {
     u32 count = MIN(engine -> count, engine -> threshold_value);
 

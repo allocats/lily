@@ -8,7 +8,22 @@ void sym_register_function(Resolver* r, AstNode* node, AstNodeId node_id) {
     Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
 
     StringId function_name = node -> as.func_decl.name_id;
-    SymbolId symbol_id = scope_get_sym(r, function_name, hash_fnv1a_u32(function_name));
+    u32 hash = hash_fnv1a_u32(function_name);
+
+    SymbolId symbol_id = builtins_get_sym(r, function_name, hash);
+
+    if (symbol_id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_is_builtin(
+            &driver_ctx.diagnostics,
+            module,
+            symbol_id,
+            node_id
+        );
+
+        return;
+    }
+
+    symbol_id = scope_get_sym(r, function_name, hash);
 
     if (symbol_id != SYMBOL_ID_NONE) {
         diagnostic_add_symbol_already_defined(

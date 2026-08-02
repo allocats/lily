@@ -20,6 +20,7 @@ void diagnostic_add_token(
     const char* help
 );
 void diagnostic_add_symbol_already_defined(DiagnosticEngine* engine, Module* module, SymbolId symbol, AstNodeId node);
+void diagnostic_add_symbol_is_builtin(DiagnosticEngine* engine, Module* module, SymbolId symbol, AstNodeId node);
 
 bool diagnostics_print(DiagnosticEngine* engine);
 
