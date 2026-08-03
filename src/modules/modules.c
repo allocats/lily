@@ -2,6 +2,7 @@
 #include "files/types.h"
 #include "hash/hash.h"
 #include "modules/modules.h"
+#include "ids.h"
 #include "modules/types.h"
 #include "symbols/symbols.h"
 #include "utils/debug.h"
@@ -78,6 +79,10 @@ ModuleId module_intern(NamespaceId id) {
     module -> file_count = 0;
     module -> file_capacity = 4;
 
+    module -> imports = arena_alloc_array(&module -> gpa, NamespaceId, 8);
+    module -> import_count = 0;
+    module -> import_capacity = 8;
+
     arena_init(&module -> ast.arena, ARENA_KB(4), ALIGN_8);
     debug_printf("Module Registry: Init module %d's AST arena with 4KB\n", module_id);
 
@@ -99,7 +104,6 @@ ModuleId module_intern(NamespaceId id) {
     for (u32 i = 0; i < module -> symbol_table.scope_capacity; i++) {
         scope_init(&module -> symbol_table.scopes[i]);
     }
-
     
     return module_id;
 }
@@ -149,6 +153,20 @@ void module_file_append(Module* module, FileId id) {
     debug_printf("Module: Appended file %u at offset %u\n", id, module -> ast_offsets[module -> file_count]);
 
     module -> file_count++;
+}
+
+void module_import_append(Module* module, NamespaceId id) {
+    if (UNLIKELY(module -> import_capacity >= module -> import_count)) {
+        u64 old_size = module -> import_capacity * sizeof(NamespaceId);
+        u64 new_size = old_size * 2;
+
+        module -> imports = arena_realloc(&module -> gpa, module -> imports, old_size, new_size);
+        module -> import_capacity *= 2;
+    }
+
+    module -> imports[module -> import_count++] = id;
+
+    debug_printf("Module: Appended import %u to module(%d)\n", id, module -> id);
 }
 
 static void module_buckets_resize(ModuleRegistry* registry) {

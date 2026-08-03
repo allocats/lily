@@ -23,6 +23,13 @@ AstNodeId parse_param_type(Parser* p) {
 }
 
 AstNodeId parse_type_expr(Parser* p) {
+    bool is_const = false;
+
+    if (parser_check(p, TOK_CONST)) {
+        parser_advance(p);
+        is_const = true;
+    }
+
     AstNodeId primary = parse_expression(p, 140);
 
     if (primary == AST_NODE_ID_NONE) {
@@ -48,6 +55,7 @@ AstNodeId parse_type_expr(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_TYPE_BASE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
+    node -> flags |= AST_FLAGS_IS_CONST;
     node -> as.type_base_expr.ident = primary;
 
     while (p -> cursor < p -> token_count) {

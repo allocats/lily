@@ -2,12 +2,6 @@ module foo;
 
 import std::io;
 
-struct Vec {
-    items: char**;
-    count: u32;
-    capacity: Vec;
-}
-
 fn main() {
     std::io::printf("Hello world! :3");
 }

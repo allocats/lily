@@ -7,8 +7,9 @@
 #include "utils/types.h"
 
 #define AST_FLAGS_NONE          (0 << 0)
-#define AST_FLAGS_IS_EXTERNAL   (1 << 0)
-#define AST_FLAGS_IS_VARIADIC   (1 << 1)
+#define AST_FLAGS_IS_CONST      (1 << 0)
+#define AST_FLAGS_IS_EXTERNAL   (1 << 1)
+#define AST_FLAGS_IS_VARIADIC   (1 << 2)
 
 #define AST_NODES(X)        \
     X(AST_ERROR)            \

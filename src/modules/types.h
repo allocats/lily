@@ -20,6 +20,10 @@ typedef struct {
     u32 file_count;
     u32 file_capacity;
 
+    NamespaceId* imports;
+    u32 import_count;
+    u32 import_capacity;
+
     Ast ast;
 
     SymbolTable symbol_table;

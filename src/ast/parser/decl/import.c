@@ -2,6 +2,7 @@
 #include "ast/parser/decl/decl.h"
 #include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
+#include "modules/modules.h"
 #include "namespacing/namespacing.h"
 #include "string_interner/interner.h"
 
@@ -69,6 +70,10 @@ AstNodeId parse_import_decl(Parser* p) {
     parser_advance(p);
 
     node -> as.import_decl.namespace_id = namespace_intern(segments, segment_count);
+
+    Module* module = p -> module; 
+
+    module_import_append(module, node -> as.import_decl.namespace_id);
 
     return id;
 }

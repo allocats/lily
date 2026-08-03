@@ -1,8 +1,0 @@
-#ifndef LILY_COMPTIME_INTERPRETER_TYPES_H
-#define LILY_COMPTIME_INTERPRETER_TYPES_H
-
-typedef struct {
-
-} Interpreter;
-
-#endif // !LILY_COMPTIME_INTERPRETER_TYPES_H

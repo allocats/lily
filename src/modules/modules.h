@@ -13,5 +13,6 @@ ModuleId module_intern(NamespaceId id);
 ModuleId module_lookup(NamespaceId id);
 
 void module_file_append(Module* module, FileId id);
+void module_import_append(Module* module, NamespaceId id);
 
 #endif // !LILY_MODULES_H
