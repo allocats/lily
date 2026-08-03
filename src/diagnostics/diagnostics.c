@@ -6,6 +6,7 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "symbols/types.h"
+#include "types/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -427,6 +428,46 @@ void diagnostic_add_symbol_is_builtin(
         DIAG_LOC_WHOLE_TOK,
         msg,
         null
+    );
+}
+
+void diagnostic_add_query_type_cycle(DiagnosticEngine* engine, i32 query_id) {
+    Query query = driver_ctx.query_stack.items[query_id];
+
+    TypeEntry* type = &driver_ctx.type_table.entries[query.as.type_id];
+    Module* module = &driver_ctx.module_registry.entries[query.module_id];
+    AstNode* node = &module -> ast.nodes[type -> node_id];
+
+    FileId file = module_node_file(module, type -> node_id);
+
+    diagnostic_add_token(
+        engine,
+        file,
+        DIAG_ERROR,
+        node -> source_token,
+        DIAG_LOC_WHOLE_TOK,
+        "type recursively includes itself",
+        "type cannot include itself as a field or variant"
+    );
+}
+
+void diagnostic_add_query_symbol_cycle(DiagnosticEngine* engine, i32 query_id) {
+    Query query = driver_ctx.query_stack.items[query_id];
+
+    Module* module = &driver_ctx.module_registry.entries[query.module_id];
+    Symbol* symbol = &module -> symbol_table.symbols[query.as.symbol_id];
+    AstNode* node = &module -> ast.nodes[symbol -> declaration];
+
+    FileId file = module_node_file(module, symbol -> declaration);
+
+    diagnostic_add_token(
+        engine,
+        file,
+        DIAG_ERROR,
+        node -> source_token,
+        DIAG_LOC_WHOLE_TOK,
+        "symbol recursively includes itself",
+        "stop that"
     );
 }
 

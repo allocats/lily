@@ -34,6 +34,8 @@ void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char**
     symbol_table_builtins_init();
     type_table_init();
 
+    driver -> query_stack.top = 0;
+
     files_load_stdlib(stdlib_path);
 
     for (i32 i = 0; i < argc; i++) {

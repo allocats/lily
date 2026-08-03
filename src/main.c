@@ -1,3 +1,4 @@
+#include "types/ty.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
@@ -71,6 +72,8 @@ i32 main(i32 argc, char** argv) {
     for (u32 i = 0; i < driver_ctx.module_registry.count; i++) {
         symbols_register_top_level_declarations(i);
     }
+
+    resolve_types();
 
     // resolve symbols
     for (u32 i = 0; i < driver_ctx.module_registry.count; i++) {

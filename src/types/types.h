@@ -3,7 +3,27 @@
 
 #include "ids.h"
 #include "meowrena/meowrena.h"
+#include "query/types.h"
 #include "types/builtins.h"
+#include "utils/types.h"
+
+#define TYPE_KINDS(X)   \
+    X(TYPE_BASE)        \
+    X(TYPE_POINTER)     \
+    X(TYPE_ARRAY)       \
+    X(TYPE_STRUCT)      \
+    X(TYPE_UNION)       \
+    X(TYPE_ENUM)        \
+
+typedef enum {
+    TYPE_KINDS(GENERATE_ENUM)
+} TypeKind;
+
+static const char* TYPE_KIND_STRINGS[] = {
+    TYPE_KINDS(GENERATE_STRING)
+};
+
+#undef TYPE_KINDS
 
 typedef struct {
     StringId name;
@@ -11,6 +31,25 @@ typedef struct {
 
     u32 size;
     u32 align;
+
+    TypeKind kind;
+
+    ResolveState resolve_state;
+
+    AstNodeId node_id;
+
+    SymbolId owning_symbol;
+
+    union {
+        struct {
+            TypeId base;
+        } pointer;
+
+        struct {
+            TypeId element;
+            u64 length;
+        } array;
+    } as;
 } TypeEntry;
 
 typedef struct {

@@ -6,6 +6,7 @@
 #include "meowrena/meowrena.h"
 #include "modules/types.h"
 #include "namespacing/types.h"
+#include "query/types.h"
 #include "string_interner/types.h"
 #include "types/types.h"
 
@@ -29,7 +30,10 @@ typedef struct {
     ModuleRegistry module_registry;
 
     SymbolTable builtins;
+
     TypeTable type_table;
+
+    QueryStack query_stack;
 } LilyCtx;
 
 #endif // !LILY_DRIVER_TYPES_H

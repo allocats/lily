@@ -3,6 +3,7 @@
 
 #include "ids.h"
 #include "meowrena/meowrena.h"
+#include "query/types.h"
 #include "utils/types.h"
 
 #define SYMBOLS(X)      \
@@ -47,11 +48,14 @@ typedef struct {
     AstNodeId value;
 } SymbolVariant;
 
+//
 // structs and unions
 //
 typedef struct {
-    SymbolId* fields;
-    SymbolRef* types;
+    TypeId type_id;
+
+    StringId* fields;
+    TypeId* types;
     u32 count;
 } SymbolStruct, SymbolUnion;
 
@@ -59,6 +63,8 @@ typedef struct {
 // enums
 //
 typedef struct {
+    TypeId type_id;
+
     SymbolRef type;
     SymbolId* variants;
     u32 count;
@@ -98,6 +104,8 @@ typedef struct {
     AstNodeId declaration;
 
     SymbolKind kind;
+
+    ResolveState resolve_state;
 
     union {
         SymbolParameter parameter;

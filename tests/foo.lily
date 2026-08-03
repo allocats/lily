@@ -3,14 +3,9 @@ module foo;
 import std::io;
 
 struct Vec {
-    y: i32;
-    z: Vecs;
-}
-
-union Vecs {
-    x: i32;
-    y: i32;
-    y: f64;
+    items: char**;
+    count: u32;
+    capacity: Vec;
 }
 
 fn main() {

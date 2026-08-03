@@ -22,6 +22,9 @@ void diagnostic_add_token(
 void diagnostic_add_symbol_already_defined(DiagnosticEngine* engine, Module* module, SymbolId symbol, AstNodeId node);
 void diagnostic_add_symbol_is_builtin(DiagnosticEngine* engine, Module* module, SymbolId symbol, AstNodeId node);
 
+void diagnostic_add_query_type_cycle(DiagnosticEngine* engine, i32 query_id);
+void diagnostic_add_query_symbol_cycle(DiagnosticEngine* engine, i32 query_id);
+
 bool diagnostics_print(DiagnosticEngine* engine);
 
 #endif // !LILY_DIAGNOSTICS_H
