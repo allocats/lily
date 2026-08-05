@@ -21,6 +21,11 @@ void resolve_types(void) {
 
     for (u32 i = BUILTIN_NOMINAL_TYPES_COUNT; i < table -> count; i++) {
         TypeEntry* entry = &table -> entries[i];
+        
+        if (entry -> kind != TYPE_STRUCT && entry -> kind != TYPE_UNION && entry -> kind != TYPE_ENUM) {
+            continue;
+        }
+
         resolve_type_entry(entry -> declaration.module_id, i);
     }
 }
@@ -149,7 +154,7 @@ TypeEntry* resolve_type_entry(ModuleId module_id, TypeId id) {
 
     resolver_stack_pop(&driver_ctx.resolver_stack);
     
-    entry -> resolve_state = resolved_body ? RESOLVE_RESOLVED : RESOLVE_ERROR;
+    table -> entries[id].resolve_state = resolved_body ? RESOLVE_RESOLVED : RESOLVE_ERROR;
 
     return resolved_body ? entry : null;
 }
@@ -158,7 +163,7 @@ static TypeId resolve_type_body(ModuleId module_id, TypeId id) {
     TypeTable* table = &driver_ctx.type_table;
     TypeEntry* entry = &table -> entries[id]; 
 
-    if (entry -> declaration.module_id == SYMBOL_ID_NONE) {
+    if (entry -> declaration.module_id == MODULE_ID_NONE) {
         return true;
     }
 

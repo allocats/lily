@@ -1,0 +1,258 @@
+module lily;
+
+struct Vec0 { x:i32; y: i32; }
+
+struct Vec1 { x:i32; y: i32; }
+
+struct Vec2 { x:i32; y: i32; }
+
+struct Vec3 { x:i32; y: i32; }
+
+struct Vec4 { x:i32; y: i32; }
+
+struct Vec5 { x:i32; y: i32; }
+
+struct Vec6 { x:i32; y: i32; }
+
+struct Vec7 { x:i32; y: i32; }
+
+struct Vec8 { x:i32; y: i32; }
+
+struct Vec9 { x:i32; y: i32; }
+
+struct Vec10 { x:i32; y: i32; }
+
+struct Vec11 { x:i32; y: i32; }
+
+struct Vec12 { x:i32; y: i32; }
+
+struct Vec13 { x:i32; y: i32; }
+
+struct Vec14 { x:i32; y: i32; }
+
+struct Vec15 { x:i32; y: i32; }
+
+struct Vec16 { x:i32; y: i32; }
+
+struct Vec17 { x:i32; y: i32; }
+
+struct Vec18 { x:i32; y: i32; }
+
+struct Vec19 { x:i32; y: i32; }
+
+struct Vec20 { x:i32; y: i32; }
+
+struct Vec21 { x:i32; y: i32; }
+
+struct Vec22 { x:i32; y: i32; }
+
+struct Vec23 { x:i32; y: i32; }
+
+struct Vec24 { x:i32; y: i32; }
+
+struct Vec25 { x:i32; y: i32; }
+
+struct Vec26 { x:i32; y: i32; }
+
+struct Vec27 { x:i32; y: i32; }
+
+struct Vec28 { x:i32; y: i32; }
+
+struct Vec29 { x:i32; y: i32; }
+
+struct Vec30 { x:i32; y: i32; }
+
+struct Vec31 { x:i32; y: i32; }
+
+struct Vec32 { x:i32; y: i32; }
+
+struct Vec33 { x:i32; y: i32; }
+
+struct Vec34 { x:i32; y: i32; }
+
+struct Vec35 { x:i32; y: i32; }
+
+struct Vec36 { x:i32; y: i32; }
+
+struct Vec37 { x:i32; y: i32; }
+
+struct Vec38 { x:i32; y: i32; }
+
+struct Vec39 { x:i32; y: i32; }
+
+struct Vec40 { x:i32; y: i32; }
+
+struct Vec41 { x:i32; y: i32; }
+
+struct Vec42 { x:i32; y: i32; }
+
+struct Vec43 { x:i32; y: i32; }
+
+struct Vec44 { x:i32; y: i32; }
+
+struct Vec45 { x:i32; y: i32; }
+
+struct Vec46 { x:i32; y: i32; }
+
+struct Vec47 { x:i32; y: i32; }
+
+struct Vec48 { x:i32; y: i32; }
+
+struct Vec49 { x:i32; y: i32; }
+
+struct Vec50 { x:i32; y: i32; }
+
+struct Vec51 { x:i32; y: i32; }
+
+struct Vec52 { x:i32; y: i32; }
+
+struct Vec53 { x:i32; y: i32; }
+
+struct Vec54 { x:i32; y: i32; }
+
+struct Vec55 { x:i32; y: i32; }
+
+struct Vec56 { x:i32; y: i32; }
+
+struct Vec57 { x:i32; y: i32; }
+
+struct Vec58 { x:i32; y: i32; }
+
+struct Vec59 { x:i32; y: i32; }
+
+struct Vec60 { x:i32; y: i32; }
+
+struct Vec61 { x:i32; y: i32; }
+
+struct Vec62 { x:i32; y: i32; }
+
+struct Vec63 { x:i32; y: i32; }
+
+struct Vec64 { x:i32; y: i32; }
+
+struct Vec65 { x:i32; y: i32; }
+
+struct Vec66 { x:i32; y: i32; }
+
+struct Vec67 { x:i32; y: i32; }
+
+struct Vec68 { x:i32; y: i32; }
+
+struct Vec69 { x:i32; y: i32; }
+
+struct Vec70 { x:i32; y: i32; }
+
+struct Vec71 { x:i32; y: i32; }
+
+struct Vec72 { x:i32; y: i32; }
+
+struct Vec73 { x:i32; y: i32; }
+
+struct Vec74 { x:i32; y: i32; }
+
+struct Vec75 { x:i32; y: i32; }
+
+struct Vec76 { x:i32; y: i32; }
+
+struct Vec77 { x:i32; y: i32; }
+
+struct Vec78 { x:i32; y: i32; }
+
+struct Vec79 { x:i32; y: i32; }
+
+struct Vec80 { x:i32; y: i32; }
+
+struct Vec81 { x:i32; y: i32; }
+
+struct Vec82 { x:i32; y: i32; }
+
+struct Vec83 { x:i32; y: i32; }
+
+struct Vec84 { x:i32; y: i32; }
+
+struct Vec85 { x:i32; y: i32; }
+
+struct Vec86 { x:i32; y: i32; }
+
+struct Vec87 { x:i32; y: i32; }
+
+struct Vec88 { x:i32; y: i32; }
+
+struct Vec89 { x:i32; y: i32; }
+
+struct Vec90 { x:i32; y: i32; }
+
+struct Vec91 { x:i32; y: i32; }
+
+struct Vec92 { x:i32; y: i32; }
+
+struct Vec93 { x:i32; y: i32; }
+
+struct Vec94 { x:i32; y: i32; }
+
+struct Vec95 { x:i32; y: i32; }
+
+struct Vec96 { x:i32; y: i32; }
+
+struct Vec97 { x:i32; y: i32; }
+
+struct Vec98 { x:i32; y: i32; }
+
+struct Vec99 { x:i32; y: i32; }
+
+struct Vec100 { x:i32; y: i32; }
+
+struct Vec101 { x:i32; y: i32; }
+
+struct Vec102 { x:i32; y: i32; }
+
+struct Vec103 { x:i32; y: i32; }
+
+struct Vec104 { x:i32; y: i32; }
+
+struct Vec105 { x:i32; y: i32; }
+
+struct Vec106 { x:i32; y: i32; }
+
+struct Vec107 { x:i32; y: i32; }
+
+struct Vec108 { x:i32; y: i32; }
+
+struct Vec109 { x:i32; y: i32; }
+
+struct Vec110 { x:i32; y: i32; }
+
+struct Vec111 { x:i32; y: i32; }
+
+struct Vec112 { x:i32; y: i32; }
+
+struct Vec113 { x:i32; y: i32; }
+
+struct Vec114 { x:i32; y: i32; }
+
+struct Vec115 { x:i32; y: i32; }
+
+struct Vec116 { x:i32; y: i32; }
+
+struct Vec117 { x:i32; y: i32; }
+
+struct Vec118 { x:i32; y: i32; }
+
+struct Vec119 { x:i32; y: i32; }
+
+struct Vec120 { x:i32; y: i32; }
+
+struct Vec121 { x:i32; y: i32; }
+
+struct Vec122 { x:i32; y: i32; }
+
+struct Vec123 { x:i32; y: i32; }
+
+struct Vec124 { x:i32; y: i32; }
+
+struct Vec125 { x:i32; y: i32; }
+
+struct Vec126 { x:i32; y: i32; }
+
+struct Vec127 { x:i32; y: i32; }
+

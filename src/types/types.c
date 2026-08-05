@@ -109,6 +109,9 @@ TypeId builtin_add_primitive(TypeBuiltin type) {
     entry -> size  = type.size;
     entry -> align = type.align;
 
+    entry -> declaration.module_id = MODULE_ID_NONE;
+    entry -> declaration.symbol_id = SYMBOL_ID_NONE;
+
     entry -> resolve_state = RESOLVE_RESOLVED;
 
     debug_printf("Types: Added builtin type %.*s at id=%d\n", type.name.length, type.name.pointer, id);
@@ -182,6 +185,7 @@ TypeId type_table_register_nominal(u32 hash, StringId name, TypeKind kind, AstNo
 
     entry -> name  = name;
     entry -> hash  = hash;
+    entry -> kind  = kind;
     entry -> size  = 0;
     entry -> align = 0;
     entry -> resolve_state = RESOLVE_UNRESOLVED;
@@ -256,6 +260,9 @@ TypeId type_table_register_pointer(TypeId base) {
     entry -> hash  = hash;
     entry -> size  = sizeof(void*);
     entry -> align = _Alignof(void*);
+
+    entry -> declaration.module_id = MODULE_ID_NONE;
+    entry -> declaration.symbol_id = SYMBOL_ID_NONE;
 
     entry -> as.pointer.base = base;
 

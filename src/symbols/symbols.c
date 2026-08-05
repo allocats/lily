@@ -3,9 +3,11 @@
 #include "hash/hash.h"
 #include "ids.h"
 #include "modules/modules.h"
+#include "resolver/enums.h"
 #include "symbols/register/register.h"
 #include "symbols/resolve/resolve.h"
 #include "symbols/symbols.h"
+#include "symbols/types.h"
 #include "types/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -94,6 +96,8 @@ SymbolId builtins_register_type(TypeId id) {
     }
 
     SymbolId sym_id = table -> symbol_count++;
+    
+    scope -> count++;
 
     scope -> ids[index] = sym_id;
     scope -> str_ids[index] = type -> name;
@@ -106,6 +110,7 @@ SymbolId builtins_register_type(TypeId id) {
     symbol -> name = type -> name;
     symbol -> scope = 0;
     symbol -> as.type = id;
+    symbol -> resolve_state = RESOLVE_RESOLVED;
 
     return sym_id;
 }
@@ -151,6 +156,8 @@ SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind
     SymbolId sym_id = r -> table -> symbol_count++;
     Symbol* sym = &r -> table -> symbols[sym_id];
 
+    scope -> count++;
+
     scope -> ids[index] = sym_id;
     scope -> str_ids[index] = name;
 
@@ -159,6 +166,7 @@ SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind
     sym -> scope = scope_id;
     sym -> kind = kind;
     sym -> id = sym_id;
+    sym -> resolve_state = RESOLVE_UNRESOLVED;
 
     debug_printf("Symbols: Added symbol %d to scope %d\n", sym_id, scope_id);
 
@@ -237,7 +245,7 @@ SymbolId table_get_sym(Resolver* r, StringId name) {
 ScopeId scope_enter(Resolver* r) {
     SymbolTable* table = r -> table;
 
-    if (UNLIKELY(table -> scope_count >= table -> scope_capacity)) {
+    if (UNLIKELY(table -> scope_count + 1 >= table -> scope_capacity)) {
         u64 old_size = table -> scope_capacity * sizeof(Scope);
         u64 new_size = old_size * 2;
 
@@ -246,7 +254,7 @@ ScopeId scope_enter(Resolver* r) {
 
         debug_printf("Symbol Table: Realloc scopes array from %ld -> %ld bytes\n", old_size, new_size);
 
-        for (u32 i = table -> scope_count; i < table -> scope_capacity; i++) {
+        for (u32 i = table -> scope_count + 1; i < table -> scope_capacity; i++) {
             Scope* scope = &table -> scopes[i];
             scope_init(scope);
         }
@@ -273,11 +281,11 @@ ScopeId scope_exit(Resolver* r) {
 }
 
 static void scope_resize(Scope* scope) {
-    u32 old_cap = scope->capacity;
+    u32 old_cap = scope -> capacity;
     u32 new_cap = old_cap * 2;
 
-    StringId* new_str_ids = arena_alloc_array(&scope->arena, StringId, new_cap);
-    SymbolId* new_ids = arena_alloc_array(&scope->arena, SymbolId, new_cap);
+    StringId* new_str_ids = arena_alloc_array(&scope -> arena, StringId, new_cap);
+    SymbolId* new_ids = arena_alloc_array(&scope -> arena, SymbolId, new_cap);
 
     arena_memset(new_ids, 0xff, new_cap * sizeof(SymbolId));
 
@@ -310,7 +318,7 @@ static void scope_resize(Scope* scope) {
 
 static void table_symbols_resize(SymbolTable* table) {
     u64 old_size = table -> symbol_capacity * sizeof(Symbol);
-    u64 new_size = 2;
+    u64 new_size = old_size * 2;
 
     table -> symbols = arena_realloc(&table -> arena, table -> symbols, old_size, new_size);
     table -> symbol_capacity *= 2;
