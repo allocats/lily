@@ -1,6 +1,8 @@
 .cache/
 build/
 
+tests/schizo.lily
+
 compile_commands.json
 
 cachegrind.*

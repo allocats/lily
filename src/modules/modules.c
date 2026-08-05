@@ -97,9 +97,9 @@ ModuleId module_intern(NamespaceId id) {
     module -> symbol_table.symbol_count = 0;
     module -> symbol_table.symbol_capacity = 32;
 
-    module -> symbol_table.scopes = arena_alloc_array(&module -> symbol_table.arena, Scope, 4);
+    module -> symbol_table.scopes = arena_alloc_array(&module -> symbol_table.arena, Scope, 16);
     module -> symbol_table.scope_count = 0;
-    module -> symbol_table.scope_capacity = 4;
+    module -> symbol_table.scope_capacity = 16;
 
     for (u32 i = 0; i < module -> symbol_table.scope_capacity; i++) {
         scope_init(&module -> symbol_table.scopes[i]);

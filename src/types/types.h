@@ -71,10 +71,13 @@ typedef struct {
     TypeEntry* entries;
 
     u32 count;
-
-    u32 nominal_bucket_capacity;
-    u32 structural_bucket_capacity;
     u32 entry_capacity;
+
+    u32 nominal_count;
+    u32 nominal_bucket_capacity;
+
+    u32 structural_count;
+    u32 structural_bucket_capacity;
 
     TypeBuiltinIds builtins;
 } TypeTable;

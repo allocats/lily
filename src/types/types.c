@@ -30,13 +30,14 @@ void type_table_init(void) {
 
     table -> structural_buckets = arena_alloc_array(&table -> arena, TypeId, 32);
     table -> structural_bucket_capacity = 32; 
+    table -> structural_count = 0;
 
     table -> nominal_buckets = arena_alloc_array(&table -> arena, TypeId, 32);
     table -> nominal_bucket_capacity = 32; 
+    table -> nominal_count = 0;
 
     table -> entries = arena_alloc_array(&table -> arena, TypeEntry, 64);
     table -> entry_capacity = 64;
-
     table -> count = 0;
 
     arena_memset(table -> structural_buckets, 0xff, 32 * sizeof(TypeId));
@@ -62,7 +63,7 @@ TypeId builtin_add_primitive(TypeBuiltin type) {
 
     TypeTable* table = &driver_ctx.type_table;
 
-    if (UNLIKELY(table -> count >= table -> nominal_bucket_capacity * LOAD_FACTOR)) {
+    if (UNLIKELY(table -> nominal_count >= table -> nominal_bucket_capacity * LOAD_FACTOR)) {
         type_table_nominal_buckets_resize(table);
     }
 
@@ -100,6 +101,7 @@ TypeId builtin_add_primitive(TypeBuiltin type) {
     TypeId id = table -> count++;
 
     table -> nominal_buckets[index] = id;
+    table -> nominal_count++;
 
     TypeEntry* entry = &table -> entries[id];
 
@@ -151,7 +153,7 @@ TypeId builtin_lookup_primitive(StringId name_id) {
 TypeId type_table_register_nominal(u32 hash, StringId name, TypeKind kind, AstNodeId node_id) {
     TypeTable* table = &driver_ctx.type_table;
 
-    if (UNLIKELY(table -> count >= table -> nominal_bucket_capacity * LOAD_FACTOR)) {
+    if (UNLIKELY(table -> nominal_count >= table -> nominal_bucket_capacity * LOAD_FACTOR)) {
         type_table_nominal_buckets_resize(table);
     }
 
@@ -180,6 +182,7 @@ TypeId type_table_register_nominal(u32 hash, StringId name, TypeKind kind, AstNo
     TypeId id = table -> count++;
 
     table -> nominal_buckets[index] = id;
+    table -> nominal_count++;
 
     TypeEntry* entry = &table -> entries[id];
 
@@ -222,7 +225,7 @@ TypeId type_table_lookup_nominal(ModuleId module_id, AstNode* ident) {
 TypeId type_table_register_pointer(TypeId base) {
     TypeTable* table = &driver_ctx.type_table;
 
-    if (UNLIKELY(table -> count >= table -> structural_bucket_capacity * LOAD_FACTOR)) {
+    if (UNLIKELY(table -> structural_count >= table -> structural_bucket_capacity * LOAD_FACTOR)) {
         type_table_structural_buckets_resize(table);
     }
 
@@ -253,6 +256,7 @@ TypeId type_table_register_pointer(TypeId base) {
     TypeId id = table -> count++;
 
     table -> structural_buckets[index] = id;
+    table -> structural_count++;
 
     TypeEntry* entry = &table -> entries[id];
 
@@ -317,6 +321,10 @@ static void type_table_structural_buckets_resize(TypeTable* table) {
     for (u32 i = 0; i < table -> count; i++) {
         TypeEntry* entry = &table -> entries[i];
 
+        if (entry -> kind != TYPE_POINTER && entry -> kind != TYPE_ARRAY) {
+            continue;
+        }
+
         u32 new_index = entry -> hash & (new_capacity - 1);
 
         while (new_structural_buckets[new_index] != TYPE_ID_NONE) {
@@ -341,6 +349,10 @@ static void type_table_nominal_buckets_resize(TypeTable* table) {
 
     for (u32 i = 0; i < table -> count; i++) {
         TypeEntry* entry = &table -> entries[i];
+
+        if (entry -> kind == TYPE_POINTER || entry -> kind == TYPE_ARRAY) {
+            continue;
+        }
 
         u32 new_index = entry -> hash & (new_capacity - 1);
 
