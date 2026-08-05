@@ -34,8 +34,6 @@ void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char**
     symbol_table_builtins_init();
     type_table_init();
 
-    driver -> query_stack.top = 0;
-
     files_load_stdlib(stdlib_path);
 
     for (i32 i = 0; i < argc; i++) {
@@ -54,6 +52,8 @@ void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char**
                         driver -> flags |= LILY_FLAGS_DUMP_TOKENS;
                     } else if (FLAG_MATCHES(arg_len, arg, "-dump-ast")) {
                         driver -> flags |= LILY_FLAGS_DUMP_AST;
+                    } else if (FLAG_MATCHES(arg_len, arg, "-dump-types")) {
+                        driver -> flags |= LILY_FLAGS_DUMP_TYPES;
                     }
                 } break;
             }

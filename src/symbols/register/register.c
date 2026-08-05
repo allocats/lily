@@ -1,11 +1,43 @@
+#include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
 #include "hash/hash.h"
 #include "ids.h"
 #include "modules/modules.h"
 #include "symbols/symbols.h"
+#include "symbols/register/register.h"
 #include "types/ty.h"
 
-#include <stdio.h>
+void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id) {
+    switch (node -> kind) {
+        case AST_FUNCTION:
+            // resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);
+            sym_register_function(r, node, node_id);
+            break;
+
+        case AST_MACRO:
+            sym_register_macro(r, node, node_id);
+            break;
+
+        case AST_STRUCT:
+            sym_register_struct(r, node, node_id);
+            break;
+
+        case AST_UNION:
+            sym_register_union(r, node, node_id);
+            break;
+
+        case AST_CONST:
+            sym_register_constant(r, node, node_id);
+            break;
+
+        case AST_ENUM:
+            sym_register_enum(r, node, node_id);
+            break;
+
+        default:
+            break;
+    }
+}
 
 void sym_register_constant(Resolver* r, AstNode* node, AstNodeId node_id) {
     Module* module = MODULE_ID_LOOKUP_REF(r -> current_module_id);
@@ -59,10 +91,15 @@ void sym_register_enum(Resolver* r, AstNode* node, AstNodeId node_id) {
     TypeId type_id = type_table_register_enum(module, node, node_id, symbol_id);
 
     if (type_id == TYPE_ID_NONE) {
-        printf("pluh");
+        diagnostic_add_symbol_already_defined(
+            &driver_ctx.diagnostics,
+            module,
+            symbol_id,
+            node_id
+        );
     }
 
-    symbol -> as.enums.type_id = type_id;
+    symbol -> as.enums.type = type_id;
 }
 
 void sym_register_function(Resolver* r, AstNode* node, AstNodeId node_id) {
@@ -169,17 +206,21 @@ void sym_register_struct(Resolver* r, AstNode* node, AstNodeId node_id) {
         symbol -> as.structs.count = 0;
     } else {
         symbol -> as.structs.fields = arena_alloc(&r -> table -> arena, field_count * sizeof(SymbolId));
-        symbol -> as.structs.types = arena_alloc(&r -> table -> arena, field_count * sizeof(TypeId));
         symbol -> as.structs.count = field_count;
     }
 
     TypeId type_id = type_table_register_struct(module, node, node_id, symbol_id);
 
     if (type_id == TYPE_ID_NONE) {
-        printf("struct is already defined!");
+        diagnostic_add_symbol_already_defined(
+            &driver_ctx.diagnostics,
+            module,
+            symbol_id,
+            node_id
+        );
     }
 
-    symbol -> as.structs.type_id = type_id;
+    symbol -> as.structs.type = type_id;
 }
 
 void sym_register_union(Resolver* r, AstNode* node, AstNodeId node_id) {
@@ -208,17 +249,21 @@ void sym_register_union(Resolver* r, AstNode* node, AstNodeId node_id) {
         symbol -> as.unions.count = 0;
     } else {
         symbol -> as.unions.fields = arena_alloc(&r -> table -> arena, field_count * sizeof(SymbolId));
-        symbol -> as.unions.types = arena_alloc(&r -> table -> arena, field_count * sizeof(TypeId));
         symbol -> as.unions.count = field_count;
     }
 
     TypeId type_id = type_table_register_union(module, node, node_id, symbol_id);
 
     if (type_id == TYPE_ID_NONE) {
-        printf("Error");
+        diagnostic_add_symbol_already_defined(
+            &driver_ctx.diagnostics,
+            module,
+            symbol_id,
+            node_id
+        );
     }
 
-    symbol -> as.unions.type_id = type_id;
+    symbol -> as.unions.type = type_id;
 }
 
 void sym_register_variable(Resolver* r, AstNode* node, AstNodeId node_id) {

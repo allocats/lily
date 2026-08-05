@@ -59,9 +59,10 @@ static OpInfo op_table[] = {
     [TOK_SLASH]       = L(110),
     [TOK_PERCENT]     = L(110),
 
-    // postfix: calls, indexing, member access — tightest
+    // postfix: calls, indexing, struct initializations, member access — tightest
     [TOK_LPAREN]      = L(140),
     [TOK_LBRACKET]    = L(140),
+    // [TOK_LBRACE]      = L(140),
     [TOK_ARROW]       = L(140),
     [TOK_DOT]         = L(140),
 

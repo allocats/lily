@@ -214,5 +214,7 @@ AstNodeId parse_function_decl(Parser* p) {
 
     node -> as.func_decl.block = parse_block(p);
 
+    node -> token_span.end = p -> cursor;
+
     return id;
 }

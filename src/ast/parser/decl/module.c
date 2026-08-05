@@ -81,6 +81,8 @@ AstNodeId parse_module_decl(Parser* p) {
 
     AstNodeId id  = parser_create_node(p, AST_MODULE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
+
+    node -> token_span.end = p -> cursor;
     node -> as.module_decl.namespace_id = ns_id;
 
     NamespaceEntry* entry = NAMESPACE_ID_LOOKUP_REF(ns_id);
@@ -92,6 +94,6 @@ AstNodeId parse_module_decl(Parser* p) {
         p->module->namespace_id,
         p->module
     );
-    
+
     return id;
 }

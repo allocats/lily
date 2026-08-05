@@ -47,5 +47,7 @@ AstNodeId parse_for_loop(Parser* p) {
 
     node -> as.for_loop.block = parse_block(p);
 
+    node -> token_span.end = p -> cursor;
+
     return id;
 }

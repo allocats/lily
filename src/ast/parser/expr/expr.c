@@ -27,6 +27,9 @@ AstNodeId parse_expression(Parser* p, i32 min_bp) {
         left = led(p, op, left);
     }
 
+    AstNode* node = &p -> module -> ast.nodes[left];
+    node -> token_span.end = p -> cursor;
+
     return left;
 }
 
@@ -351,6 +354,34 @@ static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
 
             return id;
         }
+
+        // case TOK_LBRACE: {
+        //     AstNodeId id  = parser_create_node(p, AST_STRUCT_INIT);
+        //     AstNode* node = ast_node_get(&p -> module -> ast, id);
+        //
+        //     node -> as.struct_init.ident = left;
+        //
+        //     node -> as.struct_init.count = 0;
+        //     node -> as.struct_init.capacity = 0;
+        //
+        //     if (!parser_check(p, TOK_RBRACE)) {
+        //         diagnostic_add_token(
+        //             &driver_ctx.diagnostics,
+        //             p -> id,
+        //             DIAG_ERROR,
+        //             parser_peek_previous(p),
+        //             DIAG_LOC_END_OF_TOK,
+        //             "expected '}'",
+        //             "add a '}' here"
+        //         );
+        //
+        //         return parser_error_stmt(p, node); 
+        //     }
+        //
+        //     parser_advance(p);
+        //
+        //     return id;
+        // }
 
         case TOK_ARROW:
         case TOK_DOT: {

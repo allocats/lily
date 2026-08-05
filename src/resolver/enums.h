@@ -1,0 +1,16 @@
+#ifndef LILY_RESOLVER_ENUMS_H
+#define LILY_RESOLVER_ENUMS_H
+
+typedef enum {
+    RESOLVE_UNRESOLVED,
+    RESOLVE_RESOLVING,
+    RESOLVE_RESOLVED,
+    RESOLVE_ERROR
+} ResolveState;
+
+typedef enum {
+    RESOLVE_SYMBOL,
+    RESOLVE_TYPE
+} ResolveKind;
+
+#endif // !LILY_RESOLVER_ENUMS_H

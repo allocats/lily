@@ -69,6 +69,7 @@ AstNodeId parse_import_decl(Parser* p) {
 
     parser_advance(p);
 
+    node -> token_span.end = p -> cursor;
     node -> as.import_decl.namespace_id = namespace_intern(segments, segment_count);
 
     Module* module = p -> module; 

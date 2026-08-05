@@ -25,5 +25,7 @@ AstNodeId parse_return_stmt(Parser* p) {
 
     parser_advance(p);
 
+    node -> token_span.end = p -> cursor;
+
     return id;
 }

@@ -1,9 +1,11 @@
 #ifndef LILY_SYMBOLS_H
 #define LILY_SYMBOLS_H
 
-#include "driver/types.h"
 #include "ids.h"
+#include "driver/types.h"
+#include "resolver/types.h"
 #include "symbols/types.h"
+#include "symbols/resolve/resolve.h"
 
 extern LilyCtx driver_ctx;
 
@@ -15,8 +17,6 @@ void scope_init(Scope* scope);
 
 void symbols_register_top_level_declarations(ModuleId id);
 void symbols_resolve(ModuleId id);
-
-bool symbols_resolve_by_id(ModuleId module_id, SymbolId id);
 
 SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind kind);
 SymbolId scope_get_sym(Resolver* r, StringId name, u32 hash);

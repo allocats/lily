@@ -6,13 +6,14 @@
 #include "meowrena/meowrena.h"
 #include "modules/types.h"
 #include "namespacing/types.h"
-#include "query/types.h"
+#include "resolver/types.h"
 #include "string_interner/types.h"
 #include "types/types.h"
 
 #define LILY_FLAGS_NONE         (0 << 0)
 #define LILY_FLAGS_DUMP_TOKENS  (1 << 0)
 #define LILY_FLAGS_DUMP_AST     (1 << 1)
+#define LILY_FLAGS_DUMP_TYPES   (1 << 2)
 
 typedef struct {
     u64 flags;
@@ -31,9 +32,11 @@ typedef struct {
 
     SymbolTable builtins;
 
+    SymbolRef main_function;
+
     TypeTable type_table;
 
-    QueryStack query_stack;
+    ResolveStack resolver_stack;
 } LilyCtx;
 
 #endif // !LILY_DRIVER_TYPES_H

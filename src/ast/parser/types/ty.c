@@ -23,6 +23,7 @@ AstNodeId parse_param_type(Parser* p) {
 }
 
 AstNodeId parse_type_expr(Parser* p) {
+    u32 start_index = p -> cursor;
     bool is_const = false;
 
     if (parser_check(p, TOK_CONST)) {
@@ -55,7 +56,11 @@ AstNodeId parse_type_expr(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_TYPE_BASE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
-    node -> flags |= AST_FLAGS_IS_CONST;
+    if (is_const) {
+        node -> flags |= AST_FLAGS_IS_CONST;
+    }
+
+    node -> token_span.start = start_index;
     node -> as.type_base_expr.ident = primary;
 
     while (p -> cursor < p -> token_count) {
@@ -119,6 +124,8 @@ AstNodeId parse_type_expr(Parser* p) {
 
         break;
     }
+
+    node -> token_span.end = p -> cursor;
 
     return id;
 }

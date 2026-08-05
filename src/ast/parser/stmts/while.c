@@ -27,5 +27,7 @@ AstNodeId parse_while_loop(Parser* p) {
 
     node -> as.while_loop.block = parse_block(p);
 
+    node -> token_span.end = p -> cursor;
+
     return id;
 }

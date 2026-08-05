@@ -87,5 +87,7 @@ AstNodeId parse_block(Parser* p) {
         }
     }
 
+    node -> token_span.end = p -> cursor;
+
     return id;
 }

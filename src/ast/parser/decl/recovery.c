@@ -24,5 +24,6 @@ void parser_recover_decl(Parser* p) {
 AstNodeId parser_error_decl(Parser* p, AstNode* node) {
     parser_recover_decl(p);
     node -> kind = AST_ERROR;
+    node -> token_span.end = p -> cursor;
     return node -> id;
 }

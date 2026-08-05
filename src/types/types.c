@@ -2,7 +2,6 @@
 #include "driver/types.h"
 #include "hash/hash.h"
 #include "ids.h"
-#include "query/types.h"
 #include "string_interner/interner.h"
 #include "symbols/symbols.h"
 #include "symbols/types.h"
@@ -111,7 +110,6 @@ TypeId builtin_add_primitive(TypeBuiltin type) {
     entry -> align = type.align;
 
     entry -> resolve_state = RESOLVE_RESOLVED;
-    entry -> owning_symbol = SYMBOL_ID_NONE;
 
     debug_printf("Types: Added builtin type %.*s at id=%d\n", type.name.length, type.name.pointer, id);
 
@@ -147,14 +145,7 @@ TypeId builtin_lookup_primitive(StringId name_id) {
     return TYPE_ID_NONE;
 }
 
-TypeId type_table_register_nominal(
-    u32 hash,
-    StringId name,
-    TypeKind kind,
-    AstNodeId node_id,
-    SymbolId sym_id,
-    ModuleId module_id
-) {
+TypeId type_table_register_nominal(u32 hash, StringId name, TypeKind kind, AstNodeId node_id) {
     TypeTable* table = &driver_ctx.type_table;
 
     if (UNLIKELY(table -> count >= table -> nominal_bucket_capacity * LOAD_FACTOR)) {
@@ -193,18 +184,15 @@ TypeId type_table_register_nominal(
     entry -> hash  = hash;
     entry -> size  = 0;
     entry -> align = 0;
-    entry -> node_id = node_id;
-    entry -> module_id = module_id;
-    entry -> owning_symbol = sym_id;
     entry -> resolve_state = RESOLVE_UNRESOLVED;
 
     return id;
 }
 
-TypeId type_table_lookup_nominal(AstNode* ident) {
+TypeId type_table_lookup_nominal(ModuleId module_id, AstNode* ident) {
     TypeTable* table = &driver_ctx.type_table;
 
-    u32 hash  = types_hash_nominal(ident -> as.ident.namespace_id, ident -> as.ident.name_id);
+    u32 hash  = types_hash_nominal(module_id, ident -> as.ident.name_id);
     u32 mask  = table -> nominal_bucket_capacity - 1;
     u32 index = hash & mask;
 
@@ -267,9 +255,7 @@ TypeId type_table_register_pointer(TypeId base) {
     entry -> kind  = TYPE_POINTER;
     entry -> hash  = hash;
     entry -> size  = sizeof(void*);
-    entry -> size  = _Alignof(void*);
-
-    entry -> owning_symbol = SYMBOL_ID_NONE;
+    entry -> align = _Alignof(void*);
 
     entry -> as.pointer.base = base;
 
@@ -305,11 +291,11 @@ TypeId type_table_lookup_pointer(TypeId base) {
 
 
 TypeId type_table_register_array(TypeId element, AstNodeId length) {
-
+    return 0;
 }
 
 TypeId type_table_lookup_array(TypeId base) {
-
+    return 0;
 }
 
 static void type_table_structural_buckets_resize(TypeTable* table) {
@@ -377,10 +363,10 @@ u32 types_hash_id(u32 hash, u32 id) {
     return hash;
 }
 
-u32 types_hash_nominal(NamespaceId ns, StringId name) {
+u32 types_hash_nominal(ModuleId module_id, StringId name) {
     u32 hash = FNV1A32_BASIS;
 
-    hash = types_hash_id(hash, ns);
+    hash = types_hash_id(hash, module_id);
     hash = types_hash_id(hash, name);
 
     return hash;

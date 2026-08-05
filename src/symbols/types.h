@@ -3,7 +3,7 @@
 
 #include "ids.h"
 #include "meowrena/meowrena.h"
-#include "query/types.h"
+#include "resolver/enums.h"
 #include "utils/types.h"
 
 #define SYMBOLS(X)      \
@@ -52,10 +52,9 @@ typedef struct {
 // structs and unions
 //
 typedef struct {
-    TypeId type_id;
+    TypeId type;
 
-    StringId* fields;
-    TypeId* types;
+    SymbolId* fields;
     u32 count;
 } SymbolStruct, SymbolUnion;
 
@@ -63,7 +62,7 @@ typedef struct {
 // enums
 //
 typedef struct {
-    TypeId type_id;
+    TypeId type;
 
     SymbolId* variants;
     u32 count;
@@ -139,21 +138,12 @@ typedef struct {
     Arena arena;
 
     Scope* scopes;
-    u32 scope_count; // acts like a 'top' variable, 0 == module level, lowest it can go is 0
+    u32 scope_count;
     u32 scope_capacity;
 
     Symbol* symbols;
     u32 symbol_count;
     u32 symbol_capacity;
 } SymbolTable;
-
-typedef struct {
-    NamespaceId current_namespace_id;
-    ModuleId current_module_id;
-    ScopeId current_scope_id;
-
-    SymbolTable* table;
-    SymbolTable* builtins; // points to builtin symbol table from driver_ctx
-} Resolver;
 
 #endif // !LILY_SYMBOLS_TYPES_H

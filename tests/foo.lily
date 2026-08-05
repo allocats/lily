@@ -2,6 +2,11 @@ module foo;
 
 import std::io;
 
+struct Vec {
+    x: i32;
+    y: i32;
+}
+
 fn main() {
     std::io::printf("Hello world! :3");
 }

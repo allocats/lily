@@ -49,6 +49,7 @@
     X(AST_LITERAL)          \
     X(AST_INDEX)            \
     X(AST_MEMBER_ACCESS)    \
+    X(AST_STRUCT_INIT)      \
                             \
     X(AST_TYPE_BASE)        \
     X(AST_TYPE_ARRAY)       \
@@ -297,6 +298,17 @@ typedef struct {
 } AstMemberAccess;
 
 //
+// STRUCT INITIALIZATION
+//
+// typedef struct {
+//     AstNodeId ident;
+//
+//     AstNodeId* exprs;
+//     u32 count;
+//     u32 capacity;
+// } AstStructInit;
+
+//
 // CONTINUE AND BREAK
 //
 typedef struct {
@@ -347,6 +359,8 @@ typedef struct AstNode {
 
     Token* source_token;
 
+    Span token_span;
+
     union {
         AstModule module_decl;
         AstImport import_decl;
@@ -382,6 +396,7 @@ typedef struct AstNode {
         AstIdent        ident;
         AstLiteral      literal; 
         AstIndex        index;
+        // AstStructInit   struct_init;
         AstMemberAccess member_access;
 
         AstBlock block;

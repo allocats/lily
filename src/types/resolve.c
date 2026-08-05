@@ -3,8 +3,7 @@
 #include "driver/types.h"
 #include "ids.h"
 #include "modules/modules.h"
-#include "query/query.h"
-#include "query/types.h"
+#include "resolver/resolver.h"
 #include "symbols/symbols.h"
 #include "types/builtins.h"
 #include "types/ty.h"
@@ -22,7 +21,7 @@ void resolve_types(void) {
 
     for (u32 i = BUILTIN_NOMINAL_TYPES_COUNT; i < table -> count; i++) {
         TypeEntry* entry = &table -> entries[i];
-        resolve_type_entry(entry -> module_id, i);
+        resolve_type_entry(entry -> declaration.module_id, i);
     }
 }
 
@@ -51,7 +50,6 @@ TypeId resolve_type(ModuleId module_id, AstNodeId type_expr_id) {
             }
 
             return type_table_register_pointer(base);
-            break;
 
         // structural 
         case AST_TYPE_ARRAY:
@@ -74,6 +72,9 @@ TypeId resolve_type(ModuleId module_id, AstNodeId type_expr_id) {
                 type_expr -> as.type_array_expr.size_expr
             );
             break;
+            
+        case AST_TYPE_VARIADIC:
+            return driver_ctx.type_table.builtins.type_variadic;
 
         default:
             return TYPE_ID_NONE;
@@ -92,12 +93,9 @@ static TypeId resolve_type_base(Module* module, AstNode* expr) {
         if (builtin != TYPE_ID_NONE) {
             return builtin;
         }
-
-        // TODO: ponder this
-        ident -> as.ident.namespace_id = module -> namespace_id;
     }
 
-    TypeId id = type_table_lookup_nominal(ident);
+    TypeId id = type_table_lookup_nominal(module -> id, ident);
 
     if (id == TYPE_ID_NONE) {
         // TODO: Errors
@@ -116,16 +114,16 @@ TypeEntry* resolve_type_entry(ModuleId module_id, TypeId id) {
     if (entry -> resolve_state == RESOLVE_RESOLVED) return entry;
     if (entry -> resolve_state == RESOLVE_ERROR)    return null;
 
-    Query query = {
-        .kind = QUERY_TYPE,
+    ResolveItem item = {
+        .kind = RESOLVE_TYPE,
         .module_id = module_id,
-        .as.type_id = id
+        .as.type = id
     };
 
     if (entry -> resolve_state == RESOLVE_RESOLVING) {
-        i32 cycle_start = query_stack_find(&driver_ctx.query_stack, query);
+        i32 cycle_start = resolver_stack_find(&driver_ctx.resolver_stack, item);
 
-        diagnostic_add_query_type_cycle(
+        diagnostic_add_resolver_type_cycle(
             &driver_ctx.diagnostics,
             cycle_start
         );
@@ -136,7 +134,7 @@ TypeEntry* resolve_type_entry(ModuleId module_id, TypeId id) {
 
     entry -> resolve_state = RESOLVE_RESOLVING;
 
-    if (!query_stack_push(&driver_ctx.query_stack, query)) {
+    if (!resolver_stack_push(&driver_ctx.resolver_stack, item)) {
         diagnostic_add_generic(
             &driver_ctx.diagnostics,
             DIAG_ERROR,
@@ -149,7 +147,7 @@ TypeEntry* resolve_type_entry(ModuleId module_id, TypeId id) {
 
     bool resolved_body = resolve_type_body(module_id, id);
 
-    query_stack_pop(&driver_ctx.query_stack);
+    resolver_stack_pop(&driver_ctx.resolver_stack);
     
     entry -> resolve_state = resolved_body ? RESOLVE_RESOLVED : RESOLVE_ERROR;
 
@@ -160,9 +158,9 @@ static TypeId resolve_type_body(ModuleId module_id, TypeId id) {
     TypeTable* table = &driver_ctx.type_table;
     TypeEntry* entry = &table -> entries[id]; 
 
-    if (entry -> owning_symbol == SYMBOL_ID_NONE) {
+    if (entry -> declaration.module_id == SYMBOL_ID_NONE) {
         return true;
     }
 
-    return symbols_resolve_by_id(module_id, entry -> owning_symbol);
+    return symbols_resolve_by_id(module_id, entry -> declaration.symbol_id);
 }

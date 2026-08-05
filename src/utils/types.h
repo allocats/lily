@@ -48,6 +48,11 @@ typedef struct __attribute__((packed)) {
     u32 length;
 } str8;
 
+typedef struct {
+    u32 start;
+    u32 end;
+} Span;
+
 /*
 *
 *   2. Type limits

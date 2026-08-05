@@ -2,7 +2,9 @@
 #define LILY_SYMBOLS_REGISTER_H
 
 #include "ast/nodes/types.h"
-#include "symbols/types.h"
+#include "resolver/types.h"
+
+void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id);
 
 void sym_register_constant(Resolver* r, AstNode* node, AstNodeId node_id);
 void sym_register_enum(Resolver* r, AstNode* node, AstNodeId node_id);

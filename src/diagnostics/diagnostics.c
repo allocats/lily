@@ -5,6 +5,7 @@
 #include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "resolver/types.h"
 #include "symbols/types.h"
 #include "types/types.h"
 #include "utils/debug.h"
@@ -177,7 +178,7 @@ void diagnostic_add_generic(DiagnosticEngine* engine, DiagKind kind, char* fmt, 
     diag -> kind = kind;
     diag -> is_generic = true;
     diag -> msg.pointer = buffer;
-    diag -> msg.length  = bytes;
+    diag -> msg.length  = n;
 }
 
 void diagnostic_add_token(
@@ -431,14 +432,16 @@ void diagnostic_add_symbol_is_builtin(
     );
 }
 
-void diagnostic_add_query_type_cycle(DiagnosticEngine* engine, i32 query_id) {
-    Query query = driver_ctx.query_stack.items[query_id];
+void diagnostic_add_resolver_type_cycle(DiagnosticEngine* engine, i32 resolver_id) {
+    ResolveItem item = driver_ctx.resolver_stack.items[resolver_id];
 
-    TypeEntry* type = &driver_ctx.type_table.entries[query.as.type_id];
-    Module* module = &driver_ctx.module_registry.entries[query.module_id];
-    AstNode* node = &module -> ast.nodes[type -> node_id];
+    TypeEntry* type = &driver_ctx.type_table.entries[item.as.type];
+    Module* module = &driver_ctx.module_registry.entries[item.module_id];
+    SymbolTable* table = &driver_ctx.module_registry.entries[type -> declaration.module_id].symbol_table;
+    Symbol* type_sym = &table -> symbols[type -> declaration.symbol_id];
+    AstNode* node = &module -> ast.nodes[type_sym -> declaration];
 
-    FileId file = module_node_file(module, type -> node_id);
+    FileId file = module_node_file(module, type_sym -> declaration);
 
     diagnostic_add_token(
         engine,
@@ -451,11 +454,11 @@ void diagnostic_add_query_type_cycle(DiagnosticEngine* engine, i32 query_id) {
     );
 }
 
-void diagnostic_add_query_symbol_cycle(DiagnosticEngine* engine, i32 query_id) {
-    Query query = driver_ctx.query_stack.items[query_id];
+void diagnostic_add_resolver_symbol_cycle(DiagnosticEngine* engine, i32 resolver_id) {
+    ResolveItem item = driver_ctx.resolver_stack.items[resolver_id];
 
-    Module* module = &driver_ctx.module_registry.entries[query.module_id];
-    Symbol* symbol = &module -> symbol_table.symbols[query.as.symbol_id];
+    Module* module = &driver_ctx.module_registry.entries[item.module_id];
+    Symbol* symbol = &module -> symbol_table.symbols[item.as.symbol];
     AstNode* node = &module -> ast.nodes[symbol -> declaration];
 
     FileId file = module_node_file(module, symbol -> declaration);
@@ -468,6 +471,28 @@ void diagnostic_add_query_symbol_cycle(DiagnosticEngine* engine, i32 query_id) {
         DIAG_LOC_WHOLE_TOK,
         "symbol recursively includes itself",
         "stop that"
+    );
+}
+
+void diagnostic_add_return_type_invalid(DiagnosticEngine* engine, Module* module, SymbolId symbol_id) {
+    SymbolTable* table = &module -> symbol_table;
+    Symbol* symbol = &table -> symbols[symbol_id];
+
+    FileId file = module_node_file(module, symbol -> declaration);
+
+    AstNodeId func_id = symbol -> declaration;
+    AstNode* func_node = &module -> ast.nodes[func_id];
+
+    AstNode* return_type_expr = &module -> ast.nodes[func_node -> as.func_decl.return_type_expr];
+
+    diagnostic_add_token(
+        engine,
+        file,
+        DIAG_ERROR,
+        func_node -> source_token,
+        DIAG_LOC_WHOLE_TOK,
+        "invalid return type",
+        "add a valid type here"
     );
 }
 

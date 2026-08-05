@@ -3,7 +3,8 @@
 
 #include "ids.h"
 #include "meowrena/meowrena.h"
-#include "query/types.h"
+#include "resolver/enums.h"
+#include "symbols/types.h"
 #include "types/builtins.h"
 #include "utils/types.h"
 
@@ -36,11 +37,9 @@ typedef struct {
 
     ResolveState resolve_state;
 
-    ModuleId module_id;
+    AstNodeId type_expr;
 
-    AstNodeId node_id;
-
-    SymbolId owning_symbol;
+    SymbolRef declaration;
 
     union {
         struct {

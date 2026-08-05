@@ -30,7 +30,7 @@ static Arena gpa = {0};
 i32 main(i32 argc, char** argv) {
     // compile time asserts used to ensure behaviour is as expected
     static_assert(sizeof(Token) == 16 && "Token != 16 bytes\n");
-    static_assert(sizeof(AstNode) == 48 && "AstNode != 48 bytes\n");
+    static_assert(sizeof(AstNode) == 56 && "AstNode != 56 bytes\n");
 
     // loads terminal colours or none if unable to
     cli_init_ansi_codes();
@@ -107,9 +107,14 @@ i32 main(i32 argc, char** argv) {
         }
     }
 
-    cli_print_compiler_stats(&frontend_timer, &backend_timer, &linker_timer);
+    if (driver_ctx.flags & LILY_FLAGS_DUMP_TYPES) {
+        print_type_table(&driver_ctx.type_table);
+    }
 
     bool has_errors = diagnostics_print(&driver_ctx.diagnostics);
+
+    cli_print_compiler_stats(&frontend_timer, &backend_timer, &linker_timer);
+
     if (has_errors) {
         printf(
             "%s%s%s:%s compiled %ssuccessfully%s\n",

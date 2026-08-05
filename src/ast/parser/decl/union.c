@@ -5,6 +5,7 @@
 #include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
 #include "string_interner/interner.h"
+#include "token/token.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -136,6 +137,8 @@ AstNodeId parse_union_decl(Parser* p) {
     }
 
     parser_advance(p);
+
+    node -> token_span.end = p -> cursor;
 
     return id;
 }

@@ -211,6 +211,7 @@ AstNodeId parse_macro_decl(Parser* p) {
 
     parser_advance(p);
 
+    node -> token_span.end = p -> cursor;
     node -> as.macro_decl.block = parse_block(p);
 
     return id;

@@ -237,5 +237,7 @@ static AstNodeId parse_external_function_decl(Parser* p) {
 
     parser_advance(p);
 
+    node -> token_span.end = p -> cursor;
+
     return id;
 }

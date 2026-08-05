@@ -1,35 +1,50 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
-#include "diagnostics/diagnostics.h"
 #include "hash/hash.h"
 #include "ids.h"
 #include "modules/modules.h"
-#include "query/query.h"
 #include "symbols/register/register.h"
 #include "symbols/resolve/resolve.h"
 #include "symbols/symbols.h"
-#include "types/ty.h"
 #include "types/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
 #include <assert.h>
-#include <stdio.h>
 
 #define LOAD_FACTOR 0.75
-
-#define ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(n) ((n + sizeof(void*) - 1) & (-sizeof(void*)))
 
 static void scope_resize(Scope* scope);
 static void table_symbols_resize(SymbolTable* table);
 
-static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id);
-static void resolve_symbol(Resolver* r, Symbol* sym);
-static bool resolve_symbol_body(ModuleId module_id, SymbolId id);
+void symbols_register_top_level_declarations(ModuleId id) {
+    Module* module = MODULE_ID_LOOKUP_REF(id);
+    Ast* ast = &module -> ast;
+    u32 count = ast -> count;
 
-static bool resolve_struct_body(Module* module, Symbol* symbol);
-static bool resolve_union_body(Module* module, Symbol* symbol);
-static bool resolve_enum_body(Module* module, Symbol* symbol);
+    Resolver r = {
+        .current_namespace_id = module -> namespace_id,
+        .current_module_id = id,
+        .current_scope_id = 0,
+        .builtins = &driver_ctx.builtins,
+        .table = &module -> symbol_table
+    };
+
+    for (u32 i = 0; i < count; i++) {
+        AstNode* node = &ast -> nodes[i];
+
+        register_symbol(&r, node, i);
+    }
+}
+
+void symbols_resolve(ModuleId id) {
+    Module* module = MODULE_ID_LOOKUP_REF(id);
+    u32 count = module -> symbol_table.symbol_count;
+
+    for (u32 i = 0; i < count; i++) {
+        symbols_resolve_by_id(id, module -> symbol_table.symbols[i].id);
+    }
+}
 
 void symbol_table_builtins_init(void) {
     SymbolTable* table = &driver_ctx.builtins;
@@ -106,281 +121,6 @@ void scope_init(Scope* scope) {
     scope -> parent = SCOPE_ID_NONE;
 
     arena_memset(scope -> ids, 0xff, 32 * sizeof(SymbolId));
-}
-
-void symbols_register_top_level_declarations(ModuleId id) {
-    Module* module = MODULE_ID_LOOKUP_REF(id);
-    Ast* ast = &module -> ast;
-    u32 count = ast -> count;
-
-    Resolver r = {
-        .current_namespace_id = module -> namespace_id,
-        .current_module_id = id,
-        .current_scope_id = 0,
-        .builtins = &driver_ctx.builtins,
-        .table = &module -> symbol_table
-    };
-
-    for (u32 i = 0; i < count; i++) {
-        AstNode* node = &ast -> nodes[i];
-
-        register_symbol(&r, node, i);
-    }
-}
-
-void symbols_resolve(ModuleId id) {
-    Module* module = MODULE_ID_LOOKUP_REF(id);
-    u32 count = module -> symbol_table.symbol_count;
-
-    Resolver r = {
-        .current_namespace_id = module -> namespace_id,
-        .current_module_id = id,
-        .current_scope_id = 0,
-        .builtins = &driver_ctx.builtins,
-        .table = &module -> symbol_table
-    };
-
-    for (u32 i = 0; i < count; i++) {
-        Symbol* sym = &r.table -> symbols[i];
-
-        resolve_symbol(&r, sym);
-    }
-}
-
-static void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id) {
-    switch (node -> kind) {
-        case AST_FUNCTION:
-            // resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);
-            sym_register_function(r, node, node_id);
-            break;
-
-        case AST_MACRO:
-            sym_register_macro(r, node, node_id);
-            break;
-
-        case AST_STRUCT:
-            sym_register_struct(r, node, node_id);
-            break;
-
-        case AST_UNION:
-            sym_register_union(r, node, node_id);
-            break;
-
-        case AST_CONST:
-            sym_register_constant(r, node, node_id);
-            break;
-
-        case AST_ENUM:
-            sym_register_enum(r, node, node_id);
-            break;
-
-        default:
-            break;
-    }
-}
-
-static void resolve_symbol(Resolver* r, Symbol* sym) {
-    switch (sym -> kind) {
-        case SYM_FUNCTION:
-            sym_resolve_function(r, sym, sym -> declaration);
-            break;
-
-        case SYM_MACRO:
-            break;
-
-        case SYM_CONSTANT:
-            break;
-
-        case SYM_STRUCT:
-            break;
-
-        case SYM_UNION:
-            break;
-
-        case SYM_ENUM:
-            break;
-
-        default:
-            break;
-    }
-}
-
-bool symbols_resolve_by_id(ModuleId module_id, SymbolId id) {
-    Module* module = MODULE_ID_LOOKUP_REF(module_id);
-    Symbol* symbol = &module -> symbol_table.symbols[id];
-
-    if (symbol -> resolve_state == RESOLVE_RESOLVED) return true;
-    if (symbol -> resolve_state == RESOLVE_ERROR) return false;
-
-    Query query = {
-        .kind = QUERY_SYMBOL,
-        .module_id = module_id,
-        .as.symbol_id = id
-    };
-
-    if (symbol -> resolve_state == RESOLVE_RESOLVING) {
-        i32 cycle_start = query_stack_find(&driver_ctx.query_stack, query);
-
-        diagnostic_add_query_symbol_cycle(
-            &driver_ctx.diagnostics,
-            cycle_start
-        );
-
-        symbol -> resolve_state = RESOLVE_ERROR;
-        return false;
-    }
-
-    symbol -> resolve_state = RESOLVE_RESOLVING;
-
-    if (!query_stack_push(&driver_ctx.query_stack, query)) {
-        diagnostic_add_generic(
-            &driver_ctx.diagnostics,
-            DIAG_ERROR,
-            "reached recursion limit"
-        );
-
-        symbol -> resolve_state = RESOLVE_ERROR;
-        return null;
-    }
-
-    bool resolved_body = resolve_symbol_body(module_id, id);
-
-    query_stack_pop(&driver_ctx.query_stack);
-    
-    symbol -> resolve_state = resolved_body ? RESOLVE_RESOLVED : RESOLVE_ERROR;
-
-    return resolved_body;
-
-}
-
-static bool resolve_symbol_body(ModuleId module_id, SymbolId id) {
-    Module* module = MODULE_ID_LOOKUP_REF(module_id);
-    Symbol* symbol = &module -> symbol_table.symbols[id];
-
-    switch (symbol -> kind) {
-        case SYM_STRUCT:
-            return resolve_struct_body(module, symbol);
-
-        case SYM_UNION:
-            return resolve_union_body(module, symbol);
-            break;
-
-        case SYM_ENUM:
-            return resolve_enum_body(module, symbol);
-            break;
-
-        default:
-            printf("Something goofed up here\n Id = %d\n", id);
-            return false;
-    }
-
-    return false;
-}
-
-static bool resolve_struct_body(Module* module, Symbol* symbol) {
-    AstNode* node = &module -> ast.nodes[symbol -> declaration];
-
-    u32 size = 0;
-    u32 align = 0;
-
-    u32 count = node -> as.struct_decl.field_count;
-
-    for (u32 i = 0; i < count; i++) {
-        AstNodeId field_id = node -> as.struct_decl.fields[i];
-        AstNode* field = &module -> ast.nodes[field_id];
-
-        TypeId field_type = resolve_type(module -> id, field -> as.field_decl.type_expr);
-
-        if (field_type == driver_ctx.type_table.builtins.type_void) {
-            printf("Found invalid type: void");
-            return false;
-        }
-
-        TypeEntry* entry = resolve_type_entry(module -> id, field_type);
-        if (entry == NULL) {
-            return false;
-        }
-
-        size += entry -> size;
-
-        symbol -> as.structs.fields[i] = field -> as.field_decl.name_id;
-        symbol -> as.structs.types[i] = field_type;
-    }
-
-    align = ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(size);
-
-    TypeEntry* entry = &driver_ctx.type_table.entries[symbol -> as.structs.type_id];
-
-    entry -> size = size;
-    entry -> align = align;
-
-    return true;
-}
-
-static bool resolve_union_body(Module* module, Symbol* symbol) {
-    AstNode* node = &module -> ast.nodes[symbol -> declaration];
-
-    u32 size = 0;
-    u32 align = 0;
-
-    u32 count = node -> as.union_decl.field_count;
-
-    for (u32 i = 0; i < count; i++) {
-        AstNodeId field_id = node -> as.union_decl.fields[i];
-        AstNode* field = &module -> ast.nodes[field_id];
-
-        TypeId field_type = resolve_type(module -> id, field -> as.field_decl.type_expr);
-
-        if (field_type == driver_ctx.type_table.builtins.type_void) {
-            printf("Found invalid type: void");
-            return false;
-        }
-
-        TypeEntry* entry = resolve_type_entry(module -> id, field_type);
-        if (entry == NULL) {
-            return false;
-        }
-
-        size += entry -> size;
-
-        symbol -> as.unions.fields[i] = field -> as.field_decl.name_id;
-        symbol -> as.unions.types[i] = field_type;
-    }
-
-    align = ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(size);
-
-    TypeEntry* entry = &driver_ctx.type_table.entries[symbol -> as.unions.type_id];
-
-    entry -> size = size;
-    entry -> align = align;
-
-    return true;
-}
-
-static bool resolve_enum_body(Module* module, Symbol* symbol) {
-    TypeTable* table = &driver_ctx.type_table;
-    AstNode* node = &module -> ast.nodes[symbol -> declaration];
-
-    TypeId underlying_type = TYPE_ID_NONE;
-
-    if (node -> as.enum_decl.type_expr == AST_NODE_ID_NONE) {
-        underlying_type = table -> builtins.type_i32;
-    } else {
-        underlying_type = resolve_type(module -> id, node -> as.enum_decl.type_expr);
-
-        if (underlying_type == TYPE_ID_NONE) {
-            printf("Enum: error");
-            return false;
-        }
-    }
-
-    TypeEntry* type = &table -> entries[underlying_type];
-    TypeEntry* sym_type = &table -> entries[symbol -> as.enums.type_id];
-
-    sym_type -> size = type -> size;
-    sym_type -> align = type -> align;
-
-    return true;
 }
 
 SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind kind) {
@@ -517,8 +257,6 @@ ScopeId scope_enter(Resolver* r) {
 
     scope -> parent = r -> current_scope_id;
     scope -> count = 0;
-
-    // arena_memset(scope -> ids, 0xff, sizeof(SymbolId) * scope -> capacity);
 
     r -> current_scope_id = new_scope;
 

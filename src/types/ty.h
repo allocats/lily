@@ -17,15 +17,8 @@ void resolve_types(void);
 TypeId resolve_type(ModuleId module_id, AstNodeId type_expr_id);
 TypeEntry* resolve_type_entry(ModuleId module_id, TypeId id);
 
-TypeId type_table_lookup_nominal(AstNode* ident);
-TypeId type_table_register_nominal(
-    u32 hash,
-    StringId name,
-    TypeKind kind,
-    AstNodeId node_id,
-    SymbolId sym_id,
-    ModuleId module_id 
-);
+TypeId type_table_lookup_nominal(ModuleId module_id, AstNode* ident);
+TypeId type_table_register_nominal(u32 hash, StringId name, TypeKind kind, AstNodeId node_id);
 
 TypeId type_table_lookup_pointer(TypeId base);
 TypeId type_table_register_pointer(TypeId base);
@@ -40,5 +33,7 @@ TypeId type_table_register_enum(Module* module, AstNode* node, AstNodeId id, Sym
 u32 types_hash_id(u32 hash, TypeId id);
 u32 types_hash_nominal(NamespaceId ns, StringId name);
 u32 types_hash_pointer(TypeId base);
+
+void print_type_table(TypeTable* table);
 
 #endif // !LILY_TYPES_H
