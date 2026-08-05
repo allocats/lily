@@ -30,8 +30,8 @@ static str8 allocate_buffer(str8 path);
 void file_registry_init(u32 count) {
     FileRegistry* file_registry = &driver_ctx.file_registry;
 
-    arena_init(&file_registry -> buffers_arena,  ARENA_KB(32), ALIGN_8);
-    debug_printf("Driver: Allocated file registry's buffer arena with 32KB\n");
+    arena_init(&file_registry -> buffers_arena, ARENA_MB(1), ALIGN_8);
+    debug_printf("Driver: Allocated file registry's buffer arena with 1MB\n");
 
     arena_init(&file_registry -> interner_arena, ARENA_KB(4), ALIGN_8);
     debug_printf("Driver: Allocated file registry's interner arena with 4KB\n");
