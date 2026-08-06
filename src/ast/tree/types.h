@@ -4,8 +4,9 @@
 #include "../nodes/types.h"
 
 typedef struct {
-    Arena arena;
+    Arena gpa_arena;
 
+    Arena nodes_arena;
     AstNode* nodes;
     u32 count;
     u32 capacity;

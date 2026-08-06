@@ -11,7 +11,7 @@ AstNodeId parse_macro_decl(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_MACRO);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
-    node -> as.macro_decl.params = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 8);
+    node -> as.macro_decl.params = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 8);
     node -> as.macro_decl.param_capacity = 8; 
     node -> as.macro_decl.param_count = 0;
 

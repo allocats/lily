@@ -5,6 +5,7 @@
 #include "ids.h"
 #include "modules/types.h"
 #include "symbols/symbols.h"
+#include "symbols/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -83,19 +84,22 @@ ModuleId module_intern(NamespaceId id) {
     module -> import_count = 0;
     module -> import_capacity = 8;
 
-    arena_init(&module -> ast.arena, ARENA_KB(4), ALIGN_8);
-    debug_printf("Module Registry: Init module %d's AST arena with 4KB\n", module_id);
+    arena_init(&module -> ast.gpa_arena, ARENA_KB(2), ALIGN_8);
+    debug_printf("Module Registry: Init module %d's AST GPA arena with 2KB\n", module_id);
 
-    module -> ast.nodes = arena_alloc_array(&module -> ast.arena, AstNode, 64); 
+    arena_init(&module -> ast.nodes_arena, ARENA_KB(8), ALIGN_DEFAULT);
+    debug_printf("Module Registry: Init module %d's AST Nodes arena with 8KB\n", module_id);
+
+    module -> ast.nodes = arena_alloc_array(&module -> ast.nodes_arena, AstNode, 128); 
     module -> ast.count = 0;
-    module -> ast.capacity = 64;
+    module -> ast.capacity = 128;
 
     arena_init(&module -> symbol_table.arena, ARENA_KB(2), ALIGN_8);
     debug_printf("Module Registry: Init module %d's symbol table arena with 2KB\n", module_id);
 
-    module -> symbol_table.symbols = arena_alloc_array(&module -> symbol_table.arena, Symbol, 32);
+    module -> symbol_table.symbols = arena_alloc_array(&module -> symbol_table.arena, Symbol, 256);
     module -> symbol_table.symbol_count = 0;
-    module -> symbol_table.symbol_capacity = 32;
+    module -> symbol_table.symbol_capacity = 256;
 
     module -> symbol_table.scopes = arena_alloc_array(&module -> symbol_table.arena, Scope, 16);
     module -> symbol_table.scope_count = 0;

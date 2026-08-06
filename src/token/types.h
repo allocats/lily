@@ -122,6 +122,7 @@ typedef struct {
 
 typedef struct {
     Arena arena;
+
     Token* items;
     u32 count;
     u32 capacity;

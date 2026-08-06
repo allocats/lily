@@ -407,6 +407,8 @@ typedef struct AstNode {
         AstTypeFunction type_function_expr;
         AstTypeVariadic type_variadic_expr;
     } as;
+
+    u8 __padding[8];
 } AstNode;
 
 #endif // !LILY_AST_NODES_TYPES_H

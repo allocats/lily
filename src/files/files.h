@@ -3,6 +3,7 @@
 
 #include "files/types.h"
 
+// Count must be a power of two!
 void file_registry_init(u32 count);
 void files_load_stdlib(str8 path);
 

@@ -24,7 +24,7 @@ AstNodeId parse_block(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_BLOCK);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
-    node -> as.block.stmts = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 8);
+    node -> as.block.stmts = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 8);
     node -> as.block.stmt_capacity = 8;
     node -> as.block.stmt_count = 0;
 
@@ -32,7 +32,7 @@ AstNodeId parse_block(Parser* p) {
         if (UNLIKELY(node -> as.block.stmt_count >= node -> as.block.stmt_capacity)) {
             u64 size = sizeof(AstNodeId) * node -> as.block.stmt_capacity;
 
-            node -> as.block.stmts = arena_realloc(&p -> module -> ast.arena, node -> as.block.stmts, size, size * 2);
+            node -> as.block.stmts = arena_realloc(&p -> module -> ast.gpa_arena, node -> as.block.stmts, size, size * 2);
             node -> as.block.stmt_capacity *= 2;
 
             debug_printf("block realloc from %ld -> %ld bytes\n", size, size * 2);
@@ -60,17 +60,17 @@ AstNodeId parse_block(Parser* p) {
                     "add a ';' here"
                 );
 
-                ast_block_push_stmt(&p -> module -> ast.arena, node, parser_error_stmt(p, expr_node));
+                ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, parser_error_stmt(p, expr_node));
             } else {
                 parser_advance(p);
-                ast_block_push_stmt(&p -> module -> ast.arena, node, expr_id);
+                ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, expr_id);
             }
         } else {
             ParseStmtFn fn = STMT_DISPATCH[token -> kind];
 
             if (fn) {
                 parser_advance(p);
-                ast_block_push_stmt(&p -> module -> ast.arena, node, fn(p));
+                ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, fn(p));
             } else {
                 diagnostic_add_token(
                     &driver_ctx.diagnostics,

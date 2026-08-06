@@ -17,13 +17,17 @@
 
 #define STDLIB_FILE_COUNT 1
 
+static u64 next_pow2(u64 x) {
+	return x == 1 ? 1 : 1 << (64 - __builtin_clzl(x - 1));
+}
+
 void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char** argv) {
     arena_init(gpa, ARENA_KB(8), ALIGN_8);
     debug_printf("Driver: Init gpa with 8KB\n");
 
     driver -> gpa = gpa;
 
-    i32 estimated_count = ARENA_ALIGN_UP(ALIGN_2, argc + STDLIB_FILE_COUNT);
+    u64 estimated_count = next_pow2(argc + STDLIB_FILE_COUNT);
     debug_printf("Driver: Allocating for %d files\n", estimated_count);
 
     file_registry_init(estimated_count);
@@ -71,38 +75,51 @@ void driver_init(LilyCtx* driver, Arena* gpa, str8 stdlib_path, i32 argc, char**
 void driver_destroy(LilyCtx* driver) {
     arena_destroy(&driver -> diagnostics.arena);
 
+    //arena_print_stats(&driver -> string_interner.arena, "String Interner Arena");
     arena_destroy(&driver -> string_interner.arena);
 
     for (u32 i = 0; i < driver -> file_registry.count; i++) {
+        //arena_print_stats(&driver -> file_registry.tokens[i].arena, "Tokens Arena");
         arena_destroy(&driver -> file_registry.tokens[i].arena);
     }
 
+    //arena_print_stats(&driver -> file_registry.buffers_arena, "Buffers Arena");
     arena_destroy(&driver -> file_registry.buffers_arena);
+
+    //arena_print_stats(&driver -> file_registry.interner_arena, "File Interner Arena");
     arena_destroy(&driver -> file_registry.interner_arena);
+
+    //arena_print_stats(&driver -> file_registry.tokens_arena, "File Registry TokenArray Arena");
     arena_destroy(&driver -> file_registry.tokens_arena);
 
     for (u32 i = 0; i < driver -> module_registry.count; i++) {
         Module* module = &driver -> module_registry.entries[i];
 
-        for (u32 k = 0; k < module -> symbol_table.scope_capacity; k++) {
-            arena_destroy(&module -> symbol_table.scopes[k].arena);
-        }
+        //arena_print_stats(&module -> ast.gpa_arena, "Module AST GPA Arena");
+        arena_destroy(&module -> ast.gpa_arena);
 
-        arena_destroy(&module -> ast.arena);
+        //arena_print_stats(&module -> ast.nodes_arena, "Module AST Nodes Arena");
+        arena_destroy(&module -> ast.nodes_arena);
+
+        //arena_print_stats(&module -> symbol_table.arena, "Module Symbol Table Arena");
         arena_destroy(&module -> symbol_table.arena);
+
+        //arena_print_stats(&module -> gpa, "Module GPA Arena");
         arena_destroy(&module -> gpa);
     }
 
-    for (u32 i = 0; i < driver -> builtins.scope_capacity; i++) {
-        arena_destroy(&driver -> builtins.scopes[i].arena);
-    }
-
+    //arena_print_stats(&driver -> builtins.arena, "Builtins Arena");
     arena_destroy(&driver -> builtins.arena);
 
+    //arena_print_stats(&driver -> type_table.arena, "Type Table Arena");
     arena_destroy(&driver -> type_table.arena);
 
+    //arena_print_stats(&driver -> module_registry.arena, "Module Registry Arena");
     arena_destroy(&driver -> module_registry.arena);
+
+    //arena_print_stats(&driver -> namespace_interner.arena, "Namespace Interner Arena");
     arena_destroy(&driver -> namespace_interner.arena);
 
+    //arena_print_stats(driver -> gpa, "GPA Arena");
     arena_destroy(driver -> gpa);
 }

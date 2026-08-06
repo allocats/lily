@@ -14,7 +14,7 @@ AstNodeId parse_enum_decl(Parser* p) {
 
     node -> kind = AST_ENUM;
 
-    node -> as.enum_decl.variants = arena_alloc(&p -> module -> ast.arena, sizeof (AstNodeId) * 4);
+    node -> as.enum_decl.variants = arena_alloc(&p -> module -> ast.gpa_arena, sizeof (AstNodeId) * 4);
     node -> as.enum_decl.variant_capacity = 4;
     node -> as.enum_decl.variant_count = 0;
 
@@ -103,7 +103,7 @@ AstNodeId parse_enum_decl(Parser* p) {
             u64 size = sizeof(AstNodeId) * node -> as.enum_decl.variant_capacity;
 
             node -> as.enum_decl.variants = arena_realloc(
-                &p -> module -> ast.arena,
+                &p -> module -> ast.gpa_arena,
                 node -> as.enum_decl.variants,
                 size,
                 size * 2

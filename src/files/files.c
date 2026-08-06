@@ -30,7 +30,7 @@ static str8 allocate_buffer(str8 path);
 void file_registry_init(u32 count) {
     FileRegistry* file_registry = &driver_ctx.file_registry;
 
-    arena_init(&file_registry -> buffers_arena, ARENA_MB(1), ALIGN_8);
+    arena_init(&file_registry -> buffers_arena, ARENA_MB(1), ALIGN_DEFAULT);
     debug_printf("Driver: Allocated file registry's buffer arena with 1MB\n");
 
     arena_init(&file_registry -> interner_arena, ARENA_KB(4), ALIGN_8);
@@ -151,7 +151,7 @@ FileId files_lookup_path(str8 path) {
         if (
             file -> hash == hash &&
             file -> path.length == path.length &&
-            memcmp(file -> path.pointer, path.pointer, MIN(file -> path.length, path.length)) == 0
+            memcmp(file -> path.pointer, path.pointer, path.length) == 0
         ) {
             return id;
         }
@@ -260,7 +260,7 @@ static str8 allocate_buffer(str8 path) {
     buffer.pointer = arena_alloc(&registry -> buffers_arena, buffer_size);
     buffer.length = buffer_size;
 
-    // buffer.pointer[buffer_size] = 0;
+    buffer.pointer[buffer_size - 1] = 0;
 
     u64 bytes_read = 0;
 

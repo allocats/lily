@@ -116,11 +116,8 @@ SymbolId builtins_register_type(TypeId id) {
 }
 
 void scope_init(Scope* scope) {
-    arena_init(&scope -> arena, 512, ALIGN_8);
-    debug_printf("Module Registry: Init module's scope arena with 512B\n");
-
-    scope -> str_ids = arena_alloc_array(&scope -> arena, StringId, 32);
-    scope -> ids = arena_alloc_array(&scope -> arena, SymbolId, 32);
+    scope -> str_ids = arena_alloc_array(driver_ctx.gpa, StringId, 32);
+    scope -> ids = arena_alloc_array(driver_ctx.gpa, SymbolId, 32);
     scope -> count = 0;
     scope -> capacity = 32;
     scope -> parent = SCOPE_ID_NONE;
@@ -284,8 +281,8 @@ static void scope_resize(Scope* scope) {
     u32 old_cap = scope -> capacity;
     u32 new_cap = old_cap * 2;
 
-    StringId* new_str_ids = arena_alloc_array(&scope -> arena, StringId, new_cap);
-    SymbolId* new_ids = arena_alloc_array(&scope -> arena, SymbolId, new_cap);
+    StringId* new_str_ids = arena_alloc_array(driver_ctx.gpa, StringId, new_cap);
+    SymbolId* new_ids = arena_alloc_array(driver_ctx.gpa, SymbolId, new_cap);
 
     arena_memset(new_ids, 0xff, new_cap * sizeof(SymbolId));
 

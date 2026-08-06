@@ -9,7 +9,7 @@ AstNodeId parse_if_stmt(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_IF);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
-    node -> as.if_stmt.branches = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 4);
+    node -> as.if_stmt.branches = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 4);
     node -> as.if_stmt.branch_count = 0;
     node -> as.if_stmt.branch_capacity = 4;
 
@@ -18,7 +18,7 @@ AstNodeId parse_if_stmt(Parser* p) {
             u64 size = sizeof(AstNodeId) * node -> as.if_stmt.branch_capacity;
 
             node -> as.if_stmt.branches = arena_realloc(
-                &p -> module -> ast.arena,
+                &p -> module -> ast.gpa_arena,
                 node -> as.if_stmt.branches,
                 size,
                 size * 2

@@ -107,7 +107,7 @@ void parser_parse_file(FileId id) {
 
 AstNodeId parser_create_node(Parser* p, AstKind kind) {
     AstNodeId id = ast_node_alloc(
-        &p -> module -> ast.arena,
+        &p -> module -> ast.nodes_arena,
         &p -> module -> ast
     );
 

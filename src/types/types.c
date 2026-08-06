@@ -25,23 +25,23 @@ static void type_table_entries_resize(TypeTable* table);
 void type_table_init(void) {
     TypeTable* table = &driver_ctx.type_table;
 
-    arena_init(&table -> arena, ARENA_KB(2), ALIGN_8);
-    debug_printf("Types: Init arena with 2KB\n");
+    arena_init(&table -> arena, ARENA_KB(8), ALIGN_8);
+    debug_printf("Types: Init arena with 8KB\n");
 
-    table -> structural_buckets = arena_alloc_array(&table -> arena, TypeId, 32);
-    table -> structural_bucket_capacity = 32; 
+    table -> structural_buckets = arena_alloc_array(&table -> arena, TypeId, 256);
+    table -> structural_bucket_capacity = 256; 
     table -> structural_count = 0;
 
-    table -> nominal_buckets = arena_alloc_array(&table -> arena, TypeId, 32);
-    table -> nominal_bucket_capacity = 32; 
+    table -> nominal_buckets = arena_alloc_array(&table -> arena, TypeId, 256);
+    table -> nominal_bucket_capacity = 256; 
     table -> nominal_count = 0;
 
-    table -> entries = arena_alloc_array(&table -> arena, TypeEntry, 64);
-    table -> entry_capacity = 64;
+    table -> entries = arena_alloc_array(&table -> arena, TypeEntry, 256);
+    table -> entry_capacity = 256;
     table -> count = 0;
 
-    arena_memset(table -> structural_buckets, 0xff, 32 * sizeof(TypeId));
-    arena_memset(table -> nominal_buckets, 0xff, 32 * sizeof(TypeId));
+    arena_memset(table -> structural_buckets, 0xff, 256 * sizeof(TypeId));
+    arena_memset(table -> nominal_buckets, 0xff, 256 * sizeof(TypeId));
 
     TypeId* builtin_ids = (TypeId *) &table -> builtins;
     static_assert(

@@ -1,8 +1,8 @@
 #ifndef LILY_MODULES_H
 #define LILY_MODULES_H
 
+#include "ids.h"
 #include "modules/types.h"
-#include "namespacing/types.h"
 
 void module_registry_init(void);
 

@@ -30,7 +30,7 @@ static Arena gpa = {0};
 i32 main(i32 argc, char** argv) {
     // compile time asserts used to ensure behaviour is as expected
     static_assert(sizeof(Token) == 16 && "Token != 16 bytes\n");
-    static_assert(sizeof(AstNode) == 56 && "AstNode != 56 bytes\n");
+    static_assert(sizeof(AstNode) == 64 && "AstNode != 64 bytes\n");
 
     // loads terminal colours or none if unable to
     cli_init_ansi_codes();

@@ -37,7 +37,7 @@ static AstNodeId parse_external_function_decl(Parser* p) {
 
     node -> flags |= AST_FLAGS_IS_EXTERNAL;
 
-    node -> as.func_decl.params = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 8);
+    node -> as.func_decl.params = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 8);
     node -> as.func_decl.param_capacity = 8; 
     node -> as.func_decl.param_count = 0;
 

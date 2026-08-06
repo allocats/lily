@@ -436,7 +436,7 @@ static u8 lbp_of(TokenKind kind) {
 }
 
 static void parse_call_args(Parser* p, AstNodeId** args, u32* count, u32* capacity) {
-    *args = arena_alloc(&p -> module -> ast.arena, sizeof(AstNodeId) * 4);
+    *args = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 4);
     *capacity = 4;
     *count = 0;
 
@@ -447,7 +447,7 @@ static void parse_call_args(Parser* p, AstNodeId** args, u32* count, u32* capaci
 
         if (UNLIKELY(*count >= *capacity)) {
             u64 size = sizeof(AstNodeId) * (*capacity);
-            *args = arena_realloc(&p -> module -> ast.arena, *args, size, size * 2);
+            *args = arena_realloc(&p -> module -> ast.gpa_arena, *args, size, size * 2);
             *capacity *= 2;
             debug_printf("Call args realloc from %ld -> %ld bytes\n", size, size * 2);
         }

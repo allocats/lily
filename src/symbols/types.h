@@ -122,9 +122,6 @@ typedef struct {
 } Symbol;
 
 typedef struct {
-    // small arena for hash table, start off with like 1kb 
-    Arena arena; 
-
     // AstNodeId owner; // could be useful for attaching the scope to the block it is declared by 
     ScopeId parent;
 
