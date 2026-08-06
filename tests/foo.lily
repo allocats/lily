@@ -2,9 +2,9 @@ module foo;
 
 import std::io;
 
-struct Vec {
-    x: i32;
-    y: i32;
+union Vec {
+    x: Node;
+    y: Vec*;
 }
 
 fn main() {

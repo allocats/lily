@@ -450,7 +450,7 @@ void diagnostic_add_resolver_type_cycle(DiagnosticEngine* engine, i32 resolver_i
         node -> source_token,
         DIAG_LOC_WHOLE_TOK,
         "type recursively includes itself",
-        "type cannot include itself as a field or variant"
+        "add some indirection if you wish to recursively embed the struct! (e.g. Foo*)"
     );
 }
 

@@ -10,6 +10,7 @@
 #include "symbols/types.h"
 #include "types/ty.h"
 #include "utils/debug.h"
+#include "utils/macros.h"
 
 #include <stdio.h>
 
@@ -36,10 +37,8 @@ bool symbols_resolve_by_id(ModuleId module_id, SymbolId id) {
         .as.symbol = id
     };
 
-    // somehow this branch is firing 
     if (symbol -> resolve_state == RESOLVE_RESOLVING) {
         i32 cycle_start = resolver_stack_find(&driver_ctx.resolver_stack, resolve_item);
-        // if (cycle_start == -1) return false;
 
         diagnostic_add_resolver_symbol_cycle(
             &driver_ctx.diagnostics,
@@ -181,13 +180,30 @@ bool resolve_union(Resolver* r, Module* module, SymbolId symbol_id) {
     u32 align = 0;
 
     u32 count = node -> as.union_decl.field_count;
+    
+    scope_enter(r);
 
     for (u32 i = 0; i < count; i++) {
         AstNodeId field_id = node -> as.union_decl.fields[i];
         AstNode* field = &module -> ast.nodes[field_id];
 
-        TypeId field_type = resolve_type(module -> id, field -> as.field_decl.type_expr);
+        u32 field_hash = hash_fnv1a_u32(field -> as.field_decl.name_id);
+        SymbolId field_sym_id = scope_get_sym(r, field -> as.field_decl.name_id, field_hash);
 
+        if (field_sym_id != SYMBOL_ID_NONE) {
+            diagnostic_add_symbol_already_defined(
+                &driver_ctx.diagnostics,
+                module,
+                field_sym_id,
+                field_id
+            );
+
+            continue;
+        }
+
+        field_sym_id = scope_add_sym(r, field_id, field -> as.field_decl.name_id, SYM_FIELD);
+
+        TypeId field_type = resolve_type(module -> id, field -> as.field_decl.type_expr);
         if (field_type == driver_ctx.type_table.builtins.type_void) {
             printf("Found invalid type: void");
             scope_exit(r);
@@ -200,10 +216,16 @@ bool resolve_union(Resolver* r, Module* module, SymbolId symbol_id) {
             return false;
         }
 
-        size += entry -> size;
+        size = MAX(size, entry -> size);
 
-        module -> symbol_table.symbols[symbol_id].as.unions.fields[i] = field -> as.field_decl.name_id;
+        Symbol* field_sym = &module -> symbol_table.symbols[field_sym_id];
+
+        field_sym -> as.field.type = field_type;
+
+        module -> symbol_table.symbols[symbol_id].as.unions.fields[i] = field_sym_id;
     }
+
+    scope_exit(r);
 
     align = ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(size);
 

@@ -46,7 +46,7 @@ TypeId type_table_register_union(Module* module, AstNode* node, AstNodeId id, Sy
         hash
     );
 
-    TypeId type_id = type_table_register_nominal(hash, name, TYPE_STRUCT, id);
+    TypeId type_id = type_table_register_nominal(hash, name, TYPE_UNION, id);
 
     if (type_id == TYPE_ID_NONE) return type_id;
 
@@ -69,7 +69,7 @@ TypeId type_table_register_enum(Module* module, AstNode* node, AstNodeId id, Sym
         hash
     );
 
-    TypeId type_id = type_table_register_nominal(hash, name, TYPE_STRUCT, id);
+    TypeId type_id = type_table_register_nominal(hash, name, TYPE_ENUM, id);
 
     if (type_id == TYPE_ID_NONE) return type_id;
 

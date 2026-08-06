@@ -2,6 +2,10 @@ module bar;
 
 import std::io;
 
+struct Node {
+    x: i32;
+}
+
 fn main() {
     std::io::printf("bars");
 }
