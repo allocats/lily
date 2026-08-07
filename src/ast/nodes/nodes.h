@@ -13,4 +13,6 @@ AstNode*  ast_node_get(Ast* ast, AstNodeId id);
 
 void ast_block_push_stmt(Arena* arena, AstNode* block, AstNodeId stmt);
 
+bool ast_is_kind(Ast* ast, AstNodeId id, AstKind kind);
+
 #endif // !LILY_AST_NODES_H

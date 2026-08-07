@@ -415,18 +415,6 @@ static void ast_print_node(const Ast* ast, AstNodeId id, u32 indent) {
             break;
         }
 
-        case AST_ASSIGN:
-        {
-            printf("ASSIGN '%s'", TOKEN_KIND_STRS[node->as.assign.op]);
-            ast_print_flags(node->flags);
-            printf("\n");
-
-            ast_print_node(ast, node->as.assign.target, indent + 1);
-            ast_print_node(ast, node->as.assign.value_expr, indent + 1);
-
-            break;
-        }
-
         case AST_FUNC_CALL:
         {
             printf("CALL");

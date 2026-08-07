@@ -43,7 +43,6 @@
                             \
     X(AST_BINOP)            \
     X(AST_UNARY)            \
-    X(AST_ASSIGN)           \
     X(AST_FUNC_CALL)        \
     X(AST_IDENT)            \
     X(AST_LITERAL)          \
@@ -245,16 +244,6 @@ typedef struct {
 } AstUnary;
 
 //
-// ASSIGNMENT
-//
-typedef struct {
-    TokenKind op;
-
-    AstNodeId target;
-    AstNodeId value_expr;
-} AstAssign;
-
-//
 // FUNCTION CALL
 //
 typedef struct {
@@ -391,7 +380,6 @@ typedef struct AstNode {
 
         AstBinary       binary_op;
         AstUnary        unary_op;
-        AstAssign       assign;
         AstFnCall       func_call;
         AstIdent        ident;
         AstLiteral      literal; 

@@ -290,6 +290,15 @@ static AstNodeId nud(Parser* p, Token* tok) {
         }
 
         default: {
+            diagnostic_add_token(
+                &driver_ctx.diagnostics,
+                p -> id,
+                DIAG_ERROR,
+                tok,
+                DIAG_LOC_WHOLE_TOK,
+                "invalid start to expression",
+                null
+            );
             AstNodeId id  = parser_create_node(p, AST_ERROR);
             return parser_error_stmt(p, ast_node_get(&p -> module -> ast, id));
         }

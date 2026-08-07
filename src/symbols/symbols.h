@@ -27,4 +27,6 @@ SymbolId table_get_sym(Resolver* r, StringId name);
 ScopeId scope_enter(Resolver* r);
 ScopeId scope_exit(Resolver* r);
 
+TypeId symbol_get_type_id(Symbol* sym);
+
 #endif // !LILY_SYMBOLS_H

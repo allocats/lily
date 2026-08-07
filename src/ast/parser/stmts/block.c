@@ -72,17 +72,19 @@ AstNodeId parse_block(Parser* p) {
                 parser_advance(p);
                 ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, fn(p));
             } else {
-                diagnostic_add_token(
-                    &driver_ctx.diagnostics,
-                    p -> id,
-                    DIAG_ERROR,
-                    token,
-                    DIAG_LOC_WHOLE_TOK,
-                    "unexpected token",
-                    "expected: (ident | const | let | if | for | while | defer | return | block)"
-                );
+                // diagnostic_add_token(
+                //     &driver_ctx.diagnostics,
+                //     p -> id,
+                //     DIAG_ERROR,
+                //     token,
+                //     DIAG_LOC_WHOLE_TOK,
+                //     "unexpected token",
+                //     "expected: (ident | const | let | if | for | while | defer | return | block)"
+                // );
+                //
+                // parser_recover_stmt(p);
 
-                parser_recover_stmt(p);
+                ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, parse_expression(p, 0));
             }
         }
     }

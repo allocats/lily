@@ -1,3 +1,4 @@
+#include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
 #include "hash/hash.h"
@@ -10,7 +11,6 @@
 void register_symbol(Resolver* r, AstNode* node, AstNodeId node_id) {
     switch (node -> kind) {
         case AST_FUNCTION:
-            // resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);
             sym_register_function(r, node, node_id);
             break;
 
@@ -144,6 +144,10 @@ void sym_register_function(Resolver* r, AstNode* node, AstNodeId node_id) {
     } else {
         symbol -> as.function.params = arena_alloc(&r -> table -> arena, param_count * sizeof(SymbolId));
         symbol -> as.function.count = param_count;
+    }
+
+    if (node -> flags & AST_FLAGS_IS_VARIADIC) {
+        symbol -> as.function.is_variadic = true;
     }
 
     resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);

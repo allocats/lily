@@ -35,3 +35,7 @@ void ast_block_push_stmt(Arena* arena, AstNode* block, AstNodeId stmt) {
 
     block -> as.block.stmts[block -> as.block.stmt_count++] = stmt;
 }
+
+bool ast_is_kind(Ast* ast, AstNodeId id, AstKind kind) {
+    return kind == ast -> nodes[id].kind;
+}

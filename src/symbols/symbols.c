@@ -165,7 +165,7 @@ SymbolId scope_add_sym(Resolver* r, AstNodeId node_id, StringId name, SymbolKind
     sym -> id = sym_id;
     sym -> resolve_state = RESOLVE_UNRESOLVED;
 
-    debug_printf("Symbols: Added symbol %d to scope %d\n", sym_id, scope_id);
+    debug_printf("Symbols: Added symbol %d(%s) to scope %d\n", sym_id, SYMBOL_KIND_STRINGS[kind], scope_id);
 
     return sym_id;
 }
@@ -214,12 +214,14 @@ SymbolId scope_get_sym_scope_id(Resolver* r, ScopeId scope_id, StringId name, u3
 
     while (scope -> ids[index] != SYMBOL_ID_NONE) {
         if (scope -> str_ids[index] == name) {
+            debug_printf("scope_get_sym_scope_id(): Returned %d\n", scope -> ids[index]);
             return scope -> ids[index];
         }
 
         index = (index + 1) & mask;
     }
 
+    debug_printf("scope_get_sym_scope_id(): Returned NONE\n");
     return SYMBOL_ID_NONE;
 }
 
@@ -275,6 +277,43 @@ ScopeId scope_exit(Resolver* r) {
     Scope* scope = &r -> table -> scopes[current];
     r -> current_scope_id = scope -> parent;
     return current;
+}
+
+TypeId symbol_get_type_id(Symbol* sym) {
+    switch (sym -> kind) {
+        case SYM_TYPE:
+            return sym -> as.type;
+
+        case SYM_FUNCTION:
+            return sym -> as.function.return_type;
+
+        case SYM_MACRO:
+            return sym -> as.macro.return_type;
+
+        case SYM_CONSTANT:
+            return sym -> as.constant.type;
+
+        case SYM_VARIABLE:
+            return sym -> as.variable.type;
+
+        case SYM_PARAMETER:
+            return sym -> as.parameter.type;
+
+        case SYM_STRUCT: 
+            return sym -> as.structs.type;
+
+        case SYM_UNION: 
+            return sym -> as.unions.type;
+
+        case SYM_FIELD:
+            return sym -> as.field.type;
+
+        case SYM_ENUM: 
+            return sym -> as.enums.type;
+
+        case SYM_VARIANT:
+            return sym -> as.variant.type;
+    }
 }
 
 static void scope_resize(Scope* scope) {

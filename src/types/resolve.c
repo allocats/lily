@@ -100,7 +100,23 @@ static TypeId resolve_type_base(Module* module, AstNode* expr) {
         }
     }
 
-    TypeId id = type_table_lookup_nominal(module -> id, ident);
+    NamespaceId ns_id = ident -> as.ident.namespace_id;
+
+    bool found_import = false;
+
+    for (u32 i = 0; i < module -> import_count; i++) {
+        if (ns_id == module -> imports[i]) {
+            found_import = true;
+            break;
+        }
+    }
+
+    if (!found_import) {
+        printf("Namespace is not imported!\n");
+        return TYPE_ID_NONE;
+    }
+
+    TypeId id = type_table_lookup_nominal(module_lookup(ns_id), ident);
 
     if (id == TYPE_ID_NONE) {
         // TODO: Errors

@@ -2,11 +2,14 @@ module foo;
 
 import std::io;
 
-union Vec {
-    x: Node;
-    y: Vec*;
+struct Node {
+    x: i32;
+    y: i32;
 }
 
-fn main() {
-    std::io::printf("Hello world! :3");
+fn main() -> i32 {
+    defer let x: i32 = 0;
+
+    defer std::io::printf("Hello world :3\n");
+    return 1;
 }

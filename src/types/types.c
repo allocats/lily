@@ -309,6 +309,29 @@ TypeId type_table_lookup_array(TypeId base) {
     return 0;
 }
 
+bool type_is_kind(TypeId id, TypeKind kind) {
+    return kind == driver_ctx.type_table.entries[id].kind;
+}
+
+bool types_is_integer(TypeId id) {
+    if (
+        id >= driver_ctx.type_table.builtins.type_u8 && 
+        id <= driver_ctx.type_table.builtins.type_isize
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+bool types_is_float(TypeId id) {
+    if (id == driver_ctx.type_table.builtins.type_f32 || id == driver_ctx.type_table.builtins.type_f64) {
+        return true;
+    }
+
+    return false;
+}
+
 static void type_table_structural_buckets_resize(TypeTable* table) {
     u32 new_capacity = table -> structural_bucket_capacity * 2;
     u64 size = new_capacity * sizeof(TypeId);

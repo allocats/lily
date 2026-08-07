@@ -2,12 +2,19 @@
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
+#include "ids.h"
 
 AstNodeId parse_defer_stmt(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_DEFER);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
-    node -> as.defer_stmt.stmt = parse_expression(p, 0);
+    AstNodeId expr = parse_expression(p, 0);
+
+    if (ast_node_get(&p -> module -> ast, expr) -> kind == AST_ERROR) {
+        return parser_error_stmt(p, node);
+    }
+
+    node -> as.defer_stmt.stmt = expr;
 
     if (!parser_check(p, TOK_SEMI)) {
         diagnostic_add_token(

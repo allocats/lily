@@ -1,3 +1,4 @@
+#include "ast/nodes/types.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "hash/hash.h"
@@ -5,6 +6,7 @@
 #include "modules/modules.h"
 #include "resolver/enums.h"
 #include "resolver/resolver.h"
+#include "semantics/semantics.h"
 #include "symbols/symbols.h"
 #include "symbols/resolve/resolve.h"
 #include "symbols/types.h"
@@ -23,6 +25,13 @@ static bool resolve_function(Resolver* r, Module* module, SymbolId symbol_id);
 static bool resolve_struct(Resolver* r, Module* module, SymbolId symbol_id);
 static bool resolve_union(Resolver* r, Module* module, SymbolId symbol_id);
 static bool resolve_enum(Resolver* r, Module* module, SymbolId symbol_id);
+
+static bool resolve_constant(Resolver* r, Module* module, SymbolId symbol_id);
+
+static bool resolve_function_block(Resolver* r, Module* module, SymbolId fn_id, AstNodeId block_id);
+
+static bool resolve_let_declaration(Resolver* r, Module* module, AstNodeId stmt_id);
+static bool resolve_return_stmt(Resolver* r, Module* module, AstNodeId stmt_id, TypeId return_type);
 
 bool symbols_resolve_by_id(ModuleId module_id, SymbolId id) {
     Module* module = MODULE_ID_LOOKUP_REF(module_id);
@@ -97,12 +106,13 @@ bool resolve_symbol_body(ModuleId module_id, SymbolId id) {
         case SYM_ENUM:
             return resolve_enum(&r, module, id);
 
+        case SYM_CONSTANT:
+            return resolve_constant(&r, module, id); 
+
         default:
             // printf("Hit default case in symbols_resolve_by_id (id=%d)\n", id);
-            return false;
+            return true;
     }
-
-    scope_exit(&r);
 
     return false;
 }
@@ -256,6 +266,36 @@ bool resolve_enum(Resolver* r, Module* module, SymbolId symbol_id) {
         }
     }
 
+    scope_enter(r);
+
+    u32 count = node -> as.enum_decl.variant_count;
+
+    for (u32 i = 0; i < count; i++) {
+        AstNodeId variant_node_id = node -> as.enum_decl.variants[i];
+        AstNode* variant_node = &module -> ast.nodes[variant_node_id];
+
+        u32 variant_hash = hash_fnv1a_u32(variant_node -> as.variant_decl.name_id);
+        SymbolId variant_sym_id = scope_get_sym(r, variant_node -> as.variant_decl.name_id, variant_hash);
+
+        if (variant_sym_id != SYMBOL_ID_NONE) {
+            diagnostic_add_symbol_already_defined(
+                &driver_ctx.diagnostics,
+                module,
+                variant_sym_id,
+                variant_node_id
+            );
+
+            continue;
+        }
+
+        variant_sym_id = scope_add_sym(r, variant_node_id, variant_node -> as.variant_decl.name_id, SYM_VARIANT);
+
+        module -> symbol_table.symbols[variant_sym_id].as.variant.type = underlying_type;
+        module -> symbol_table.symbols[symbol_id].as.enums.variants[i] = variant_sym_id;
+    }
+
+    scope_exit(r);
+
     TypeEntry* type = &table -> entries[underlying_type];
     TypeEntry* sym_type = &table -> entries[symbol -> as.enums.type];
 
@@ -315,18 +355,165 @@ bool resolve_function(Resolver* r, Module* module, SymbolId symbol_id) {
 
         param_symbol_id = scope_add_sym(r, param_id, param -> as.param_decl.name_id, SYM_PARAMETER); 
 
-        Symbol* param_symbol = &module -> symbol_table.symbols[param_symbol_id];
-
-        param_symbol -> as.parameter.type = param_type;
-
+        module -> symbol_table.symbols[param_symbol_id].as.parameter.type = param_type;
         module -> symbol_table.symbols[symbol_id].as.function.params[i] = param_symbol_id;
 
         debug_printf("Symbols: Added parameter (%d) to function(%d)\n", param_symbol_id, symbol -> id);
     }
 
-    // resolve_block(r, node -> as.func_decl.block);
+    bool result = resolve_function_block(r, module, symbol_id, node -> as.func_decl.block);
+
+    if (!result) {
+        printf("ERROR RESOLVING FUNCTION BODY\n");
+    }
 
     scope_exit(r);
 
+    return result;
+}
+
+static bool resolve_constant(Resolver* r, Module* module, SymbolId symbol_id) {
+    Symbol* symbol = &module -> symbol_table.symbols[symbol_id];
+    AstNode* node = &module -> ast.nodes[symbol -> declaration];
+
+    TypeId type = resolve_type(module -> id, node -> as.const_decl.type_expr);
+    if (type == TYPE_ID_NONE) {
+        // todo
+        return false;
+    }
+
+    module -> symbol_table.symbols[symbol_id].as.constant.type = type;
+
+    TypeId value_type = resolve_expression(r, module, node -> as.const_decl.value_expr, type);
+    if (value_type == TYPE_ID_NONE) {
+        // todo
+        return false;
+    }
+
+    if (type != value_type) {
+        // todo
+        printf("Constant does not have correct type!\n");
+        return false;
+    }
+
+    module -> symbol_table.symbols[symbol_id].as.constant.value = node -> as.const_decl.value_expr;
+
     return true;
+}
+
+static bool resolve_function_block(Resolver* r, Module* module, SymbolId fn_id, AstNodeId block_id) {
+    AstNode* node = &module -> ast.nodes[block_id];
+
+    u32 count = node -> as.block.stmt_count;
+
+    bool result = true;
+
+    Symbol* symbol = &module -> symbol_table.symbols[fn_id];
+    TypeId return_type = symbol -> as.function.return_type;
+
+    bool needs_return = true;
+
+    if (return_type == driver_ctx.type_table.builtins.type_void) {
+        needs_return = false;
+    }
+
+    for (u32 i = 0; i < count; i++) {
+        AstNodeId stmt_id = node -> as.block.stmts[i];
+        AstNode* stmt_node = &module -> ast.nodes[stmt_id];
+
+        switch (stmt_node -> kind) {
+            case AST_RETURN:
+                if (!needs_return) {
+                    if (stmt_node -> as.return_stmt.stmt != AST_NODE_ID_NONE) {
+                        printf("Error void function returns value!\n");
+                        result = false;
+                    }
+                } else {
+                   if (!resolve_return_stmt(r, module, stmt_id, return_type)) {
+                        result = false;
+                   }
+                }
+                break;
+
+            case AST_DEFER:
+                if (TYPE_ID_NONE == resolve_expression(r, module, stmt_node -> as.defer_stmt.stmt, TYPE_ID_NONE)) {
+                    result = false;
+                }
+                break;
+
+            case AST_LET:
+                if (!resolve_let_declaration(r, module, stmt_id)) {
+                    result = false;
+                }
+                break;
+            
+            default:
+                if (TYPE_ID_NONE == resolve_expression(r, module, stmt_id, TYPE_ID_NONE)) {
+                    result = false;
+                }
+                break;
+        }
+    }
+
+    return result;
+}
+
+static bool resolve_let_declaration(Resolver* r, Module* module, AstNodeId stmt_id) {
+    AstNode* node = &module -> ast.nodes[stmt_id];
+
+    SymbolId id = table_get_sym(r, node -> as.var_decl.name_id);
+
+    if (id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_already_defined(
+            &driver_ctx.diagnostics,
+            module,
+            id,
+            stmt_id 
+        );
+
+        return false;
+    }
+
+    id = scope_add_sym(r, stmt_id, node -> as.var_decl.name_id, SYM_VARIABLE);
+
+    Symbol* symbol = &module -> symbol_table.symbols[id];
+
+    TypeId var_type = resolve_type(module -> id, node -> as.var_decl.type_expr);
+    if (var_type == TYPE_ID_NONE) {
+        printf("Variable has an invalid type!\n");
+        return false;
+    }
+
+    symbol -> as.variable.type = var_type;
+    symbol -> as.variable.value = node -> as.var_decl.value_expr;
+
+    if (symbol -> as.variable.value == AST_NODE_ID_NONE) return true;
+
+    TypeId value_type = resolve_expression(r, module, node -> as.var_decl.value_expr, var_type);
+    if (value_type == TYPE_ID_NONE) {
+        printf("Variable expression has an invalid type!\n");
+        return false;
+    }
+
+    if (value_type != var_type) {
+        printf("Value resolved type (%u) != variable type (%u)\n", value_type, var_type);
+        return false;
+    }
+
+    return true;
+}
+
+static bool resolve_return_stmt(Resolver* r, Module* module, AstNodeId stmt_id, TypeId return_type) {
+    bool result = true;
+
+    AstNode* node = &module -> ast.nodes[stmt_id];
+
+    TypeId type = resolve_expression(r, module, node -> as.return_stmt.stmt, return_type);
+
+    if (type != return_type) {
+        result = false;
+        printf("Function expected %u but returns %u\n", return_type, type);
+    }
+
+    return result;
 }

@@ -46,6 +46,7 @@ typedef struct {
 //
 typedef struct {
     AstNodeId value;
+    TypeId type;
 } SymbolVariant;
 
 //
@@ -76,6 +77,8 @@ typedef struct {
     u32 count;
 
     TypeId return_type;
+
+    bool is_variadic;
 } SymbolFunction, SymbolMacro;
 
 //

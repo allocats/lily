@@ -36,4 +36,8 @@ u32 types_hash_pointer(TypeId base);
 
 void print_type_table(TypeTable* table);
 
+bool type_is_kind(TypeId id, TypeKind kind);
+bool types_is_integer(TypeId id);
+bool types_is_float(TypeId id);
+
 #endif // !LILY_TYPES_H
