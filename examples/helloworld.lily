@@ -1,0 +1,7 @@
+module main;
+
+import std::io;
+
+fn main() {
+    std::io::printf("Hello world :3\n");
+}

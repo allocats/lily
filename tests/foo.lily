@@ -8,7 +8,7 @@ struct Node {
 }
 
 fn main() -> i32 {
-    defer let x: i32 = 0;
+    defer let x: i32 = 0;;
 
     defer std::io::printf("Hello world :3\n");
     return 1;
