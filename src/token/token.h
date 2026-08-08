@@ -10,6 +10,8 @@ void tokens_init(TokenArray* tokens) ;
 
 Token* tokens_get_new_tok(TokenArray* tokens);
 
+bool token_is_assignment(TokenKind kind);
+
 void token_print(Token* token);
 void tokens_print(TokenArray* tokens);
 

@@ -2,14 +2,6 @@ module foo;
 
 import std::io;
 
-struct Node {
-    x: i32;
-    y: i32;
-}
-
 fn main() -> i32 {
-    defer let x: i32 = 0;;
-
-    defer std::io::printf("Hello world :3\n");
-    return 1;
+    let point: i32* = null;
 }

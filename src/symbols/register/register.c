@@ -149,8 +149,6 @@ void sym_register_function(Resolver* r, AstNode* node, AstNodeId node_id) {
     if (node -> flags & AST_FLAGS_IS_VARIADIC) {
         symbol -> as.function.is_variadic = true;
     }
-
-    resolve_type(r -> current_module_id, node -> as.func_decl.return_type_expr);
 }
 
 void sym_register_macro(Resolver* r, AstNode* node, AstNodeId node_id) {

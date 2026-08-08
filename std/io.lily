@@ -1,3 +1,3 @@
 module std::io;
 
-external fn printf(fmt: const char*, va_args: ...);
+external fn printf(fmt: const char*, va_args: ...) -> i32;

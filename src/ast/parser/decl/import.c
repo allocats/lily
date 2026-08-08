@@ -1,4 +1,5 @@
 #include "ast/nodes/nodes.h"
+#include "ast/nodes/types.h"
 #include "ast/parser/decl/decl.h"
 #include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
@@ -7,7 +8,7 @@
 #include "string_interner/interner.h"
 
 AstNodeId parse_import_decl(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_IMPORT);
+    AstNodeId id  = parser_create_node(p, AST_IMPORT, AST_FLAGS_IS_TOP_LEVEL);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     StringId segments[NAMESPACE_MAX_DEPTH] = { STRING_ID_NONE };

@@ -7,9 +7,10 @@
 #include "utils/types.h"
 
 #define AST_FLAGS_NONE          (0 << 0)
-#define AST_FLAGS_IS_CONST      (1 << 0)
-#define AST_FLAGS_IS_EXTERNAL   (1 << 1)
-#define AST_FLAGS_IS_VARIADIC   (1 << 2)
+#define AST_FLAGS_IS_TOP_LEVEL  (1 << 0)
+#define AST_FLAGS_IS_CONST      (1 << 1)
+#define AST_FLAGS_IS_EXTERNAL   (1 << 2)
+#define AST_FLAGS_IS_VARIADIC   (1 << 3)
 
 #define AST_NODES(X)        \
     X(AST_ERROR)            \
@@ -346,8 +347,10 @@ typedef struct AstNode {
     AstKind kind;
     u16 flags;
 
-    Token* source_token;
+    u8 __padding[4];
+    TypeId resolved_type;
 
+    Token* source_token;
     Span token_span;
 
     union {
@@ -395,8 +398,6 @@ typedef struct AstNode {
         AstTypeFunction type_function_expr;
         AstTypeVariadic type_variadic_expr;
     } as;
-
-    u8 __padding[8];
 } AstNode;
 
 #endif // !LILY_AST_NODES_TYPES_H

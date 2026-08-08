@@ -1,5 +1,6 @@
 #include "ast/nodes/nodes.h"
 #include "ast/parser/expr/expr.h"
+#include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
@@ -18,6 +19,8 @@ static u8        lbp_of(TokenKind kind);
 static void parse_call_args(Parser* p, AstNodeId** args, u32* count, u32* capacity);
 
 AstNodeId parse_expression(Parser* p, i32 min_bp) {
+    u32 start = p -> cursor;
+
     Token* tok = parser_advance(p);
 
     AstNodeId left = nud(p, tok);
@@ -28,7 +31,9 @@ AstNodeId parse_expression(Parser* p, i32 min_bp) {
     }
 
     AstNode* node = &p -> module -> ast.nodes[left];
-    node -> token_span.end = p -> cursor;
+
+    node -> token_span.start = start;
+    node -> token_span.end = p -> cursor - 1;
 
     return left;
 }
@@ -36,7 +41,7 @@ AstNodeId parse_expression(Parser* p, i32 min_bp) {
 static AstNodeId nud(Parser* p, Token* tok) {
     switch (tok -> kind) {
         case TOK_FALSE: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.literal.kind = LITERAL_BOOL;
@@ -46,7 +51,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
         }
 
         case TOK_TRUE: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.literal.kind = LITERAL_BOOL;
@@ -56,7 +61,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
         }
 
         case TOK_NULL: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.literal.kind = LITERAL_NULL;
@@ -65,7 +70,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
         }
 
         case TOK_INTEGER_LIT: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.literal.kind = LITERAL_INTEGER;
@@ -79,21 +84,21 @@ static AstNodeId nud(Parser* p, Token* tok) {
         }
 
         case TOK_FLOAT_LIT: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.literal.kind = LITERAL_FLOATING;
 
             char c = *(tok -> lexeme.pointer + tok -> lexeme.length);
             *(tok -> lexeme.pointer + tok -> lexeme.length) = 0;
-            node -> as.literal.as.integer = strtod((char*) tok -> lexeme.pointer, null);
+            node -> as.literal.as.floating = strtod((char*) tok -> lexeme.pointer, null);
             *(tok -> lexeme.pointer + tok -> lexeme.length) = c;
 
             return id;
         }
 
         case TOK_STRING_LIT: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.literal.kind = LITERAL_STRING;
@@ -103,7 +108,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
         }
 
         case TOK_CHAR_LIT: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.literal.kind = LITERAL_CHAR;
@@ -123,7 +128,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
                     "write #name(...) or #ns::name(...)"
                 );
 
-                AstNodeId id  = parser_create_node(p, AST_ERROR);
+                AstNodeId id  = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE);
                 AstNode* node = ast_node_get(&p -> module -> ast, id);
                 return parser_error_stmt(p, node);
             }
@@ -141,14 +146,14 @@ static AstNodeId nud(Parser* p, Token* tok) {
                     "add () after the macro name"
                 );
 
-                AstNodeId id  = parser_create_node(p, AST_ERROR);
+                AstNodeId id  = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE);
                 AstNode* node = ast_node_get(&p -> module -> ast, id);
                 return parser_error_stmt(p, node);
             }
 
             parser_advance(p);
 
-            AstNodeId id  = parser_create_node(p, AST_MACRO_CALL);
+            AstNodeId id  = parser_create_node(p, AST_MACRO_CALL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p->module->ast, id);
 
             node->as.macro_call.ident = path;
@@ -179,6 +184,8 @@ static AstNodeId nud(Parser* p, Token* tok) {
         }
 
         case TOK_IDENT: {
+            u32 start_index = p -> cursor - 1;
+
             StringId segments[NAMESPACE_MAX_DEPTH];
             u32 count = 0;
 
@@ -200,7 +207,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
                         "add a valid identifier here"
                     );
 
-                    AstNodeId id  = parser_create_node(p, AST_ERROR);
+                    AstNodeId id  = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE);
                     AstNode* node = ast_node_get(&p -> module -> ast, id);
                     return parser_error_stmt(p, node);
                 }
@@ -216,7 +223,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
                         "shorten the namespacing, max of 8 segments is supported"
                     );
 
-                    AstNodeId id  = parser_create_node(p, AST_ERROR);
+                    AstNodeId id  = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE);
                     AstNode* node = ast_node_get(&p -> module -> ast, id);
                     return parser_error_stmt(p, node);
                 }
@@ -224,7 +231,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
                 segments[count++] = STRING_INTERNER_LOOKUP_TOKEN(segment);
             }
 
-            AstNodeId id  = parser_create_node(p, AST_IDENT);
+            AstNodeId id  = parser_create_node(p, AST_IDENT, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.ident.name_id = segments[count - 1];
@@ -235,6 +242,9 @@ static AstNodeId nud(Parser* p, Token* tok) {
                 node -> as.ident.namespace_id = namespace_intern(segments, count - 1);
             }
 
+            node -> token_span.start = start_index;
+            node -> token_span.end = p -> cursor - 1;
+
             return id;
         }
 
@@ -243,7 +253,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
         case TOK_BANG:
         case TOK_TILDE:
         case TOK_AMP: {
-            AstNodeId id  = parser_create_node(p, AST_UNARY);
+            AstNodeId id  = parser_create_node(p, AST_UNARY, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.unary_op.op = tok -> kind;
@@ -285,7 +295,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
                 "use 'name: ...' as the last parameter of a function or macro"
             );
 
-            AstNodeId id = parser_create_node(p, AST_ERROR);
+            AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE);
             return parser_error_stmt(p, ast_node_get(&p -> module -> ast, id));
         }
 
@@ -299,7 +309,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
                 "invalid start to expression",
                 null
             );
-            AstNodeId id  = parser_create_node(p, AST_ERROR);
+            AstNodeId id  = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE);
             return parser_error_stmt(p, ast_node_get(&p -> module -> ast, id));
         }
 
@@ -309,7 +319,7 @@ static AstNodeId nud(Parser* p, Token* tok) {
 static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
     switch (tok -> kind) {
         case TOK_LPAREN: {
-            AstNodeId id  = parser_create_node(p, AST_FUNC_CALL);
+            AstNodeId id  = parser_create_node(p, AST_FUNC_CALL, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.func_call.ident = left;
@@ -341,7 +351,7 @@ static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
         }
 
         case TOK_LBRACKET: {
-            AstNodeId id  = parser_create_node(p, AST_INDEX);
+            AstNodeId id  = parser_create_node(p, AST_INDEX, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.index.ident = left;
@@ -361,11 +371,13 @@ static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
                 return parser_error_stmt(p, node); 
             }
 
+            parser_advance(p);
+
             return id;
         }
 
         // case TOK_LBRACE: {
-        //     AstNodeId id  = parser_create_node(p, AST_STRUCT_INIT);
+        //     AstNodeId id  = parser_create_node(p, AST_STRUCT_INIT, AST_FLAGS_NONE);
         //     AstNode* node = ast_node_get(&p -> module -> ast, id);
         //
         //     node -> as.struct_init.ident = left;
@@ -394,7 +406,7 @@ static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
 
         case TOK_ARROW:
         case TOK_DOT: {
-            AstNodeId id  = parser_create_node(p, AST_MEMBER_ACCESS);
+            AstNodeId id  = parser_create_node(p, AST_MEMBER_ACCESS, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             Token* field = parser_peek(p); 
@@ -427,7 +439,7 @@ static AstNodeId led(Parser* p, Token* tok, AstNodeId left) {
         }
 
         default: {
-            AstNodeId id  = parser_create_node(p, AST_BINOP);
+            AstNodeId id  = parser_create_node(p, AST_BINOP, AST_FLAGS_NONE);
             AstNode* node = ast_node_get(&p -> module -> ast, id);
 
             node -> as.binary_op.op = tok -> kind;

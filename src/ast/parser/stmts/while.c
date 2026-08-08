@@ -4,7 +4,7 @@
 #include "diagnostics/diagnostics.h"
 
 AstNodeId parse_while_loop(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_WHILE);
+    AstNodeId id  = parser_create_node(p, AST_WHILE, AST_FLAGS_NONE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> as.while_loop.condition = parse_expression(p, 0);

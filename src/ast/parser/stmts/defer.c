@@ -5,7 +5,7 @@
 #include "ids.h"
 
 AstNodeId parse_defer_stmt(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_DEFER);
+    AstNodeId id  = parser_create_node(p, AST_DEFER, AST_FLAGS_NONE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     AstNodeId expr = parse_expression(p, 0);

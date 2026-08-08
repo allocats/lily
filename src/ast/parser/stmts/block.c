@@ -1,4 +1,5 @@
 #include "ast/nodes/nodes.h"
+#include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
@@ -21,7 +22,9 @@ static const ParseStmtFn STMT_DISPATCH[TOKEN_KIND_COUNT] = {
 };
 
 AstNodeId parse_block(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_BLOCK);
+    p -> in_block = true;
+
+    AstNodeId id  = parser_create_node(p, AST_BLOCK, AST_FLAGS_NONE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> as.block.stmts = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 8);
@@ -72,24 +75,32 @@ AstNodeId parse_block(Parser* p) {
                 parser_advance(p);
                 ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, fn(p));
             } else {
-                // diagnostic_add_token(
-                //     &driver_ctx.diagnostics,
-                //     p -> id,
-                //     DIAG_ERROR,
-                //     token,
-                //     DIAG_LOC_WHOLE_TOK,
-                //     "unexpected token",
-                //     "expected: (ident | const | let | if | for | while | defer | return | block)"
-                // );
-                //
-                // parser_recover_stmt(p);
+                AstNodeId expr_id  = parse_expression(p, 0);
+                AstNode* expr_node = ast_node_get(&p -> module -> ast, expr_id);
 
-                ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, parse_expression(p, 0));
+                if (!parser_check(p, TOK_SEMI)) {
+                    diagnostic_add_token(
+                        &driver_ctx.diagnostics,
+                        p -> id,
+                        DIAG_ERROR,
+                        parser_peek_previous(p),
+                        DIAG_LOC_END_OF_TOK,
+                        "expected ';'",
+                        "add a ';' here"
+                    );
+
+                    ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, parser_error_stmt(p, expr_node));
+                } else {
+                    parser_advance(p);
+                    ast_block_push_stmt(&p -> module -> ast.gpa_arena, node, expr_id);
+                }
             }
         }
     }
 
     node -> token_span.end = p -> cursor;
+
+    p -> in_block = false;
 
     return id;
 }

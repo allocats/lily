@@ -4,7 +4,7 @@
 #include "diagnostics/diagnostics.h"
 
 AstNodeId parse_for_loop(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_FOR);
+    AstNodeId id  = parser_create_node(p, AST_FOR, AST_FLAGS_NONE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> as.for_loop.init = parse_var_decl(p);

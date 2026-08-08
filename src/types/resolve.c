@@ -9,8 +9,6 @@
 #include "types/ty.h"
 #include "types/types.h"
 
-#include <stdio.h>
-
 extern LilyCtx driver_ctx;
 
 static TypeId resolve_type_base(Module* module, AstNode* expr);
@@ -92,35 +90,44 @@ static TypeId resolve_type_base(Module* module, AstNode* expr) {
     Ast* ast = &module -> ast;
     AstNode* ident = &ast -> nodes[expr -> as.type_base_expr.ident];
 
+    NamespaceId ns_id = module -> namespace_id;
+
     if (ident -> as.ident.namespace_id == NAMESPACE_ID_NONE) {
         TypeId builtin = builtin_lookup_primitive(ident -> as.ident.name_id);
 
         if (builtin != TYPE_ID_NONE) {
             return builtin;
         }
-    }
+    } else {
+        ns_id = ident -> as.ident.namespace_id;
 
-    NamespaceId ns_id = ident -> as.ident.namespace_id;
+        bool found_import = false;
 
-    bool found_import = false;
+        for (u32 i = 0; i < module -> import_count; i++) {
+            if (ns_id == module -> imports[i]) {
+                found_import = true;
+                break;
+            }
+        }
 
-    for (u32 i = 0; i < module -> import_count; i++) {
-        if (ns_id == module -> imports[i]) {
-            found_import = true;
-            break;
+        if (!found_import) {
+            diagnostics_add_unknown_namespace(
+                &driver_ctx.diagnostics,
+                module,
+                expr -> as.type_base_expr.ident
+            );
+
+            return TYPE_ID_NONE;
         }
     }
 
-    if (!found_import) {
-        printf("Namespace is not imported!\n");
-        return TYPE_ID_NONE;
-    }
-
     TypeId id = type_table_lookup_nominal(module_lookup(ns_id), ident);
-
     if (id == TYPE_ID_NONE) {
-        // TODO: Errors
-        printf("Unknown type\n");
+        diagnostic_add_type_does_not_exist(
+            &driver_ctx.diagnostics,
+            module,
+            expr -> as.type_base_expr.ident
+        );
     }
 
     return id;

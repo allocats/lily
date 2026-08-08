@@ -1,5 +1,6 @@
 #include "token/token.h"
 
+#include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -29,6 +30,21 @@ Token* tokens_get_new_tok(TokenArray* tokens) {
     }
 
     return &tokens -> items[tokens -> count++];
+}
+
+bool token_is_assignment(TokenKind kind) {
+    return  kind == TOK_EQ ||
+            kind == TOK_AMP_EQ ||
+            kind == TOK_CARET_EQ ||
+            kind == TOK_PIPE_EQ ||
+            kind == TOK_TILDE_EQ ||
+            kind == TOK_SHL_EQ ||
+            kind == TOK_SHR_EQ ||
+            kind == TOK_PLUS_EQ ||
+            kind == TOK_MINUS_EQ ||
+            kind == TOK_STAR_EQ ||
+            kind == TOK_SLASH_EQ ||
+            kind == TOK_PERCENT_EQ;
 }
 
 void token_print(Token* token) {

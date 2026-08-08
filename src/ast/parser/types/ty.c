@@ -11,7 +11,7 @@ AstNodeId parse_param_type(Parser* p) {
     if (parser_check(p, TOK_ELLIPSIS)) {
         parser_advance(p);
 
-        AstNodeId id  = parser_create_node(p, AST_TYPE_VARIADIC);
+        AstNodeId id  = parser_create_node(p, AST_TYPE_VARIADIC, AST_FLAGS_NONE);
         AstNode* node = ast_node_get(&p -> module -> ast, id);
 
         node -> as.type_variadic_expr.element_type = AST_NODE_ID_NONE;
@@ -24,11 +24,12 @@ AstNodeId parse_param_type(Parser* p) {
 
 AstNodeId parse_type_expr(Parser* p) {
     u32 start_index = p -> cursor;
-    bool is_const = false;
+    u32 flags = AST_FLAGS_NONE;
 
     if (parser_check(p, TOK_CONST)) {
         parser_advance(p);
-        is_const = true;
+
+        flags |= AST_FLAGS_IS_CONST;
     }
 
     AstNodeId primary = parse_expression(p, 140);
@@ -53,19 +54,15 @@ AstNodeId parse_type_expr(Parser* p) {
         return AST_NODE_ID_NONE;
     }
 
-    AstNodeId id  = parser_create_node(p, AST_TYPE_BASE);
+    AstNodeId id  = parser_create_node(p, AST_TYPE_BASE, flags);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
-
-    if (is_const) {
-        node -> flags |= AST_FLAGS_IS_CONST;
-    }
 
     node -> token_span.start = start_index;
     node -> as.type_base_expr.ident = primary;
 
     while (p -> cursor < p -> token_count) {
         if (parser_check(p, TOK_STAR)) {
-            AstNodeId ptr_id = parser_create_node(p, AST_TYPE_POINTER);
+            AstNodeId ptr_id = parser_create_node(p, AST_TYPE_POINTER, AST_FLAGS_NONE);
             AstNode* ptr_node = ast_node_get(&p -> module -> ast, ptr_id);
 
             ptr_node -> as.type_pointer_expr.base_type = id;
@@ -112,7 +109,7 @@ AstNodeId parse_type_expr(Parser* p) {
 
             parser_advance(p);
 
-            AstNodeId arr_id = parser_create_node(p, AST_TYPE_ARRAY);
+            AstNodeId arr_id = parser_create_node(p, AST_TYPE_ARRAY, AST_FLAGS_NONE);
             AstNode* arr_node = ast_node_get(&p -> module -> ast, arr_id);
 
             arr_node -> as.type_array_expr.element = id;
@@ -125,7 +122,7 @@ AstNodeId parse_type_expr(Parser* p) {
         break;
     }
 
-    node -> token_span.end = p -> cursor;
+    node -> token_span.end = p -> cursor - 1;
 
     return id;
 }

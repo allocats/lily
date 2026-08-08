@@ -10,6 +10,8 @@ typedef struct {
     TokenArray* tokens;
     u32 cursor;
     u32 token_count;
+
+    bool in_block;
 } Parser;
 
 #endif // !LILY_AST_PARSER_TYPES_H

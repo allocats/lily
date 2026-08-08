@@ -5,11 +5,16 @@
 #include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "ids.h"
 #include "resolver/types.h"
+#include "string_interner/interner.h"
 #include "symbols/types.h"
+#include "token/types.h"
+#include "types/ty.h"
 #include "types/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/types.h"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -19,6 +24,15 @@
 #include <unistd.h>
 
 extern LilyCtx driver_ctx;
+
+static void diagnostic_add_token_span(
+    DiagnosticEngine* engine,
+    FileId file_id,
+    DiagKind kind,
+    Span span,
+    const char* msg,
+    const char* help
+);
 
 static FileId module_node_file(Module* module, AstNodeId id) {
     FileId file_id = 0;
@@ -247,6 +261,124 @@ void diagnostic_add_token(
     }
 
     diag -> file_id = file_id;
+}
+
+static void diagnostic_add_token_span(
+    DiagnosticEngine* engine,
+    FileId file_id,
+    DiagKind kind,
+    Span span,
+    const char* msg,
+    const char* help
+) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    u32 line = 1;
+    u32 col = 1;
+
+    File* file = files_lookup_id(file_id);
+    char* cursor = file -> buffer.pointer;
+
+    TokenArray* tokens = &driver_ctx.file_registry.tokens[file_id];
+
+    Token* start_token = &tokens -> items[span.start];
+    Token* end_token = &tokens -> items[span.end];
+
+    while (cursor < start_token -> lexeme.pointer) {
+        if (*cursor == '\n') {
+            line += 1;
+            col = 1;
+        } else {
+            col++;
+        }
+
+        cursor++;
+    }
+
+    u32 length = end_token -> lexeme.pointer + end_token -> lexeme.length - start_token -> lexeme.pointer;
+    u32 length_to_end_of_line = 0;
+
+    while (*cursor != '\0' && *cursor != '\n') {
+        length_to_end_of_line++;
+        cursor++;
+    }
+
+    Diagnostic* diag = diagnostic_get_new(engine); 
+
+    diag -> is_generic = false;
+
+    diag -> kind = kind;
+
+    diag -> msg.pointer = (char*) msg;
+    diag -> msg.length = strlen(msg);
+
+    diag -> help.pointer = (char*) help;
+    diag -> help.length  = help ? strlen(help) : 0;
+
+    diag -> line = line;
+    diag -> col = col;
+
+    diag -> len = MIN(length, length_to_end_of_line);
+
+    diag -> file_id = file_id;
+
+}
+
+void diagnostics_add_unknown_namespace(DiagnosticEngine* engine, Module* module, AstNodeId ident_id) {
+    FileId file_id = module_node_file(module, ident_id);
+
+    AstNode* node = &module -> ast.nodes[ident_id];
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+    char* help = arena_alloc(&engine -> arena, size);
+    char* namespace = arena_alloc(&engine -> arena, size);
+
+    u32 count = node -> token_span.end - node -> token_span.start - 1;
+
+    i32 n = 0;
+
+    for (u32 i = 0; i < count; i++) {
+        Token* token = &driver_ctx.file_registry.tokens[file_id].items[node -> token_span.start + i];
+
+        if (n < 0 || (u32)n >= size) {
+            break;
+        }
+
+        i32 written = snprintf(
+            namespace + n,
+            size - (u32) n,
+            "%.*s",
+            token -> lexeme.length,
+            token -> lexeme.pointer
+        );
+
+        if (written < 0) {
+            break;
+        }
+
+        n += written;
+    }
+
+    snprintf(msg, size, "use of undeclared namespace: %s", namespace);
+    snprintf(help, size, "try importing: %s", namespace);
+
+    Span span = {
+        .start = node -> token_span.start,
+        .end = node -> token_span.end - 2
+    };
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        span,
+        msg,
+        help
+    );
 }
 
 static const char* symbol_exists_match_def(SymbolKind kind) {
@@ -485,14 +617,598 @@ void diagnostic_add_return_type_invalid(DiagnosticEngine* engine, Module* module
 
     AstNode* return_type_expr = &module -> ast.nodes[func_node -> as.func_decl.return_type_expr];
 
-    diagnostic_add_token(
+    diagnostic_add_token_span(
         engine,
         file,
         DIAG_ERROR,
-        func_node -> source_token,
-        DIAG_LOC_WHOLE_TOK,
+        return_type_expr -> token_span,
         "invalid return type",
-        "add a valid type here"
+        "add a valid return type for this function"
+    );
+}
+
+void diagnostic_add_void_function_returns_value(DiagnosticEngine* engine, Module* module, AstNodeId id) {
+    AstNode* node = &module -> ast.nodes[id];
+    AstNode* expr = &module -> ast.nodes[node -> as.return_stmt.stmt];
+
+    FileId file_id = module_node_file(module, id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        expr -> token_span,
+        "function with no return value returns an expression",
+        "either remove this return expression or add a return type to the function"
+    );
+}
+
+void diagnostic_add_function_expects_but_returns(
+    DiagnosticEngine* engine,
+    Module* module,
+    StringId fn_name,
+    AstNodeId return_stmt_id,
+    TypeId return_type,
+    TypeId found_type
+) {
+    AstNode* stmt = &module -> ast.nodes[return_stmt_id]; 
+
+    FileId file_id = module_node_file(module, return_stmt_id);
+
+    StringId return_type_name = TYPE_ID_LOOKUP_REF(return_type) -> name;
+    StringId found_type_name = TYPE_ID_LOOKUP_REF(found_type) -> name;
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    snprintf(
+        msg,
+        size,
+        "function %.*s return type expects '%.*s', but found type '%.*s'",
+        STR8_PRINT(fn_name),
+        STR8_PRINT(return_type_name),
+        STR8_PRINT(found_type_name)
+    );
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        stmt -> token_span,
+        msg,
+        null
+    );
+}
+
+void diagnostic_add_cannot_reassign_constant(DiagnosticEngine* engine, Module* module, AstNodeId binop_id) {
+    AstNode* binop = &module -> ast.nodes[binop_id];
+    AstNode* lhs = &module -> ast.nodes[binop -> as.binary_op.left];
+
+    FileId file_id = module_node_file(module, binop_id);
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    i32 n = snprintf(msg, size, "cannot reassign constant: ");
+
+    u32 count = lhs -> token_span.end - lhs -> token_span.start + 1;
+
+    for (u32 i = 0; i < count; i++) {
+        Token* token = &driver_ctx.file_registry.tokens[file_id].items[lhs -> token_span.start + i];
+
+        if (n < 0 || (u32)n >= size) {
+            break;
+        }
+
+        i32 written = snprintf(
+            msg + n,
+            size - (u32) n,
+            "%.*s",
+            token -> lexeme.length,
+            token -> lexeme.pointer
+        );
+
+        if (written < 0) {
+            break;
+        }
+
+        n += written;
+    }
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        binop -> token_span,
+        msg,
+        null
+    );
+}
+
+void diagnostic_add_pointer_compound_assign_requires_integer(DiagnosticEngine* engine, Module* module, AstNodeId rhs_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* rhs = &module -> ast.nodes[rhs_id];
+
+    FileId file_id = module_node_file(module, rhs_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        rhs -> token_span,
+        "pointer compound assignment requires an integer offset",
+        "change this expression to an integer type"
+    );
+}
+
+void diagnostic_add_assignment_type_mismatch(
+    DiagnosticEngine* engine,
+    Module* module,
+    AstNodeId rhs_id,
+    TypeId expected_type,
+    TypeId found_type
+) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* rhs = &module -> ast.nodes[rhs_id];
+
+    FileId file_id = module_node_file(module, rhs_id);
+
+    StringId expected_type_name = TYPE_ID_LOOKUP_REF(expected_type) -> name;
+    StringId found_type_name = TYPE_ID_LOOKUP_REF(found_type) -> name;
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    snprintf(
+        msg,
+        size,
+        "cannot assign value of type '%.*s' to variable of type '%.*s'",
+        STR8_PRINT(found_type_name),
+        STR8_PRINT(expected_type_name)
+    );
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        rhs -> token_span,
+        msg,
+        null
+    );
+}
+
+void diagnostic_add_pointer_subtraction_type_mismatch(DiagnosticEngine* engine, Module* module, AstNodeId binop_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* binop = &module -> ast.nodes[binop_id];
+
+    FileId file_id = module_node_file(module, binop_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        binop -> token_span,
+        "cannot subtract pointers of different types",
+        "ensure both pointers point to the same base type"
+    );
+}
+
+void diagnostic_add_pointer_arithmetic_requires_integer(DiagnosticEngine* engine, Module* module, AstNodeId rhs_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* rhs = &module -> ast.nodes[rhs_id];
+
+    FileId file_id = module_node_file(module, rhs_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        rhs -> token_span,
+        "pointer arithmetic requires an unsigned integer offset",
+        "change this expression to an unsigned integer type"
+    );
+}
+
+void diagnostic_add_comparison_type_mismatch(DiagnosticEngine* engine, Module* module, AstNodeId binop_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* binop = &module -> ast.nodes[binop_id];
+
+    FileId file_id = module_node_file(module, binop_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        binop -> token_span,
+        "comparison operands must be the same type",
+        "change one of the operands so both sides match"
+    );
+}
+
+void diagnostic_add_logical_operator_requires_bool(DiagnosticEngine* engine, Module* module, AstNodeId binop_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* binop = &module -> ast.nodes[binop_id];
+
+    FileId file_id = module_node_file(module, binop_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        binop -> token_span,
+        "logical operators require bool operands",
+        "ensure both operands resolve to 'bool'"
+    );
+}
+
+void diagnostic_add_cannot_reference_rvalue(DiagnosticEngine* engine, Module* module, AstNodeId operand_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* operand = &module -> ast.nodes[operand_id];
+
+    FileId file_id = module_node_file(module, operand_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        operand -> token_span,
+        "cannot take reference of an rvalue",
+        "store this value in a variable before taking its address"
+    );
+}
+
+void diagnostic_add_cannot_dereference_non_pointer(DiagnosticEngine* engine, Module* module, AstNodeId unary_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* unary = &module -> ast.nodes[unary_id];
+
+    FileId file_id = module_node_file(module, unary_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        unary -> token_span,
+        "can only dereference pointers",
+        "remove the '*' or change this expression to a pointer type"
+    );
+}
+
+void diagnostic_add_call_argument_count_mismatch(
+    DiagnosticEngine* engine,
+    Module* module,
+    AstNodeId call_id,
+    u32 expected,
+    u32 found,
+    bool is_variadic
+) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* call = &module -> ast.nodes[call_id];
+
+    FileId file_id = module_node_file(module, call_id);
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    snprintf(
+        msg,
+        size,
+        "expected %s%u argument%s, but found %u",
+        is_variadic ? "at least " : "",
+        expected,
+        expected == 1 ? "" : "s",
+        found
+    );
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        call -> token_span,
+        msg,
+        null
+    );
+}
+
+void diagnostic_add_argument_type_mismatch(
+    DiagnosticEngine* engine,
+    Module* module,
+    AstNodeId arg_id,
+    TypeId expected_type,
+    TypeId found_type,
+    u32 arg_index
+) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* arg = &module -> ast.nodes[arg_id];
+
+    FileId file_id = module_node_file(module, arg_id);
+
+    StringId expected_type_name = TYPE_ID_LOOKUP_REF(expected_type) -> name;
+    StringId found_type_name = TYPE_ID_LOOKUP_REF(found_type) -> name;
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    snprintf(
+        msg,
+        size,
+        "argument %u expects type '%.*s', but found type '%.*s'",
+        arg_index,
+        STR8_PRINT(expected_type_name),
+        STR8_PRINT(found_type_name)
+    );
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        arg -> token_span,
+        msg,
+        null
+    );
+}
+
+void diagnostic_add_arrow_access_on_non_pointer(DiagnosticEngine* engine, Module* module, AstNodeId access_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* access = &module -> ast.nodes[access_id];
+
+    FileId file_id = module_node_file(module, access_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        access -> token_span,
+        "can only use '->' on pointers",
+        "use '.' instead"
+    );
+}
+
+void diagnostic_add_dot_access_on_pointer(DiagnosticEngine* engine, Module* module, AstNodeId access_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* access = &module -> ast.nodes[access_id];
+
+    FileId file_id = module_node_file(module, access_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        access -> token_span,
+        "cannot use '.' on a pointer",
+        "use '->' instead"
+    );
+}
+
+void diagnostic_add_member_access_invalid_base_type(
+    DiagnosticEngine* engine,
+    Module* module,
+    AstNodeId access_id,
+    TypeId base_type
+) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    AstNode* access = &module -> ast.nodes[access_id];
+
+    FileId file_id = module_node_file(module, access_id);
+
+    StringId base_type_name = TYPE_ID_LOOKUP_REF(base_type) -> name;
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    snprintf(
+        msg,
+        size,
+        "nothing to access on type '%.*s'",
+        STR8_PRINT(base_type_name)
+    );
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        access -> token_span,
+        msg,
+        null
+    );
+}
+
+void diagnostic_add_type_cannot_be_void(DiagnosticEngine* engine, Module* module, AstNodeId type_expr_id) {
+    AstNode* node = &module -> ast.nodes[type_expr_id];
+
+    FileId file_id = module_node_file(module, type_expr_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        node -> token_span,
+        "type cannot be 'void'",
+        "either add indirection (void*) or change the type"
+    );
+}
+
+void diagnostic_add_type_is_not_an_integer(DiagnosticEngine* engine, Module* module, AstNodeId type_expr_id) {
+    AstNode* node = &module -> ast.nodes[type_expr_id];
+
+    FileId file_id = module_node_file(module, type_expr_id);
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        node -> token_span,
+        "type does not resolve to an integer",
+        "change this type expression"
+    );
+}
+
+void diagnostic_add_type_does_not_exist(DiagnosticEngine* engine, Module* module, AstNodeId type_expr_id) {
+    AstNode* node = &module -> ast.nodes[type_expr_id];
+
+    FileId file_id = module_node_file(module, type_expr_id);
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    i32 n = snprintf(msg, size, "unknown type: ");
+
+    u32 count = node -> token_span.end - node -> token_span.start + 1;
+
+    for (u32 i = 0; i < count; i++) {
+        Token* token = &driver_ctx.file_registry.tokens[file_id].items[node -> token_span.start + i];
+
+        if (n < 0 || (u32)n >= size) {
+            break;
+        }
+
+        i32 written = snprintf(
+            msg + n,
+            size - (u32) n,
+            "%.*s",
+            token -> lexeme.length,
+            token -> lexeme.pointer
+        );
+
+        if (written < 0) {
+            break;
+        }
+
+        n += written;
+    }
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        node -> token_span,
+        msg,
+        "unknown type here"
+    );
+}
+
+void diagnostic_add_use_of_undeclared_identifier(DiagnosticEngine* engine, Module* module, AstNode* node) {
+    FileId file_id = module_node_file(module, node -> id);
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    i32 n = snprintf(msg, size, "use of undeclared identifier: ");
+
+    u32 count = node -> token_span.end - node -> token_span.start + 1;
+
+    for (u32 i = 0; i < count; i++) {
+        Token* token = &driver_ctx.file_registry.tokens[file_id].items[node -> token_span.start + i];
+
+        if (n < 0 || (u32)n >= size) {
+            break;
+        }
+
+        i32 written = snprintf(
+            msg + n,
+            size - (u32) n,
+            "%.*s",
+            token -> lexeme.length,
+            token -> lexeme.pointer
+        );
+
+        if (written < 0) {
+            break;
+        }
+
+        n += written;
+    }
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        node -> token_span,
+        msg,
+        "undeclared identifier here"
+    );
+}
+
+void diagnostic_add_use_of_undeclared_member(
+    DiagnosticEngine* engine,
+    Module* module,
+    AstNodeId access_id,
+    StringId object_name,
+    StringId member
+) {
+    FileId file_id = module_node_file(module, access_id);
+
+    AstNode* stmt = &module -> ast.nodes[access_id];
+
+    u32 size = 256;
+    char* msg = arena_alloc(&engine -> arena, size);
+
+    snprintf(
+        msg,
+        size,
+        "object '%.*s' does not have a member named '%.*s'",
+        STR8_PRINT(object_name),
+        STR8_PRINT(member)
+    );
+
+    diagnostic_add_token_span(
+        engine,
+        file_id,
+        DIAG_ERROR,
+        stmt -> token_span,
+        msg,
+        "undeclared member access here"
     );
 }
 

@@ -1,4 +1,5 @@
 #include "ast/nodes/nodes.h"
+#include "ast/nodes/types.h"
 #include "ast/parser/decl/decl.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/types/ty.h"
@@ -8,7 +9,7 @@
 #include "utils/macros.h"
 
 AstNodeId parse_struct_decl(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_STRUCT);
+    AstNodeId id  = parser_create_node(p, AST_STRUCT, AST_FLAGS_IS_TOP_LEVEL);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> as.struct_decl.fields = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 4);
@@ -124,7 +125,7 @@ AstNodeId parse_struct_decl(Parser* p) {
             );
         }
 
-        AstNodeId field_id  = parser_create_node(p, AST_FIELD);
+        AstNodeId field_id  = parser_create_node(p, AST_FIELD, AST_FLAGS_NONE);
         AstNode* field_node = ast_node_get(&p -> module -> ast, field_id);
 
         field_node -> source_token = field_name;

@@ -6,7 +6,7 @@
 #include "utils/macros.h"
 
 AstNodeId parse_if_stmt(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_IF);
+    AstNodeId id  = parser_create_node(p, AST_IF, AST_FLAGS_NONE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> as.if_stmt.branches = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 4);
@@ -48,7 +48,7 @@ AstNodeId parse_if_stmt(Parser* p) {
 
         AstNodeId block = parse_block(p);
 
-        AstNodeId branch_id  = parser_create_node(p, AST_BRANCH);
+        AstNodeId branch_id  = parser_create_node(p, AST_BRANCH, AST_FLAGS_NONE);
         AstNode* branch_node = ast_node_get(&p -> module -> ast, branch_id);
 
         branch_node -> as.branch.condition = condition;

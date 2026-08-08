@@ -79,7 +79,7 @@ AstNodeId parse_module_decl(Parser* p) {
 
     p -> module = module;
 
-    AstNodeId id  = parser_create_node(p, AST_MODULE);
+    AstNodeId id  = parser_create_node(p, AST_MODULE, AST_FLAGS_IS_TOP_LEVEL);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> token_span.end = p -> cursor;

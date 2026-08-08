@@ -13,6 +13,7 @@
 #include "utils/macros.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 #define LOAD_FACTOR 0.75
 
@@ -35,7 +36,9 @@ void symbols_register_top_level_declarations(ModuleId id) {
     for (u32 i = 0; i < count; i++) {
         AstNode* node = &ast -> nodes[i];
 
-        register_symbol(&r, node, i);
+        if (node -> flags & AST_FLAGS_IS_TOP_LEVEL) {
+            register_symbol(&r, node, i);
+        }
     }
 }
 

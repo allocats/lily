@@ -7,7 +7,13 @@
 #include "string_interner/interner.h"
 
 AstNodeId parse_const_decl(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_CONST);
+    u32 flags = AST_FLAGS_IS_TOP_LEVEL;
+
+    if (p -> in_block) {
+        flags = AST_FLAGS_NONE;
+    }
+
+    AstNodeId id  = parser_create_node(p, AST_CONST, flags);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     Token* name = parser_peek(p);

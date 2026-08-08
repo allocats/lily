@@ -9,7 +9,7 @@ extern LilyCtx driver_ctx;
 
 void parser_parse_file(FileId id);
 
-AstNodeId parser_create_node(Parser* p, AstKind kind);
+AstNodeId parser_create_node(Parser* p, AstKind kind, u32 flags);
 
 Token* parser_peek(Parser* p);
 Token* parser_peek_previous(Parser* p);

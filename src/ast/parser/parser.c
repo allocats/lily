@@ -41,7 +41,8 @@ void parser_parse_file(FileId id) {
         .module = null,
         .cursor = 0,
         .tokens = tokens,
-        .token_count = tokens -> count
+        .token_count = tokens -> count,
+        .in_block = false
     };
 
     Token* expected_module_token = parser_advance(&p);
@@ -105,7 +106,7 @@ void parser_parse_file(FileId id) {
 }
 
 
-AstNodeId parser_create_node(Parser* p, AstKind kind) {
+AstNodeId parser_create_node(Parser* p, AstKind kind, u32 flags) {
     AstNodeId id = ast_node_alloc(
         &p -> module -> ast.nodes_arena,
         &p -> module -> ast
@@ -117,6 +118,7 @@ AstNodeId parser_create_node(Parser* p, AstKind kind) {
     );
 
     node -> id = id;
+    node -> flags = flags;
     node -> kind = kind;
     node -> source_token = parser_peek(p);
     node -> token_span.start = p -> cursor;

@@ -15,7 +15,7 @@ AstNodeId parse_external_decl(Parser* p) {
         return parse_external_function_decl(p);
     } 
 
-    AstNodeId id  = parser_create_node(p, AST_ERROR);
+    AstNodeId id  = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     diagnostic_add_token(
@@ -32,10 +32,8 @@ AstNodeId parse_external_decl(Parser* p) {
 }
 
 static AstNodeId parse_external_function_decl(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_FUNCTION);
+    AstNodeId id  = parser_create_node(p, AST_FUNCTION, AST_FLAGS_IS_TOP_LEVEL | AST_FLAGS_IS_EXTERNAL);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
-
-    node -> flags |= AST_FLAGS_IS_EXTERNAL;
 
     node -> as.func_decl.params = arena_alloc(&p -> module -> ast.gpa_arena, sizeof(AstNodeId) * 8);
     node -> as.func_decl.param_capacity = 8; 
@@ -99,7 +97,7 @@ static AstNodeId parse_external_function_decl(Parser* p) {
             return parser_error_decl(p, node);
         }
 
-        AstNodeId param_id  = parser_create_node(p, AST_PARAM);
+        AstNodeId param_id  = parser_create_node(p, AST_PARAM, AST_FLAGS_NONE);
         AstNode* param_node = ast_node_get(&p -> module -> ast, param_id);
 
         param_node -> as.param_decl.name_id = STRING_INTERNER_LOOKUP_TOKEN(param_tok);

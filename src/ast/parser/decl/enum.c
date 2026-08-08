@@ -1,3 +1,4 @@
+#include "ast/nodes/types.h"
 #include "ast/parser/decl/decl.h"
 #include "ast/parser/types/ty.h"
 #include "ast/parser/parser.h"
@@ -9,7 +10,7 @@
 #include "utils/macros.h"
 
 AstNodeId parse_enum_decl(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_ENUM);
+    AstNodeId id  = parser_create_node(p, AST_ENUM, AST_FLAGS_IS_TOP_LEVEL);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     node -> kind = AST_ENUM;
@@ -119,7 +120,7 @@ AstNodeId parse_enum_decl(Parser* p) {
             );
         }
 
-        AstNodeId variant_id = parser_create_node(p, AST_VARIANT);
+        AstNodeId variant_id = parser_create_node(p, AST_VARIANT, AST_FLAGS_NONE);
         AstNode* variant_node = ast_node_get(&p -> module -> ast, variant_id);
 
         node -> as.enum_decl.variants[node -> as.enum_decl.variant_count++] = variant_id;

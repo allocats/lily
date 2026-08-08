@@ -7,7 +7,7 @@
 #include "string_interner/interner.h"
 
 AstNodeId parse_var_decl(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_LET);
+    AstNodeId id  = parser_create_node(p, AST_LET, AST_FLAGS_NONE);
     AstNode* node = ast_node_get(&p -> module -> ast, id);
 
     Token* name = parser_peek(p);
