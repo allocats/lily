@@ -3,5 +3,5 @@ module foo;
 import std::io;
 
 fn main() -> i32 {
-    let point: i32* = null;
+    return 0;
 }

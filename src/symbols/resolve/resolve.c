@@ -4,6 +4,7 @@
 #include "hash/hash.h"
 #include "ids.h"
 #include "modules/modules.h"
+#include "modules/types.h"
 #include "resolver/enums.h"
 #include "resolver/resolver.h"
 #include "semantics/semantics.h"
@@ -20,6 +21,11 @@ extern LilyCtx driver_ctx;
 
 #define ALIGN_TO_NEXT_MULTIPLE_OF_POINTER_SIZE(n) ((n + sizeof(void*) - 1) & (-sizeof(void*)))
 
+typedef struct  {
+    TypeId return_type;
+    StringId name_id;
+} FunctionContext;
+
 static bool resolve_symbol_body(ModuleId module_id, SymbolId id);
 static bool resolve_function(Resolver* r, Module* module, SymbolId symbol_id);
 static bool resolve_struct(Resolver* r, Module* module, SymbolId symbol_id);
@@ -29,7 +35,21 @@ static bool resolve_enum(Resolver* r, Module* module, SymbolId symbol_id);
 static bool resolve_constant(Resolver* r, Module* module, SymbolId symbol_id);
 static bool resolve_block_constant(Resolver* r, Module* module, AstNodeId stmt_id);
 
-static bool resolve_function_block(Resolver* r, Module* module, SymbolId fn_id, AstNodeId block_id);
+static bool resolve_block(
+    Resolver* r,
+    Module* module,
+    AstNodeId block_id,
+    FunctionContext* fn_ctx,
+    bool* out_always_returns
+);
+
+static bool resolve_statement(
+    Resolver* r,
+    Module* module,
+    AstNodeId stmt_id,
+    FunctionContext* fn_ctx,
+    bool* out_stmt_returns
+);
 
 static bool resolve_let_declaration(Resolver* r, Module* module, AstNodeId stmt_id);
 static bool resolve_return_stmt(Resolver* r, Module* module, AstNodeId stmt_id, TypeId return_type, StringId name);
@@ -405,10 +425,24 @@ bool resolve_function(Resolver* r, Module* module, SymbolId symbol_id) {
     bool result = true;
     
     if (!(node -> flags & AST_FLAGS_IS_EXTERNAL)) {
-        result = resolve_function_block(r, module, symbol_id, node -> as.func_decl.block);
+        FunctionContext fn_ctx = {
+            .name_id = symbol -> name,
+            .return_type = return_type_id
+        };
+
+        bool always_returns = false;
+        
+        result = resolve_block(r, module, node -> as.func_decl.block, &fn_ctx, &always_returns);
 
         if (!result) {
             printf("ERROR RESOLVING FUNCTION BODY\n");
+        }
+
+        bool needs_return = return_type_id != driver_ctx.type_table.builtins.type_void;
+
+        if (needs_return && !always_returns) {
+            printf("Missing return!\n");
+            result = false;
         }
     }
 
@@ -450,83 +484,219 @@ static bool resolve_constant(Resolver* r, Module* module, SymbolId symbol_id) {
     return true;
 }
 
-static bool resolve_function_block(Resolver* r, Module* module, SymbolId fn_id, AstNodeId block_id) {
+static bool resolve_block(
+    Resolver* r,
+    Module* module,
+    AstNodeId block_id,
+    FunctionContext* fn_ctx,
+    bool* out_always_returns
+) {
     AstNode* node = &module -> ast.nodes[block_id];
-
     u32 count = node -> as.block.stmt_count;
 
     bool result = true;
+    bool always_returns = false;
 
-    Symbol* symbol = &module -> symbol_table.symbols[fn_id];
-    TypeId return_type = symbol -> as.function.return_type;
-
-    bool needs_return = true;
-    bool has_return = false;
-
-    if (return_type == driver_ctx.type_table.builtins.type_void) {
-        needs_return = false;
-    }
+    scope_enter(r);
 
     for (u32 i = 0; i < count; i++) {
         AstNodeId stmt_id = node -> as.block.stmts[i];
-        AstNode* stmt_node = &module -> ast.nodes[stmt_id];
 
-        switch (stmt_node -> kind) {
-            case AST_RETURN:
-                if (!needs_return) {
-                    if (stmt_node -> as.return_stmt.stmt != AST_NODE_ID_NONE) {
-                        diagnostic_add_void_function_returns_value(&driver_ctx.diagnostics, module, stmt_id);
-                        result = false;
-                    }
-                } else {
-                   if (!resolve_return_stmt(r, module, stmt_id, return_type, symbol -> name)) {
-                        result = false;
-                   }
+        bool stmt_returns = false;
 
-                   has_return = true;
-                }
-                break;
+        if (!resolve_statement(r, module, stmt_id, fn_ctx, &stmt_returns)) {
+            result = false;
+        }
 
-            case AST_DEFER:
-                if (TYPE_ID_NONE == resolve_expression(r, module, stmt_node -> as.defer_stmt.stmt, TYPE_ID_NONE)) {
-                    result = false;
-                }
-                break;
-
-            case AST_CONST: 
-                if (!resolve_block_constant(r, module, stmt_id)) {
-                    result = false;
-                }
-                break;
-
-            case AST_LET:
-                if (!resolve_let_declaration(r, module, stmt_id)) {
-                    result = false;
-                }
-                break;
-
-            case AST_IF:
-                break;
-
-            case AST_FOR:
-                break;
-
-            case AST_WHILE:
-                break;
-            
-            default:
-                if (TYPE_ID_NONE == resolve_expression(r, module, stmt_id, TYPE_ID_NONE)) {
-                    result = false;
-                }
-                break;
+        if (stmt_returns) {
+            always_returns = true;
         }
     }
 
-    if (needs_return && !has_return) {
-        printf("missing return!\n");
-        result = false;
+    scope_exit(r);
+
+    node -> resolved_type = driver_ctx.type_table.builtins.type_void;
+
+    *out_always_returns = always_returns;
+
+    return result;
+}
+
+static bool resolve_statement(
+    Resolver* r,
+    Module* module,
+    AstNodeId stmt_id,
+    FunctionContext* fn_ctx,
+    bool* out_stmt_returns
+) {
+    AstNode* stmt_node = &module -> ast.nodes[stmt_id];
+
+    bool result = true;
+    bool returns = false;
+
+    switch (stmt_node -> kind) {
+        case AST_RETURN: {
+            bool needs_return = fn_ctx != NULL && fn_ctx -> return_type != driver_ctx.type_table.builtins.type_void;
+
+            if (!needs_return) {
+                if (stmt_node -> as.return_stmt.stmt != AST_NODE_ID_NONE) {
+                    diagnostic_add_void_function_returns_value(&driver_ctx.diagnostics, module, stmt_id);
+                    result = false;
+                }
+
+                stmt_node -> resolved_type = driver_ctx.type_table.builtins.type_void;
+            } else {
+                if (!resolve_return_stmt(r, module, stmt_id, fn_ctx -> return_type, fn_ctx -> name_id)) {
+                    result = false;
+                }
+
+                stmt_node -> resolved_type = fn_ctx -> return_type;
+            }
+
+            returns = true;
+            break;
+        }
+
+        case AST_DEFER: {
+            TypeId t = resolve_expression(r, module, stmt_node -> as.defer_stmt.stmt, TYPE_ID_NONE);
+            if (t == TYPE_ID_NONE) {
+                result = false;
+            }
+
+            stmt_node -> resolved_type = driver_ctx.type_table.builtins.type_void;
+            break;
+        }
+
+        case AST_CONST:
+            if (!resolve_block_constant(r, module, stmt_id)) {
+                result = false;
+            }
+            break;
+
+        case AST_LET:
+            if (!resolve_let_declaration(r, module, stmt_id)) {
+                result = false;
+            }
+            break;
+
+        case AST_IF: {
+            AstIf* if_stmt = &stmt_node -> as.if_stmt;
+            bool all_paths_return = true;
+
+            for (u32 i = 0; i < if_stmt -> branch_count; i++) {
+                AstNode* branch_node = &module -> ast.nodes[if_stmt -> branches[i]];
+                AstBranch* branch = &branch_node -> as.branch;
+
+                TypeId cond_type = resolve_expression(r, module, branch -> condition, driver_ctx.type_table.builtins.type_bool);
+                if (cond_type == TYPE_ID_NONE || cond_type != driver_ctx.type_table.builtins.type_bool) {
+                    result = false;
+                }
+
+                branch_node -> resolved_type = driver_ctx.type_table.builtins.type_void;
+
+                bool branch_returns = false;
+
+                if (!resolve_block(r, module, branch -> block, fn_ctx, &branch_returns)) {
+                    result = false;
+                }
+
+                if (!branch_returns) {
+                    all_paths_return = false;
+                }
+            }
+
+            if (if_stmt -> else_block != AST_NODE_ID_NONE) {
+                bool else_returns = false;
+
+                if (!resolve_block(r, module, if_stmt -> else_block, fn_ctx, &else_returns)) {
+                    result = false;
+                }
+
+                if (!else_returns) {
+                    all_paths_return = false;
+                }
+            } else {
+                all_paths_return = false;
+            }
+
+            returns = all_paths_return;
+
+            stmt_node -> resolved_type = driver_ctx.type_table.builtins.type_void;
+
+            break;
+        }
+
+        case AST_FOR: {
+            AstFor* for_loop = &stmt_node -> as.for_loop;
+
+            scope_enter(r);
+
+            if (for_loop -> init != AST_NODE_ID_NONE) {
+                bool unused = false;
+
+                if (!resolve_statement(r, module, for_loop -> init, fn_ctx, &unused)) {
+                    result = false;
+                }
+            }
+
+            if (for_loop -> cond != AST_NODE_ID_NONE) {
+                TypeId cond_type = resolve_expression(r, module, for_loop -> cond, driver_ctx.type_table.builtins.type_bool);
+                if (cond_type == TYPE_ID_NONE || cond_type != driver_ctx.type_table.builtins.type_bool) {
+                    result = false;
+                }
+            }
+
+            if (for_loop -> step != AST_NODE_ID_NONE) {
+                if (TYPE_ID_NONE == resolve_expression(r, module, for_loop -> step, TYPE_ID_NONE)) {
+                    result = false;
+                }
+            }
+
+            bool body_returns = false;
+
+            if (!resolve_block(r, module, for_loop -> block, fn_ctx, &body_returns)) {
+                result = false;
+            }
+
+            scope_exit(r);
+
+            returns = false;
+            stmt_node -> resolved_type = driver_ctx.type_table.builtins.type_void;
+            break;
+        }
+
+        case AST_WHILE: {
+            AstWhile* while_loop = &stmt_node -> as.while_loop;
+
+            TypeId cond_type = resolve_expression(r, module, while_loop -> condition, driver_ctx.type_table.builtins.type_bool);
+            if (cond_type == TYPE_ID_NONE || cond_type != driver_ctx.type_table.builtins.type_bool) {
+                result = false;
+            }
+
+            bool body_returns = false;
+
+            if (!resolve_block(r, module, while_loop -> block, fn_ctx, &body_returns)) {
+                result = false;
+            }
+            
+            returns = false;
+            stmt_node -> resolved_type = driver_ctx.type_table.builtins.type_void;
+            break;
+        }
+
+        default: {
+            TypeId t = resolve_expression(r, module, stmt_id, TYPE_ID_NONE);
+            if (t == TYPE_ID_NONE) {
+                result = false;
+            }
+
+            stmt_node -> resolved_type = t;
+            break;
+        }
     }
-    
+
+    *out_stmt_returns = returns;
+
     return result;
 }
 

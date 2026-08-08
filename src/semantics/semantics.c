@@ -144,7 +144,7 @@ TypeId resolve_expression(Resolver* r, Module* module, AstNodeId expr_id, TypeId
                 break;
             }
 
-            TypeId rhs_expected = expected_type != TYPE_ID_NONE ? expected_type : lhs;
+            TypeId rhs_expected = lhs;
             TypeId rhs = resolve_expression(r, module, rhs_id, rhs_expected);
 
             bool is_comparison = (
