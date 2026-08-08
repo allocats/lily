@@ -328,6 +328,11 @@ static void diagnostic_add_token_span(
 }
 
 void diagnostics_add_unknown_namespace(DiagnosticEngine* engine, Module* module, AstNodeId ident_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     FileId file_id = module_node_file(module, ident_id);
 
     AstNode* node = &module -> ast.nodes[ident_id];
@@ -565,6 +570,11 @@ void diagnostic_add_symbol_is_builtin(
 }
 
 void diagnostic_add_resolver_type_cycle(DiagnosticEngine* engine, i32 resolver_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     ResolveItem item = driver_ctx.resolver_stack.items[resolver_id];
 
     TypeEntry* type = &driver_ctx.type_table.entries[item.as.type];
@@ -587,6 +597,11 @@ void diagnostic_add_resolver_type_cycle(DiagnosticEngine* engine, i32 resolver_i
 }
 
 void diagnostic_add_resolver_symbol_cycle(DiagnosticEngine* engine, i32 resolver_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     ResolveItem item = driver_ctx.resolver_stack.items[resolver_id];
 
     Module* module = &driver_ctx.module_registry.entries[item.module_id];
@@ -607,6 +622,11 @@ void diagnostic_add_resolver_symbol_cycle(DiagnosticEngine* engine, i32 resolver
 }
 
 void diagnostic_add_return_type_invalid(DiagnosticEngine* engine, Module* module, SymbolId symbol_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     SymbolTable* table = &module -> symbol_table;
     Symbol* symbol = &table -> symbols[symbol_id];
 
@@ -628,6 +648,11 @@ void diagnostic_add_return_type_invalid(DiagnosticEngine* engine, Module* module
 }
 
 void diagnostic_add_void_function_returns_value(DiagnosticEngine* engine, Module* module, AstNodeId id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     AstNode* node = &module -> ast.nodes[id];
     AstNode* expr = &module -> ast.nodes[node -> as.return_stmt.stmt];
 
@@ -651,6 +676,11 @@ void diagnostic_add_function_expects_but_returns(
     TypeId return_type,
     TypeId found_type
 ) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     AstNode* stmt = &module -> ast.nodes[return_stmt_id]; 
 
     FileId file_id = module_node_file(module, return_stmt_id);
@@ -681,6 +711,11 @@ void diagnostic_add_function_expects_but_returns(
 }
 
 void diagnostic_add_cannot_reassign_constant(DiagnosticEngine* engine, Module* module, AstNodeId binop_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     AstNode* binop = &module -> ast.nodes[binop_id];
     AstNode* lhs = &module -> ast.nodes[binop -> as.binary_op.left];
 
@@ -1065,6 +1100,11 @@ void diagnostic_add_member_access_invalid_base_type(
 }
 
 void diagnostic_add_type_cannot_be_void(DiagnosticEngine* engine, Module* module, AstNodeId type_expr_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     AstNode* node = &module -> ast.nodes[type_expr_id];
 
     FileId file_id = module_node_file(module, type_expr_id);
@@ -1080,6 +1120,11 @@ void diagnostic_add_type_cannot_be_void(DiagnosticEngine* engine, Module* module
 }
 
 void diagnostic_add_type_is_not_an_integer(DiagnosticEngine* engine, Module* module, AstNodeId type_expr_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     AstNode* node = &module -> ast.nodes[type_expr_id];
 
     FileId file_id = module_node_file(module, type_expr_id);
@@ -1095,6 +1140,11 @@ void diagnostic_add_type_is_not_an_integer(DiagnosticEngine* engine, Module* mod
 }
 
 void diagnostic_add_type_does_not_exist(DiagnosticEngine* engine, Module* module, AstNodeId type_expr_id) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     AstNode* node = &module -> ast.nodes[type_expr_id];
 
     FileId file_id = module_node_file(module, type_expr_id);
@@ -1139,6 +1189,11 @@ void diagnostic_add_type_does_not_exist(DiagnosticEngine* engine, Module* module
 }
 
 void diagnostic_add_use_of_undeclared_identifier(DiagnosticEngine* engine, Module* module, AstNode* node) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     FileId file_id = module_node_file(module, node -> id);
 
     u32 size = 256;
@@ -1187,6 +1242,11 @@ void diagnostic_add_use_of_undeclared_member(
     StringId object_name,
     StringId member
 ) {
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     FileId file_id = module_node_file(module, access_id);
 
     AstNode* stmt = &module -> ast.nodes[access_id];
