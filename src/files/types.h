@@ -20,6 +20,8 @@ typedef struct {
     u32  hash;
 
     FileStage stage;
+    
+    FileId id;
 } File;
 
 typedef struct {
