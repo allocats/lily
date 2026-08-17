@@ -2,8 +2,6 @@
 .build/
 build/
 
-tests/schizo.lily
-
 compile_commands.json
 
 *.out
