@@ -1,9 +1,11 @@
 #include "token/token.h"
+#include "files/files.h"
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 static constexpr u32 arena_init_size_kb = 1;
 static constexpr u32 tokens_init_capacity = ARENA_KB(arena_init_size_kb) / sizeof(Token);
@@ -45,4 +47,24 @@ Token* tokens_get_new_token(TokenArray* arr) {
     }
 
     return &arr -> items[arr -> count++];
+}
+
+void tokens_print(FileId id) {
+    File* file = file_lookup_id(id);
+
+    u32 count = file -> tokens.count;
+
+    for (u32 i = 0; i < count; i++) {
+        Token token = file -> tokens.items[i];
+
+        const char* token_start = file -> buffer.ptr + token.start;
+
+        printf(
+            "%u :: Token {\n  Lexeme: \"%.*s\"\n  Kind: %s\n}\n\n",
+            i,
+            token.length,
+            token_start,
+            TOKEN_KIND_STRS[token.kind]
+        );
+    }
 }

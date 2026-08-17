@@ -4,7 +4,7 @@
 #undef MEOWRENA_IMPL
 
 #include "cli/cli.h"
-#include "cmd/cmd.h"
+// #include "cmd/cmd.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "driver/types.h"
@@ -62,7 +62,6 @@ i32 main(i32 argc, char** argv) {
 
     timer_start(&linker_timer);
     timer_end(&linker_timer);
-
 
 lily_done:
     bool has_errors = diagnostics_print();
