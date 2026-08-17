@@ -7,6 +7,8 @@
 #define MIN(a, b) (a) < (b) ? (a) : (b)
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 
+#define STR8_FMT(s) (s).len, (s).ptr
+
 #define DA_RESIZE(da, arena)                                                        \
     do {                                                                            \
         if (UNLIKELY((da).count >= (da).capacity)) {                                \

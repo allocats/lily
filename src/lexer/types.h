@@ -4,11 +4,11 @@
 #include "utils/types.h"
 #include "token/types.h"
 
-#define DELIMITER_STACK_MAX_DEPTH 1024
+static constexpr u32 DELIMITER_STACK_MAX_DEPTH = 2048;
 
 typedef struct {
-    i32 top;
-    Token* items[DELIMITER_STACK_MAX_DEPTH];
+    u32 top;
+    u32 items[DELIMITER_STACK_MAX_DEPTH];
 } DelimiterStack;
 
 static const char CHAR_MAP[] = {

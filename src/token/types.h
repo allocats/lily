@@ -15,9 +15,9 @@
                         \
     X(TOK_IDENT)        \
                         \
-    X(TOK_FALSE)        \
-    X(TOK_TRUE)         \
-    X(TOK_NULL)         \
+    X(TOK_KW_FALSE)     \
+    X(TOK_KW_TRUE)      \
+    X(TOK_KW_NULL)      \
                         \
     X(TOK_KW_IMPORT)    \
     X(TOK_KW_MODULE)    \
