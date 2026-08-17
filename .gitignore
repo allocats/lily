@@ -1,0 +1,16 @@
+.cache/
+.build/
+build/
+
+tests/schizo.lily
+
+compile_commands.json
+
+*.out
+
+cachegrind.*
+callgrind.*
+massif.*
+vgcore.*
+core.*
+perf.*
