@@ -63,7 +63,8 @@ static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_EXTERNAL);
     X(AST_LITERAL)          \
     X(AST_INDEX)            \
     X(AST_MEMBER_ACCESS)    \
-    X(AST_STRUCT_INIT)      \
+    X(AST_FIELD_INIT)       \
+    X(AST_STRUCT_LITERAL)   \
                             \
     X(AST_TYPE_BASE)        \
     X(AST_TYPE_ARRAY)       \
@@ -181,7 +182,20 @@ typedef struct {
 
 typedef struct {
     AstNodeId expr;
-} AstReturnStmt;
+} AstReturnStmt, AstDeferStmt;
+
+
+
+typedef struct {
+    AstNodeIdList patterns; // in order to support something like: case x > 1, x < 10:
+    AstNodeId block;
+} AstSwitchCase;
+
+typedef struct {
+    AstNodeId     value; // what is being switched on
+    AstNodeId     default_case; // none if none lol 
+    AstNodeIdList cases;
+} AstSwitchStatement;
 
 
 
@@ -269,6 +283,19 @@ typedef struct {
 } AstMemberAccess;
 
 
+typedef struct {
+    AstNodeId field;
+    AstNodeId value;
+} AstFieldInit;
+
+// MyStruct { .x = 2, .y = 1, .z = 0 };
+typedef struct {
+    AstNodeId struct_type;
+
+    AstNodeIdList inits;
+} AstStructLiteral;
+
+
 
 typedef struct {
     AstNodeId object;
@@ -294,9 +321,7 @@ typedef struct {
 
 
 typedef struct {
-    AstNodeId* params;
-    u32 count;
-    u32 capacity;
+    AstNodeIdList parameters;
 
     AstNodeId return_type;
 } AstTypeFunction;
@@ -350,6 +375,13 @@ typedef struct {
         // Return statment
         AstReturnStmt return_stmt;
 
+        // Defer statment
+        AstDeferStmt defer_stmt;
+
+        // Switch statements
+        AstSwitchCase switch_case;
+        AstSwitchStatement switch_stmt;
+
         // If statements
         AstBranch branch;
         AstIfStmt if_stmt;
@@ -378,6 +410,10 @@ typedef struct {
 
         // Member access
         AstMemberAccess member_access;
+
+        // Struct Literal
+        AstFieldInit field_init;
+        AstStructLiteral struct_literal;
 
         // Index
         AstIndex index;
