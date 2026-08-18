@@ -1,3 +1,4 @@
+#include "ast/tree/tree.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "files/files.h"
@@ -111,6 +112,8 @@ FileId file_intern(str8 path) {
     file -> path_string_id = string_intern_str8(path);
 
     tokens_array_init(&file -> tokens);
+
+    ast_init(&file -> ast);
 
     debug_printf("intern() returned %d for 0x%x", id, hash);
 

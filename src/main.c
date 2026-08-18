@@ -1,14 +1,15 @@
-#include <stdint.h>
+#include "files/types.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
 
-#include "ast/types.h"
+#include "ast/nodes/types.h"
 #include "cli/cli.h"
 // #include "cmd/cmd.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "driver/types.h"
+#include "files/files.h"
 #include "lexer/lexer.h"
 #include "token/token.h"
 #include "utils/timer.h"
@@ -49,6 +50,12 @@ i32 main(i32 argc, char** argv) {
     for (u32 i = 0; i < driver.file_interner.count; i++) {
         // lex_and_parse(i);
         lex_file(i);
+
+        File* file = file_lookup_id(i);
+
+        if (file -> stage != FILE_LEXED) continue;
+
+        // parse_file(i);
     }
 
     timer_end(&frontend_timer);

@@ -1,6 +1,7 @@
 #ifndef LILY_FILES_TYPES_H
 #define LILY_FILES_TYPES_H
 
+#include "ast/tree/types.h"
 #include "ids.h"
 #include "token/types.h"
 #include "utils/types.h"
@@ -13,6 +14,8 @@ typedef enum {
 } FileStage;
 
 typedef struct {
+    Ast ast;
+
     TokenArray tokens;
 
     str8 buffer;

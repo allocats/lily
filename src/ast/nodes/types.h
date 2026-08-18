@@ -1,5 +1,5 @@
-#ifndef LILY_AST_TYPES_H
-#define LILY_AST_TYPES_H
+#ifndef LILY_AST_NODES_TYPES_H
+#define LILY_AST_NODES_TYPES_H
 
 #include "ids.h"
 #include "token/types.h"
@@ -427,4 +427,4 @@ typedef struct {
     } as;
 } __attribute__((aligned(64))) AstNode;
 
-#endif // !LILY_AST_TYPES_H
+#endif // !LILY_AST_NODES_TYPES_H
