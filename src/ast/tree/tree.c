@@ -52,7 +52,7 @@ AstNodeId ast_alloc_node(Ast* ast) {
 inline AstNode* ast_get_node(Ast* ast, AstNodeId id) {
     // TODO: Profile these asserts
     assert(id < ast -> count);
-    assert(id > 0);
+    assert(id >= 0);
 
     return &ast -> nodes[id];
 }

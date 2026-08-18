@@ -5,6 +5,8 @@
 #include "token/types.h"
 
 typedef struct {
+    Arena gpa;
+
     File* current_file;
 
     // points to: current_file -> tokens

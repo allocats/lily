@@ -1,6 +1,7 @@
 #include "string_interner/interner.h"
 
 #include "driver/types.h"
+#include "files/files.h"
 #include "hash/hash.h"
 #include "string_interner/types.h"
 #include "token/types.h"
@@ -127,6 +128,17 @@ StringId string_lookup_str8(str8 str) {
 
     debug_printf("string_interner_lookup_str8() could not find '%.*s'", str.len, str.ptr);
     return STRING_ID_NONE;
+}
+
+inline StringId string_intern_token(FileId file_id, Token token) {
+    File* file = file_lookup_id(file_id);
+
+    str8 str = {
+        .ptr = file -> buffer.ptr + token.start, 
+        .len = token.length
+    };
+
+    return string_lookup_str8(str);
 }
 
 static void string_interner_buckets_resize(StringInterner* interner) {

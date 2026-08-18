@@ -109,6 +109,8 @@ void lex_file(FileId id) {
         cursor   = fn ? fn(file, cursor) : lex_invalid(file, cursor);
     }
 
+    file -> stage = FILE_LEXED;
+
     if (delimiter_stack.top != 0) {
         u32 index = delimiter_stack.items[delimiter_stack.top - 1];
 
@@ -124,9 +126,11 @@ void lex_file(FileId id) {
         );
 
         file -> stage = FILE_ERROR;
-    } else {
-        file -> stage = FILE_LEXED;
-    }
+    } 
+
+    if (file -> tokens.count == 0) { 
+        file -> stage = FILE_ERROR;
+    } 
 }
 
 static const char* lex_whitespace(File* file, const char* cursor) {

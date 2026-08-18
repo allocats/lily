@@ -4,6 +4,7 @@
 #undef MEOWRENA_IMPL
 
 #include "ast/nodes/types.h"
+#include "ast/parser/parser.h"
 #include "cli/cli.h"
 // #include "cmd/cmd.h"
 #include "diagnostics/diagnostics.h"
@@ -55,7 +56,7 @@ i32 main(i32 argc, char** argv) {
 
         if (file -> stage != FILE_LEXED) continue;
 
-        // parse_file(i);
+        parse_file(i);
     }
 
     timer_end(&frontend_timer);

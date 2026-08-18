@@ -82,6 +82,7 @@ NamespaceId namespace_intern(StringId* ns, u32 count) {
 
     interner -> buckets[index] = id;
     interner -> entries[id] = (NamespaceEntry) {
+        .segments = arena_alloc(&interner -> arena, sizeof(StringId) * count),
         .count = count,
         .hash  = hash
     };

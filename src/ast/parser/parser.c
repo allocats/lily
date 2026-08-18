@@ -1,15 +1,17 @@
 #include "ast/nodes/nodes.h"
 #include "ast/nodes/types.h"
 #include "ast/tree/tree.h"
-#include "parser/parser.h"
+#include "ast/parser/parser.h"
+#include "ast/parser/decl/decl.h"
+#include "diagnostics/diagnostics.h"
 #include "files/files.h"
 #include "ids.h"
-#include "parser/types.h"
+#include "token/types.h"
 
 #include <assert.h>
 
 void parse_file(FileId id) {
-    assert(id > 0);
+    assert(id >= 0);
     assert(id < FILE_ID_NONE);
 
     File* file = file_lookup_id(id);
@@ -18,26 +20,60 @@ void parse_file(FileId id) {
     assert(file -> stage == FILE_LEXED);
 
     Parser p = {
+        .gpa = {0},
         .current_file = file,
         .tokens_array = &file -> tokens,
         .token_count = file -> tokens.count,
         .cursor = 0
     };
 
-    while (p.cursor < p.token_count) {
+    arena_init(&p.gpa, ARENA_KB(2), ALIGN_DEFAULT);
 
+    Token token = parser_advance(&p);
+
+    if (token.kind != TOK_KW_MODULE) {
+        diagnostic_add_token(
+            id,
+            DIAG_ERROR,
+            &token,
+            DIAG_LOC_WHOLE_TOK,
+            "expected module declaration",
+            "module declaration must appear first in a file"
+        );
+
+        file -> stage = FILE_ERROR;
+        return;
+    }
+
+    if (IS_NODE_ERROR(p, parse_module_decl(&p))) {
+        file -> stage = FILE_ERROR;
+        return;
+    }
+
+    return;
+
+    while (p.cursor < p.token_count) {
+        Token token = parser_peek(&p);
+        if (token.kind == TOK_EOF) break;
+
+        if (token.kind == TOK_KW_IMPORT) {
+            parser_advance(&p);
+
+            parse_import_decl(&p);
+        }
     }
 }
 
 // going to keep this AstNodeId for dangling lifetime issues, 
 // always get id then get the node pointer
-AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags) {
+AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, u32 start_offset) {
     AstNodeId id = ast_alloc_node(&p -> current_file -> ast); 
     AstNode* node = ast_get_node(&p -> current_file -> ast, id);
 
     node -> id = id;
     node -> kind = kind;
     node -> flags = flags;
+    node -> tokens.start = p -> cursor + start_offset;
 
     Arena* gpa = &p -> current_file -> ast.gpa;
 

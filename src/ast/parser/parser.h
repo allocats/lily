@@ -2,11 +2,13 @@
 #define LILY_PARSER_H
 
 #include "ast/nodes/types.h"
-#include "parser/types.h"
+#include "ast/parser/types.h"
+
+#define IS_NODE_ERROR(parser, id) (parser.current_file -> ast.nodes[id].kind == AST_ERROR)
 
 void parse_file(FileId id);
 
-AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags);
+AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, u32 start_offset);
 
 Token parser_peek(Parser* p);
 Token parser_advance(Parser* p);
