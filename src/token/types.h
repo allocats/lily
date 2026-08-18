@@ -96,7 +96,6 @@
     X(TOK_PIPE_EQ)      \
                         \
     X(TOK_TILDE)        \
-    X(TOK_TILDE_EQ)     \
                         \
     X(TOK_CARET)        \
     X(TOK_CARET_EQ)     \

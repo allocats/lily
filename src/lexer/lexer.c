@@ -386,12 +386,6 @@ static const char* lex_operator(File* file, const char* cursor) {
         } break;
 
         case '~': {
-            if (*cursor == '=') {
-                token -> kind = TOK_TILDE_EQ;
-                cursor++;
-                break;
-            }
-
             token -> kind = TOK_TILDE;
         } break;
 
