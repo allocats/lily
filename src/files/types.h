@@ -19,6 +19,8 @@ typedef struct {
     str8 path;
     u32  hash;
 
+    StringId path_string_id;
+
     FileStage stage;
     
     FileId id;

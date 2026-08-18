@@ -1,6 +1,7 @@
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "files/files.h"
+#include "string_interner/interner.h"
 #include "utils/debug.h"
 
 #include <assert.h>
@@ -8,6 +9,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#define FLAG_MATCHES(len, flag, str) ((len == sizeof(str) - 1) && strncmp(flag, str, len) == 0)
 
 static u64 next_pow2(u64 x);
 
@@ -17,6 +20,8 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
     assert(argv != null);
 
     diagnostic_engine_init();
+
+    string_interner_init();
 
     u64 estimated_count = next_pow2(argc);
     file_interner_init(estimated_count);
@@ -33,15 +38,16 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
 
         if (*arg == '-') {
             switch (arg[1]) {
-                // case 'd': {
-                //     if (FLAG_MATCHES(arg_len, arg, "-dump-tokens")) {
-                //         driver -> flags |= LILY_FLAGS_DUMP_TOKENS;
-                //     } else if (FLAG_MATCHES(arg_len, arg, "-dump-ast")) {
-                //         driver -> flags |= LILY_FLAGS_DUMP_AST;
-                //     } else if (FLAG_MATCHES(arg_len, arg, "-dump-types")) {
-                //         driver -> flags |= LILY_FLAGS_DUMP_TYPES;
-                //     }
-                // } break;
+                case 'd': {
+                    if (FLAG_MATCHES(arg_len, arg, "-dump-tokens")) {
+                        driver -> flags |= DRIVER_FLAGS_DUMP_TOKENS;
+                    } 
+                    // else if (FLAG_MATCHES(arg_len, arg, "-dump-ast")) {
+                    //     driver -> flags |= LILY_FLAGS_DUMP_AST;
+                    // } else if (FLAG_MATCHES(arg_len, arg, "-dump-types")) {
+                    //     driver -> flags |= LILY_FLAGS_DUMP_TYPES;
+                    // }
+                } break;
             }
         } else {
             str8 path = {

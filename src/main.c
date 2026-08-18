@@ -9,7 +9,7 @@
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "lexer/lexer.h"
-#include "token/types.h"
+#include "token/token.h"
 #include "utils/timer.h"
 #include "utils/types.h"
 
@@ -62,6 +62,12 @@ i32 main(i32 argc, char** argv) {
 
     timer_start(&linker_timer);
     timer_end(&linker_timer);
+
+    if (driver.flags & DRIVER_FLAGS_DUMP_TOKENS) {
+        for (u32 i = 0; i < driver.file_interner.count; i++) {
+            tokens_print(i);
+        }
+    }
 
 lily_done:
     bool has_errors = diagnostics_print();

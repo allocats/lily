@@ -4,6 +4,7 @@
 #include "files/types.h"
 #include "hash/hash.h"
 #include "ids.h"
+#include "string_interner/interner.h"
 #include "token/token.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -106,6 +107,8 @@ FileId file_intern(str8 path) {
     file -> hash   = hash; 
     file -> buffer = buffer;
     file -> stage  = FILE_ALLOCATED;
+
+    file -> path_string_id = string_intern_str8(path);
 
     tokens_array_init(&file -> tokens);
 
