@@ -7,7 +7,7 @@
 #include <linux/limits.h>
 
 static constexpr u64 gpa_init_size_kb = 2;
-static constexpr u64 ast_init_capacity = 64;
+static constexpr u32 ast_init_capacity = 64;
 static constexpr u64 nodes_array_init_alloc_size = sizeof(AstNode) * ast_init_capacity;
 static constexpr u64 nodes_arena_init_size_kb = (ast_init_capacity * sizeof(AstNode) * 2) / ARENA_KB(1);
 
@@ -29,7 +29,7 @@ void ast_init(Ast* ast) {
     ast -> capacity = ast_init_capacity;
 
     debug_printf(
-        "Allocated AST ast -> nodes with %lu bytes (%lu nodes)",
+        "Allocated AST ast -> nodes with %lu bytes (%u nodes)",
         nodes_array_init_alloc_size,
         ast_init_capacity
     );

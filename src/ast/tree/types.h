@@ -12,8 +12,8 @@ typedef struct {
     Arena nodes_arena;
 
     AstNode* nodes;
-    u64 count;
-    u64 capacity;
+    u32 count;
+    u32 capacity;
 } Ast;
 
 #endif // !LILY_AST_TREE_TYPES_H

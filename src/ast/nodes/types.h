@@ -340,7 +340,7 @@ typedef struct {
 
     TypeId resolved_type;
 
-    Span tokens;
+    SpanU32 tokens;
 
     union {
         // Module & Import

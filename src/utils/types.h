@@ -51,7 +51,12 @@ typedef struct __attribute__((packed)) {
 typedef struct {
     u32 start;
     u32 end;
-} Span;
+} SpanU32;
+
+typedef struct {
+    u64 start;
+    u64 end;
+} SpanU64;
 
 /*
 *
