@@ -4,6 +4,7 @@
 #include "files/types.h"
 #include "lexer/types.h"
 #include "token/token.h"
+#include "token/types.h"
 
 #include <assert.h>
 #include <string.h>
@@ -217,6 +218,13 @@ static const char* lex_word(File* file, const char* cursor) {
                 case 's': 
                     token -> kind = (memcmp(start, "struct", 6) == 0) ? TOK_KW_STRUCT : TOK_IDENT; break;
                     token -> kind = (memcmp(start, "switch", 6) == 0) ? TOK_KW_SWITCH : TOK_IDENT; break;
+                default:  token -> kind = TOK_IDENT;
+            }
+        } break;
+
+        case 7: {
+            switch (start[0]) {
+                case 'd': token -> kind = (memcmp(start, "default", 7) == 0) ? TOK_KW_DEFAULT : TOK_IDENT; break;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;

@@ -78,8 +78,13 @@ static const char* AST_NODE_KIND_STRINGS[] = {
 
 typedef struct {
     NamespaceId id;
-} AstImport;
+} AstImport, AstModule;
 
+
+typedef struct {
+    StringId name;
+    AstNodeId type_expr;
+} AstParameter;
 
 typedef struct {
     AstNodeId id;

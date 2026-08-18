@@ -33,10 +33,12 @@
     X(TOK_KW_IF)        \
     X(TOK_KW_ELSE)      \
                         \
-    X(TOK_KW_FOR)       \
-    X(TOK_KW_WHILE)     \
     X(TOK_KW_SWITCH)    \
     X(TOK_KW_CASE)      \
+    X(TOK_KW_DEFAULT)   \
+                        \
+    X(TOK_KW_FOR)       \
+    X(TOK_KW_WHILE)     \
                         \
     X(TOK_KW_CONST)     \
     X(TOK_KW_DEFER)     \
