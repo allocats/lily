@@ -3,6 +3,7 @@
 
 #include "diagnostics/types.h"
 #include "files/types.h"
+#include "namespacing/types.h"
 #include "string_interner/types.h"
 
 typedef struct {
@@ -11,6 +12,7 @@ typedef struct {
     FileInterner file_interner;
     DiagnosticEngine diagnostic_engine;
     StringInterner string_interner;
+    NamespaceInterner namespace_interner;
 } DriverCtx;
 
 #endif // !LILY_DRIVER_TYPES_H

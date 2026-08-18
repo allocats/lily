@@ -13,15 +13,13 @@
 extern DriverCtx driver;
 
 static constexpr f64 interner_load_factor = 0.75f;
+static constexpr u64 interner_arena_init_size_kb = 4;
+static constexpr u64 interner_init_capacity = 128;
 
 static_assert(interner_load_factor > 0.0f);
 static_assert(interner_load_factor < 1.0f);
 
-static constexpr u64 interner_arena_init_size_kb = 4;
-
 static_assert(interner_arena_init_size_kb > 0);
-
-static constexpr u64 interner_init_capacity = 128;
 
 static_assert(interner_init_capacity > 0);
 static_assert(ARENA_KB(interner_arena_init_size_kb) > (sizeof(StringId) * interner_init_capacity + sizeof(StringEntry) * interner_init_capacity));

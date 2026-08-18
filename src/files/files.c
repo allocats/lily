@@ -38,10 +38,10 @@ void file_interner_init(u32 count) {
     FileInterner* interner = &driver.file_interner;
 
     arena_init(&interner -> buffer_arena, ARENA_MB(interner_init_buffers_arena_mb), ALIGN_DEFAULT);
-    debug_printf("Init file interner buffers arena with %lumb", interner_init_buffers_arena_mb);
+    debug_printf("Init file interner buffers arena with %luMB", interner_init_buffers_arena_mb);
 
     arena_init(&interner -> interner_arena, ARENA_KB(interner_init_interner_arena_kb), ALIGN_DEFAULT);
-    debug_printf("Init file interner arena with %lukb", interner_init_interner_arena_kb);
+    debug_printf("Init file interner arena with %luKB", interner_init_interner_arena_kb);
 
     interner -> entries = arena_alloc_array(&interner -> interner_arena, File, count);
     interner -> entry_capacity = count;

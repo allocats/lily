@@ -2,6 +2,7 @@
 #define LILY_AST_TYPES_H
 
 #include "ids.h"
+
 #include <assert.h>
 
 static constexpr u16 AST_FLAGS_NONE        = 0 << 0;
@@ -73,6 +74,12 @@ static const char* AST_NODE_KIND_STRINGS[] = {
 };
 
 #undef AST_NODES
+
+
+typedef struct {
+    NamespaceId id;
+} AstImport;
+
 
 typedef struct {
     AstNodeId id;

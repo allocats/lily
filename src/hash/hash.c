@@ -22,3 +22,14 @@ u32 hash_fnv1a_u32(u32 i) {
 
     return hash;
 }
+
+u32 hash_fnv1a_namespace(StringId* ns, u32 count) {
+    u32 hash = FNV1A32_BASIS;
+
+    for (u32 i = 0; i < count; i++) {
+        hash ^= ns[i];
+        hash *= FNV1A32_PRIME;
+    }
+
+    return hash;
+}
