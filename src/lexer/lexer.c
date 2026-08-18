@@ -279,8 +279,16 @@ static const char* lex_operator(File* file, const char* cursor) {
     const char* start = cursor++;
 
     switch (*start) {
+        case '@': {
+            token -> kind = TOK_AT;
+        } break;
+
         case '#': {
             token -> kind = TOK_HASHTAG;
+        } break;
+
+        case '$': {
+            token -> kind = TOK_DOLLAR;
         } break;
 
         case '=': {

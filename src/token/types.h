@@ -79,7 +79,9 @@
     X(TOK_BANG)         \
     X(TOK_BANG_EQ)      \
                         \
+    X(TOK_AT)           \
     X(TOK_HASHTAG)      \
+    X(TOK_DOLLAR)       \
                         \
     X(TOK_AMP)          \
     X(TOK_AMP_AMP)      \
