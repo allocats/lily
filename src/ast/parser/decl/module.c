@@ -34,14 +34,14 @@ AstNodeId parse_module_decl(Parser* p) {
             return parser_error_decl(p, id);
         }
 
-        if ((segment_count) >= U16_MAX) {
+        if (segment_count >= U16_MAX) {
             diagnostic_add_token(
                 p -> current_file -> id,
                 DIAG_ERROR,
                 &segment,
                 DIAG_LOC_END_OF_TOK,
-                "max namespacing depth achieved (8)",
-                "shorten the namespacing, max of 8 segments is supported"
+                "max namespacing depth achieved (65535)",
+                "shorten the namespacing like bro... max of 65535 segments is supported"
             );
 
             return parser_error_decl(p, id);

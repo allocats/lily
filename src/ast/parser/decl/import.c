@@ -39,8 +39,8 @@ AstNodeId parse_import_decl(Parser* p) {
                 DIAG_ERROR,
                 &segment,
                 DIAG_LOC_END_OF_TOK,
-                "max namespacing depth achieved (8)",
-                "shorten the namespacing, max of 8 segments is supported"
+                "max namespacing depth achieved (65535)",
+                "shorten the namespacing else your coworkers might kill you, max of 65535 segments is supported"
             );
 
             return parser_error_decl(p, id);
