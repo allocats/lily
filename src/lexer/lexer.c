@@ -43,6 +43,7 @@ static const LexFn LEXER_DISPATCH[] = {
     ['@']         = lex_operator,
     ['#']         = lex_operator,
     ['$']         = lex_operator,
+    ['?']         = lex_operator,
     ['&']         = lex_operator,
     ['|']         = lex_operator,
     ['~']         = lex_operator,
@@ -293,6 +294,10 @@ static const char* lex_operator(File* file, const char* cursor) {
 
         case '$': {
             token -> kind = TOK_DOLLAR;
+        } break;
+
+        case '?': {
+            token -> kind = TOK_QUESTION;
         } break;
 
         case '=': {

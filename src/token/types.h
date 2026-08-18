@@ -86,6 +86,7 @@
     X(TOK_AT)           \
     X(TOK_HASHTAG)      \
     X(TOK_DOLLAR)       \
+    X(TOK_QUESTION)     \
                         \
     X(TOK_AMP)          \
     X(TOK_AMP_AMP)      \
