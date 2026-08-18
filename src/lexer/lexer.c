@@ -85,7 +85,11 @@ static DelimiterStack delimiter_stack = {
 void lex_file(FileId id) {
     File* file = file_lookup_id(id);
 
+    assert(file -> stage == FILE_ALLOCATED);
+
     str8 buffer = file -> buffer;
+
+    assert(buffer.len != 0);
 
     const char* buffer_start = buffer.ptr;
     const char* buffer_end   = buffer_start + buffer.len;
