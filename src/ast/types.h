@@ -132,7 +132,7 @@ typedef struct {
 typedef struct {
     AstNodeIdList arguments;
 
-    AstNodeId ident; 
+    AstNodeId identifier; 
 } AstFunctionCall, AstMacroCall;
 
 
@@ -255,7 +255,7 @@ typedef struct {
         i64      integer;
         f64      floating;
         bool     boolean;
-        char     character;
+        i64      character;
     } as;
 } AstLiteral;
 
@@ -264,21 +264,21 @@ typedef struct {
 typedef struct {
     bool used_pointer_access;
 
-    AstNodeId ident;
+    AstNodeId object;
     AstNodeId member;
 } AstMemberAccess;
 
 
 
 typedef struct {
-    AstNodeId identifier;
+    AstNodeId object;
     AstNodeId index_expr;
 } AstIndex;
 
 
 
 typedef struct {
-    AstNodeId ident;
+    AstNodeId identifier;
 } AstTypeBase;
 
 
