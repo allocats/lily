@@ -118,7 +118,9 @@ static const char* TOKEN_KIND_STRS[] = {
 typedef struct {
     u32 start;
     u16 length;
-    TokenKind kind;
+
+    // packed to 1 byte, therefore max 255 (256th is reserved) token kinds
+    TokenKind kind; 
 } Token;
 
 typedef struct {
