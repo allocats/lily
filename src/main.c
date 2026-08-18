@@ -3,6 +3,7 @@
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
 
+#include "ast/types.h"
 #include "cli/cli.h"
 // #include "cmd/cmd.h"
 #include "diagnostics/diagnostics.h"
@@ -21,7 +22,8 @@ DriverCtx driver = {0};
 
 i32 main(i32 argc, char** argv) {
     // compile time asserts to ensure that things are as expected 
-    static_assert(8 == sizeof(Token) && "sizeof(Token) != 8 bytes");
+    static_assert(8  == sizeof(Token) && "sizeof(Token) != 8 bytes");
+    static_assert(64 == sizeof(AstNode) && "sizeof(AstNode) != 64 bytes");
 
     // loads terminal colours or none if unable to
     cli_init_ansi_codes();

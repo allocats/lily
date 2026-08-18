@@ -2,13 +2,14 @@
 #define LILY_AST_TYPES_H
 
 #include "ids.h"
+#include "token/types.h"
 
 #include <assert.h>
 
-static constexpr u16 AST_FLAGS_NONE        = 0 << 0;
-static constexpr u16 AST_FLAGS_IS_TOP_DECL = 1 << 0;
-static constexpr u16 AST_FLAGS_IS_CONSTANT = 1 << 1;
-static constexpr u16 AST_FLAGS_IS_EXTERNAL = 1 << 2;
+static constexpr u32 AST_FLAGS_NONE        = 0 << 0;
+static constexpr u32 AST_FLAGS_IS_TOP_DECL = 1 << 0;
+static constexpr u32 AST_FLAGS_IS_CONSTANT = 1 << 1;
+static constexpr u32 AST_FLAGS_IS_EXTERNAL = 1 << 2;
 
 static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_TOP_DECL);
 static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_CONSTANT);
@@ -27,6 +28,7 @@ static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_EXTERNAL);
                             \
     X(AST_PARAMETER)        \
     X(AST_FUNCTION_DECL)    \
+    X(AST_MACRO_DECL)       \
                             \
     X(AST_FIELD)            \
     X(AST_STRUCT_DECL)      \
@@ -36,6 +38,8 @@ static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_EXTERNAL);
     X(AST_ENUM_DECL)        \
                             \
     X(AST_BLOCK)            \
+                            \
+    X(AST_VARIABLE_DECL)    \
                             \
     X(AST_DEFER_STMT)       \
     X(AST_RETURN_STMT)      \
@@ -48,9 +52,13 @@ static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_EXTERNAL);
     X(AST_FOR_LOOP)         \
     X(AST_WHILE_LOOP)       \
                             \
+    X(AST_CONTINUE_STMT)    \
+    X(AST_BREAK_STMT)       \
+                            \
     X(AST_BINARY_OP)        \
     X(AST_UNARY_OP)         \
     X(AST_FUNCTION_CALL)    \
+    X(AST_MACRO_CALL)       \
     X(AST_IDENTIFIER)       \
     X(AST_LITERAL)          \
     X(AST_INDEX)            \
@@ -76,23 +84,311 @@ static const char* AST_NODE_KIND_STRINGS[] = {
 #undef AST_NODES
 
 
+
+typedef enum {
+    LITERAL_STRING,
+    LITERAL_CHAR,
+    LITERAL_INTEGER,
+    LITERAL_FLOAT,
+    LITERAL_BOOL,
+    LITERAL_NULL
+} LiteralKind;
+
+
+
+// Simple abstraction to reduce code noise/duplication
+// can just use one function to resize
+typedef struct {
+    AstNodeId* ids;
+    u32 count;
+    u32 capacity;
+} AstNodeIdList;
+
+
+
 typedef struct {
     NamespaceId id;
-} AstImport, AstModule;
+} AstImportDecl, AstModuleDecl;
+
 
 
 typedef struct {
     StringId name;
     AstNodeId type_expr;
-} AstParameter;
+} AstParameterDecl;
+
+
+
+typedef struct {
+    AstNodeIdList parameters;
+
+    StringId name;
+
+    AstNodeId return_type_expr;
+
+    AstNodeId block;
+} AstFunctionDecl, AstMacroDecl;
+
+typedef struct {
+    AstNodeIdList arguments;
+
+    AstNodeId ident; 
+} AstFunctionCall, AstMacroCall;
+
+
+
+typedef struct {
+    StringId  name;
+    AstNodeId type_expr;
+} AstField;
+
+typedef struct {
+    AstNodeIdList fields;
+
+    StringId name;
+} AstStructDecl, AstUnionDecl;
+
+
+
+typedef struct {
+    StringId  name;
+    AstNodeId value_expr;
+} AstVariant;
+
+typedef struct {
+    AstNodeIdList variants;
+
+    AstNodeId type_expr;
+
+    StringId name;
+} AstEnumDecl;
+
+
+
+typedef struct {
+    AstNodeIdList statements;
+} AstBlock; 
+
+
+
+typedef struct {
+    StringId  name;
+    AstNodeId type_expr;
+    AstNodeId value_expr;
+} AstVariableDecl;
+
+
+
+typedef struct {
+    AstNodeId expr;
+} AstReturnStmt;
+
+
+
+typedef struct {
+    AstNodeId condition;
+    AstNodeId block;
+} AstBranch;
+
+typedef struct {
+    AstNodeIdList branches;
+
+    AstNodeId else_block;
+} AstIfStmt;
+
+
+
+// TODO: Think about `for x in array {}`, perhaps 
+// behind the scenes automatically extract it into
+// this. Look into creating an iterator system that 
+// can be implemented on user defined types as well
+typedef struct {
+    AstNodeId init;
+    AstNodeId cond;
+    AstNodeId step;
+
+    AstNodeId block;
+} AstForLoop;
+
+
+
+typedef struct {
+    AstNodeId cond;
+    AstNodeId block;
+} AstWhileLoop;
+
+
+
+typedef struct {
+    // TODO: Labels perhaps
+} AstContinueStmt, AstBreakStmt;
+
+
+
+typedef struct {
+    TokenKind op;
+    AstNodeId left;
+    AstNodeId right;
+} AstBinaryOp;
+
+
+
+typedef struct {
+    TokenKind op;
+    AstNodeId operand;
+} AstUnaryOp;
+
+
+
+typedef struct {
+    NamespaceId ns;
+    StringId name;
+} AstIdentifier;
+
+
+
+typedef struct {
+    LiteralKind kind;
+    
+    union {
+        StringId string;
+        i64      integer;
+        f64      floating;
+        bool     boolean;
+        char     character;
+    } as;
+} AstLiteral;
+
+
+
+typedef struct {
+    bool used_pointer_access;
+
+    AstNodeId ident;
+    AstNodeId member;
+} AstMemberAccess;
+
+
+
+typedef struct {
+    AstNodeId identifier;
+    AstNodeId index_expr;
+} AstIndex;
+
+
+
+typedef struct {
+    AstNodeId ident;
+} AstTypeBase;
+
+
+typedef struct {
+    AstNodeId element;
+    AstNodeId size_expr;
+} AstTypeArray;
+
+
+typedef struct {
+    AstNodeId base_type;
+} AstTypePointer;
+
+
+typedef struct {
+    AstNodeId* params;
+    u32 count;
+    u32 capacity;
+
+    AstNodeId return_type;
+} AstTypeFunction;
+
+
+typedef struct {
+    AstNodeId element_type;
+} AstTypeVariadic;
+
+
 
 typedef struct {
     AstNodeId id;
     AstNodeKind kind;
     u16 flags;
 
+    TypeId resolved_type;
+
+    Span tokens;
+
     union {
+        // Module & Import
+        AstModuleDecl module_decl;
+        AstImportDecl import_decl;
+
+        // Function & Macro
+        AstParameterDecl parameter_decl;
+
+        AstFunctionDecl function_decl;
+        AstFunctionCall function_call;
+
+        AstMacroDecl macro_decl;
+        AstMacroCall macro_call;
+
+        // Struct & Union
+        AstField field;
+
+        AstStructDecl struct_decl;
+        AstUnionDecl  union_decl;
+
+        // Enum
+        AstVariant variant;
+        AstEnumDecl enum_decl;
+
+        // Block
+        AstBlock block;
+
+        // Variables (const is on the flags)
+        AstVariableDecl variable_decl;
+
+        // Return statment
+        AstReturnStmt return_stmt;
+
+        // If statements
+        AstBranch branch;
+        AstIfStmt if_stmt;
+
+        // For loop
+        AstForLoop for_loop;
+
+        // While loop
+        AstWhileLoop while_loop;
+
+        // Break & Continue
+        AstContinueStmt continue_stmt;
+        AstBreakStmt    break_stmt;
+
+        // Binary Operation
+        AstBinaryOp binary_op;
+
+        // Unary Operation
+        AstUnaryOp unary_op;
+
+        // Identifiers
+        AstIdentifier identifier;
+
+        // Literals
+        AstLiteral literal;
+
+        // Member access
+        AstMemberAccess member_access;
+
+        // Index
+        AstIndex index;
+
+        // Types
+        AstTypeBase     type_base;
+        AstTypeArray    type_array;
+        AstTypePointer  type_pointer;
+        AstTypeFunction type_function;
+        AstTypeVariadic type_variadic;
     } as;
-} AstNode;
+} __attribute__((aligned(64))) AstNode;
 
 #endif // !LILY_AST_TYPES_H
