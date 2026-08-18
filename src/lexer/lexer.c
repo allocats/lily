@@ -42,6 +42,7 @@ static const LexFn LEXER_DISPATCH[] = {
     
     ['@']         = lex_operator,
     ['#']         = lex_operator,
+    ['$']         = lex_operator,
     ['&']         = lex_operator,
     ['|']         = lex_operator,
     ['~']         = lex_operator,
