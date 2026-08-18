@@ -29,7 +29,9 @@ void parse_file(FileId id) {
     }
 }
 
-AstNode* parser_create_node(Parser* p, AstNodeKind kind, u16 flags) {
+// going to keep this AstNodeId for dangling lifetime issues, 
+// always get id then get the node pointer
+AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags) {
     AstNodeId id = ast_alloc_node(&p -> current_file -> ast); 
     AstNode* node = ast_get_node(&p -> current_file -> ast, id);
 
@@ -92,7 +94,7 @@ AstNode* parser_create_node(Parser* p, AstNodeKind kind, u16 flags) {
             break;
     }
 
-    return node;
+    return id;
 }
 
 inline u64 parser_current_index(Parser* p) {

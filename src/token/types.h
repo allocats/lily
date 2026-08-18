@@ -15,10 +15,6 @@
                         \
     X(TOK_IDENT)        \
                         \
-    X(TOK_KW_CAST)      \
-    X(TOK_KW_SIZEOF)    \
-    X(TOK_KW_TYPEOF)    \
-                        \
     X(TOK_KW_FALSE)     \
     X(TOK_KW_TRUE)      \
     X(TOK_KW_NULL)      \
