@@ -24,7 +24,7 @@ static_assert(diagnostic_init_arena_size_kb > 0);
 void diagnostic_engine_init(void) {
     DiagnosticEngine* diag_engine = &driver.diagnostic_engine;
 
-    arena_init(&diag_engine -> arena, ARENA_KB(diagnostic_init_arena_size_kb), ALIGN_8);
+    arena_init(&diag_engine -> arena, ARENA_KB(diagnostic_init_arena_size_kb), ALIGN_DEFAULT);
     debug_printf("Init diagnostic's arena with %luKB", diagnostic_init_arena_size_kb);
 
     diag_engine -> diags    = arena_alloc_array(&diag_engine -> arena, Diagnostic, diagnostic_default_threshold);

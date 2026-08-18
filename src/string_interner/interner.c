@@ -30,7 +30,7 @@ static void string_interner_entries_resize(StringInterner* interner);
 void string_interner_init(void) {
     StringInterner* interner = &driver.string_interner;
 
-    arena_init(&interner -> arena, ARENA_KB(interner_arena_init_size_kb), ALIGN_8);
+    arena_init(&interner -> arena, ARENA_KB(interner_arena_init_size_kb), ALIGN_DEFAULT);
     debug_printf("String Interner: Allocated string interner's arena with %luKB", interner_arena_init_size_kb);
 
     interner -> entries = arena_alloc_array(&interner -> arena, StringEntry, interner_init_capacity);

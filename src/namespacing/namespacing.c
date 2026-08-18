@@ -30,7 +30,7 @@ static void namespace_interner_entries_resize(NamespaceInterner* interner);
 void namespace_interner_init(void) {
     NamespaceInterner* interner = &driver.namespace_interner;
 
-    arena_init(&interner -> arena, ARENA_KB(interner_arena_init_size_kb), ALIGN_2);
+    arena_init(&interner -> arena, ARENA_KB(interner_arena_init_size_kb), ALIGN_DEFAULT);
     debug_printf("Allocated namespace interner's arena with %luKB", interner_arena_init_size_kb);
 
     interner -> entries = arena_alloc_array(&interner -> arena, NamespaceEntry, interner_init_capacity);

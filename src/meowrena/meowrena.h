@@ -4,26 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define null        NULL
-
-typedef int8_t      i8;
-typedef int16_t     i16;
-typedef int32_t     i32;
-typedef int64_t     i64;
-
-typedef uint8_t     u8;
-typedef uint16_t    u16;
-typedef uint32_t    u32;
-typedef uint64_t    u64;
-
-typedef uint8_t     b8;
-typedef uint32_t    b32;
-
-typedef float       f32;
-typedef double      f64;
-
-typedef size_t      usize;
-typedef ptrdiff_t   isize;
+#include "utils/debug.h"
+#include "utils/types.h"
 
 typedef struct Arena      Arena;
 typedef struct ArenaBlock ArenaBlock;
@@ -144,6 +126,8 @@ void* arena_alloc(Arena* arena, u64 size) {
     arena -> total_used += aligned_size;
     arena -> cached_allocation = ptr;
 
+    debug_printf("arena_alloc() allocated %lu bytes onto arena, %p", aligned_size, arena);
+
     return ptr;
 }
 
@@ -203,6 +187,8 @@ void  arena_reset(Arena* arena) {
     arena -> current = arena -> start;
     arena -> cached_allocation = null;
     arena -> total_used = 0;
+
+    debug_printf("arena_reset() reset the arena, %p", arena);
 }
 
 void arena_destroy(Arena* arena) {
@@ -257,6 +243,8 @@ static ArenaBlock* __arena_new_block(Arena* arena, u64 size) {
 
     ArenaBlock* block = (ArenaBlock*) aligned_alloc(arena -> byte_alignment, total_size);
     assert(block != null && "aligned_alloc() failed! Buy more ram silly :3!\n");
+
+    debug_printf("new_block() allocated through aligned alloc %lu bytes for arena, %p", total_size, arena);
 
     arena_memset(block, 0, sizeof(ArenaBlock));
 
