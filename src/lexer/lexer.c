@@ -173,7 +173,8 @@ static const char* lex_word(File* file, const char* cursor) {
         case 4: {
             switch (start[0]) {
                 case 'c': 
-                    if (start[1] == 'a' && start[2] == 'a' && start[3] == 's') { token -> kind = TOK_KW_CASE; break; }
+                    if (start[1] == 'a' && start[2] == 's' && start[3] == 'e') { token -> kind = TOK_KW_CASE; break; }
+                    if (start[1] == 'a' && start[2] == 's' && start[3] == 't') { token -> kind = TOK_KW_CAST; break; }
                     token -> kind = TOK_IDENT;
                     break;
 
@@ -216,9 +217,11 @@ static const char* lex_word(File* file, const char* cursor) {
                 case 'i': token -> kind = (memcmp(start, "import", 6) == 0) ? TOK_KW_IMPORT : TOK_IDENT; break;
                 case 'm': token -> kind = (memcmp(start, "module", 6) == 0) ? TOK_KW_MODULE : TOK_IDENT; break;
                 case 'r': token -> kind = (memcmp(start, "return", 6) == 0) ? TOK_KW_RETURN : TOK_IDENT; break;
+                case 't': token -> kind = (memcmp(start, "typeof", 6) == 0) ? TOK_KW_TYPEOF : TOK_IDENT; break;
                 case 's': 
                     token -> kind = (memcmp(start, "struct", 6) == 0) ? TOK_KW_STRUCT : TOK_IDENT; break;
                     token -> kind = (memcmp(start, "switch", 6) == 0) ? TOK_KW_SWITCH : TOK_IDENT; break;
+                    token -> kind = (memcmp(start, "sizeof", 6) == 0) ? TOK_KW_SIZEOF : TOK_IDENT; break;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;
