@@ -16,5 +16,5 @@ Follows C's precedence
 | Bitwise OR | \| | Left to Right |
 | Logical AND | && | Left to Right |
 | Logical OR | \|\| | Left to Right |
-| Assignment | = += -= *= /= %= <<= >>= &= ^= |= | Right to Left |
+| Assignment | = += -= *= /= %= <<= >>= &= ^= \|= | Right to Left |
 | Comma | , | Left to Right |
