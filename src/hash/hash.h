@@ -5,7 +5,7 @@
 #include "utils/types.h"
 
 u32 hash_fnv1a_str8(str8 str);
+u32 hash_fnv1a_cstr(const char* str, u32 len);
 u32 hash_fnv1a_u32(u32 i);
-u32 hash_fnv1a_namespace(StringId* ns, u32 count);
 
 #endif // !LILY_HASH_H

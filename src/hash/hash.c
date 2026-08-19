@@ -14,22 +14,22 @@ u32 hash_fnv1a_str8(str8 str) {
     return hash;
 }
 
+u32 hash_fnv1a_cstr(const char* str, u32 len) {
+    u32 hash = FNV1A32_BASIS;
+
+    for (u32 i = 0; i < len; i++) {
+        hash ^= str[i];
+        hash *= FNV1A32_PRIME;
+    }
+
+    return hash;
+}
+
 u32 hash_fnv1a_u32(u32 i) {
     u32 hash = FNV1A32_BASIS;
 
     hash ^= i;
     hash *= FNV1A32_PRIME;
-
-    return hash;
-}
-
-u32 hash_fnv1a_namespace(StringId* ns, u32 count) {
-    u32 hash = FNV1A32_BASIS;
-
-    for (u32 i = 0; i < count; i++) {
-        hash ^= ns[i];
-        hash *= FNV1A32_PRIME;
-    }
 
     return hash;
 }
