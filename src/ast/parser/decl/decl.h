@@ -3,6 +3,8 @@
 
 #include "ast/parser/types.h"
 
+void parse_function_decl(Parser* p, StringId name);
+
 // recovery
 AstNodeId parser_error_decl(Parser* p, AstNodeId id);
 

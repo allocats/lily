@@ -28,7 +28,7 @@ AstNodeId parse_directive(Parser* p) {
     parser_advance(p); // advance past '#'
 
     AstNodeId id = parser_create_node(p, AST_IMPORT_DIRECTIVE, AST_FLAGS_IS_TOP_DECL, -1);
-    AstNode* node = ast_get_node(&p -> current_file -> ast, id);
+    AstNode* node = parser_get_node(p, id);
 
     Token directive = parser_advance(p); 
 
