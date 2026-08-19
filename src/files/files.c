@@ -19,12 +19,12 @@
 extern DriverCtx driver;
 
 static constexpr f64 interner_load_factor = 0.75;
-static constexpr u64 interner_init_buffers_arena_mb  = 1;
+static constexpr u64 interner_init_buffers_arena_kb  = 512;
 static constexpr u64 interner_init_interner_arena_kb = 4;
 
 static_assert(interner_load_factor > 0.0f);
 static_assert(interner_load_factor < 1.0f);
-static_assert(interner_init_buffers_arena_mb > 0);
+static_assert(interner_init_buffers_arena_kb > 0);
 static_assert(interner_init_interner_arena_kb> 0);
 
 static void files_buckets_resize(FileInterner* interner);
@@ -38,8 +38,8 @@ void file_interner_init(u32 count) {
 
     FileInterner* interner = &driver.file_interner;
 
-    arena_init(&interner -> buffer_arena, ARENA_MB(interner_init_buffers_arena_mb), ALIGN_DEFAULT);
-    debug_printf("Init file interner buffers arena with %luMB", interner_init_buffers_arena_mb);
+    arena_init(&interner -> buffer_arena, ARENA_KB(interner_init_buffers_arena_kb), ALIGN_DEFAULT);
+    debug_printf("Init file interner buffers arena with %luKB", interner_init_buffers_arena_kb);
 
     arena_init(&interner -> interner_arena, ARENA_KB(interner_init_interner_arena_kb), ALIGN_DEFAULT);
     debug_printf("Init file interner arena with %luKB", interner_init_interner_arena_kb);
