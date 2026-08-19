@@ -1,3 +1,4 @@
+#include "ast/parser/directive/directive.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "files/files.h"
@@ -21,6 +22,9 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
 
     diagnostic_engine_init();
     string_interner_init();
+
+    // asserts that the first string in the interner is "import"
+    directive_ids_init();
 
     u64 estimated_count = next_pow2(argc);
     file_interner_init(estimated_count);
