@@ -20,47 +20,17 @@ void parse_file(FileId id) {
     assert(file -> stage == FILE_LEXED);
 
     Parser p = {
-        .gpa = {0},
         .current_file = file,
         .tokens_array = &file -> tokens,
         .token_count = file -> tokens.count,
         .cursor = 0
     };
 
-    arena_init(&p.gpa, ARENA_KB(2), ALIGN_DEFAULT);
-
-    Token token = parser_advance(&p);
-
-    if (token.kind != TOK_KW_MODULE) {
-        diagnostic_add_token(
-            id,
-            DIAG_ERROR,
-            &token,
-            DIAG_LOC_WHOLE_TOK,
-            "expected module declaration",
-            "module declaration must appear first in a file"
-        );
-
-        file -> stage = FILE_ERROR;
-        return;
-    }
-
-    if (IS_NODE_ERROR(p, parse_module_decl(&p))) {
-        file -> stage = FILE_ERROR;
-        return;
-    }
-
-    return;
-
     while (p.cursor < p.token_count) {
+        break;
+
         Token token = parser_peek(&p);
         if (token.kind == TOK_EOF) break;
-
-        if (token.kind == TOK_KW_IMPORT) {
-            parser_advance(&p);
-
-            parse_import_decl(&p);
-        }
     }
 }
 

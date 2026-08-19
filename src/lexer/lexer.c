@@ -218,8 +218,6 @@ static const char* lex_word(File* file, const char* cursor) {
 
         case 6: {
             switch (start[0]) {
-                case 'i': token -> kind = (memcmp(start, "import", 6) == 0) ? TOK_KW_IMPORT : TOK_IDENT; break;
-                case 'm': token -> kind = (memcmp(start, "module", 6) == 0) ? TOK_KW_MODULE : TOK_IDENT; break;
                 case 'r': token -> kind = (memcmp(start, "return", 6) == 0) ? TOK_KW_RETURN : TOK_IDENT; break;
                 case 's': 
                     token -> kind = (memcmp(start, "struct", 6) == 0) ? TOK_KW_STRUCT : TOK_IDENT; break;

@@ -3,17 +3,6 @@
 
 #include "ast/parser/types.h"
 
-AstNodeId parse_import_decl(Parser* p);
-AstNodeId parse_module_decl(Parser* p);
-AstNodeId parse_enum_decl(Parser* p);
-AstNodeId parse_union_decl(Parser* p);
-AstNodeId parse_struct_decl(Parser* p);
-AstNodeId parse_function_decl(Parser* p);
-AstNodeId parse_macro_decl(Parser* p);
-
-// can be a struct or function 
-AstNodeId parse_external_decl(Parser* p);
-
 // recovery
 AstNodeId parser_error_decl(Parser* p, AstNodeId id);
 

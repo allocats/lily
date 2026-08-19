@@ -23,7 +23,6 @@ static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_EXTERNAL);
 #define AST_NODES(X)        \
     X(AST_ERROR)            \
                             \
-    X(AST_MODULE_DECL)      \
     X(AST_IMPORT_DECL)      \
                             \
     X(AST_PARAMETER)        \
@@ -109,7 +108,7 @@ typedef struct {
 
 typedef struct {
     NamespaceId id;
-} AstImportDecl, AstModuleDecl;
+} AstImportDecl;
 
 
 
@@ -343,8 +342,7 @@ typedef struct {
     SpanU32 tokens;
 
     union {
-        // Module & Import
-        AstModuleDecl module_decl;
+        // Import
         AstImportDecl import_decl;
 
         // Function & Macro

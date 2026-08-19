@@ -5,11 +5,9 @@ A simple low level procedural programming language
 ### Example
 
 ```
-module main;
-
-import "std.io";
+#import "std/io";
 
 main :: fn() {
-    io.println("Hello world :3");
+    println("Hello world :3");
 }
 ```

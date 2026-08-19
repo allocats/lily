@@ -6,8 +6,6 @@ void parser_recover_decl(Parser* p) {
         TokenKind kind = parser_peek(p).kind;
 
         if (
-            kind == TOK_KW_MODULE      ||
-            kind == TOK_KW_IMPORT      ||
             kind == TOK_KW_EXTERNAL    ||
             kind == TOK_KW_CONST       ||
             kind == TOK_KW_FN          ||
