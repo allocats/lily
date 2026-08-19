@@ -7,6 +7,7 @@
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/types.h"
 
 #include <assert.h>
 #include <string.h>
@@ -127,6 +128,94 @@ StringId string_lookup_str8(str8 str) {
     }
 
     debug_printf("string_interner_lookup_str8() could not find '%.*s'", str.len, str.ptr);
+    return STRING_ID_NONE;
+}
+
+StringId string_intern_cstr(const char* str) {
+    assert(str != null);
+
+    u32 len = strnlen(str, U16_MAX);
+
+    assert(len > 0);
+
+    StringInterner* interner = &driver.string_interner;
+
+    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * interner_load_factor)) {
+        string_interner_buckets_resize(interner);
+    }
+
+    u32 hash  = hash_fnv1a_cstr(str, len);
+    u32 mask  = interner -> bucket_capacity - 1;
+    u32 index = hash & mask;
+
+    while (interner -> buckets[index] != STRING_ID_NONE) {
+        StringId id = interner -> buckets[index];
+        StringEntry* entry = &interner -> entries[id];
+
+        if (
+            entry -> hash == hash &&
+            entry -> str.len == len &&
+            memcmp(entry -> str.ptr, str, len) == 0
+        ) {
+            debug_printf("string_intern_str8() found and returned %d", id);
+            return id;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(interner -> count >= interner -> entry_capacity)) {
+        string_interner_entries_resize(interner);
+    }
+
+    StringId id = interner -> count++;
+
+    interner -> buckets[index] = id;
+    interner -> entries[id] = (StringEntry) {
+        .str = {
+            .ptr = (char*) str,
+            .len = len
+        },
+        .hash = hash
+    };
+
+    debug_printf("Added cstring '%.*s' hash = 0x%x id: %d", len, str, hash, id);
+
+    // TODO: Profile this assert, potentially turn it into debug_assert()
+    assert(id == string_lookup_cstr(str) && "id in string_intern() does not match lookup");
+
+    return id;
+}
+
+StringId string_lookup_cstr(const char* str) {
+    assert(str != null);
+
+    u32 len = strnlen(str, U16_MAX);
+
+    assert(len > 0);
+
+    StringInterner* interner = &driver.string_interner;
+
+    u32 hash  = hash_fnv1a_cstr(str, len);
+    u32 index = hash & (interner -> bucket_capacity - 1);
+
+    while (interner -> buckets[index] != STRING_ID_NONE) {
+        StringId id = interner -> buckets[index];
+        StringEntry* entry = &interner -> entries[id];
+
+        if (
+            entry -> hash == hash &&
+            entry -> str.len == len &&
+            memcmp(entry -> str.ptr, str, len) == 0
+        ) {
+            debug_printf("string_interner_lookup_str8() returned %d", id);
+            return id;
+        }
+
+        index = (index + 1) & (interner -> bucket_capacity - 1);
+    }
+
+    debug_printf("string_interner_lookup_cstr() could not find '%.*s'", len, str);
     return STRING_ID_NONE;
 }
 
