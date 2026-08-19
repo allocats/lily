@@ -16,6 +16,7 @@ static constexpr u32 directive_count = 2;
 
 static AstNodeKind directive_lut[directive_count];
 
+// see note in header file
 void directive_ids_init() {
     assert(string_intern_cstr("import") == 0);
     
@@ -25,7 +26,7 @@ void directive_ids_init() {
 
 AstNodeId parse_directive(Parser* p) {
     parser_advance(p); // advance past '#'
-                       //
+
     AstNodeId id = parser_create_node(p, AST_IMPORT_DIRECTIVE, AST_FLAGS_IS_TOP_DECL, -1);
     AstNode* node = ast_get_node(&p -> current_file -> ast, id);
 
@@ -67,7 +68,7 @@ AstNodeId parse_directive(Parser* p) {
             DIAG_ERROR,
             &path,
             DIAG_LOC_WHOLE_TOK,
-            "expected stirng literal",
+            "expected string literal",
             "add a valid string literal here"            
         );
 
