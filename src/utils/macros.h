@@ -1,6 +1,8 @@
 #ifndef LILY_UTILS_MACROS_H
 #define LILY_UTILS_MACROS_H
 
+#include <stdio.h>
+
 #define LIKELY(x)   __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
@@ -8,6 +10,12 @@
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 
 #define STR8_FMT(s) (s).len, (s).ptr
+
+#define UNREACHABLE(msg)                \
+    do {                                \
+        fprintf(stderr, "%s\n", msg);   \
+        abort();                        \
+    } while(0);
 
 #define DA_RESIZE(da, arena)                                                        \
     do {                                                                            \
