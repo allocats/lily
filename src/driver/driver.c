@@ -1,7 +1,6 @@
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "files/files.h"
-#include "namespacing/namespacing.h"
 #include "string_interner/interner.h"
 #include "utils/debug.h"
 
@@ -22,7 +21,6 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
 
     diagnostic_engine_init();
     string_interner_init();
-    namespace_interner_init();
 
     u64 estimated_count = next_pow2(argc);
     file_interner_init(estimated_count);

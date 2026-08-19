@@ -27,10 +27,12 @@ void parse_file(FileId id) {
     };
 
     while (p.cursor < p.token_count) {
-        break;
-
         Token token = parser_peek(&p);
+
         if (token.kind == TOK_EOF) break;
+        if (token.kind == TOK_HASHTAG) {
+            // AstNodeId id = parse_directive(&p);
+        }
     }
 }
 

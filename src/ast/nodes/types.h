@@ -23,7 +23,8 @@ static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_EXTERNAL);
 #define AST_NODES(X)        \
     X(AST_ERROR)            \
                             \
-    X(AST_IMPORT_DECL)      \
+    X(AST_IMPORT_DIRECTIVE) \
+    X(AST_PASTE_DIRECTIVE)  \
                             \
     X(AST_PARAMETER)        \
     X(AST_FUNCTION_DECL)    \
@@ -107,8 +108,15 @@ typedef struct {
 
 
 typedef struct {
-    NamespaceId id;
-} AstImportDecl;
+    StringId path;
+    ModuleId resolved;
+} AstImportDirective;
+
+
+
+typedef struct {
+    StringId path;
+} AstPasteDirective;
 
 
 
@@ -254,7 +262,6 @@ typedef struct {
 
 
 typedef struct {
-    NamespaceId ns;
     StringId name;
 } AstIdentifier;
 
@@ -304,7 +311,7 @@ typedef struct {
 
 
 typedef struct {
-    AstNodeId identifier;
+    AstNodeId expr;
 } AstTypeBase;
 
 
@@ -342,8 +349,9 @@ typedef struct {
     SpanU32 tokens;
 
     union {
-        // Import
-        AstImportDecl import_decl;
+        // Directives ("#ident ...") 
+        AstImportDirective import_directive;
+        AstPasteDirective  paste_directive;
 
         // Function & Macro
         AstParameterDecl parameter_decl;
