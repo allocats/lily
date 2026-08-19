@@ -138,7 +138,7 @@ inline StringId string_intern_token(FileId file_id, Token token) {
         .len = token.length
     };
 
-    return string_lookup_str8(str);
+    return string_intern_str8(str);
 }
 
 static void string_interner_buckets_resize(StringInterner* interner) {
