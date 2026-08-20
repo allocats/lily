@@ -134,9 +134,7 @@ void lex_file(FileId id) {
 }
 
 static const char* lex_whitespace(File* file, const char* cursor) {
-    const char* end = file -> buffer.ptr + file -> buffer.len;
-
-    while (cursor < end && IS_WHITESPACE(*cursor)) {
+    while (IS_WHITESPACE(*cursor)) {
         cursor++;
     }
 
