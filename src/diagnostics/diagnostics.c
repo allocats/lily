@@ -249,6 +249,64 @@ void diagnostic_add_token(
     diag -> file_id = file_id;
 }
 
+void diagnostic_add_token_span(
+    FileId file_id,
+    DiagKind kind,
+    SpanU32 span,
+    const char* msg,
+    const char* help
+) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (kind == DIAG_ERROR) engine -> error_count++;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+
+    Token* start_tok = &file -> tokens.items[span.start];
+    Token* end_tok   = &file -> tokens.items[span.end - 1];
+
+    char* cursor = file -> buffer.ptr;
+    char* tok_start = file -> buffer.ptr + start_tok -> start;
+
+    u32 line = 1;
+    u32 col = 1;
+
+    while (cursor < tok_start) {
+        if (*cursor == '\n') {
+            line += 1;
+            col = 1;
+        } else {
+            col++;
+        }
+
+        cursor++;
+    }
+
+    u32 span_end = end_tok -> start + end_tok -> length;
+    u32 len = span_end - start_tok -> start;
+
+    Diagnostic* diag = diagnostic_get_new(engine);
+
+    diag -> is_generic = false;
+    diag -> kind = kind;
+
+    diag -> msg.ptr = (char*) msg;
+    diag -> msg.len = strlen(msg);
+
+    diag -> help.ptr = (char*) help;
+    diag -> help.len = help ? strlen(help) : 0;
+
+    diag -> line = line;
+    diag -> col = col;
+    diag -> len = len;
+    diag -> file_id = file_id;
+}
+
 bool diagnostics_print() {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
