@@ -1,7 +1,6 @@
 #include "ast/parser/decl/decl.h"
 #include "ast/parser/directive/directive.h"
 #include "ast/parser/parser.h"
-#include "ast/tree/tree.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "ids.h"
@@ -25,8 +24,6 @@ void directive_ids_init() {
 }
 
 AstNodeId parse_directive(Parser* p) {
-    parser_advance(p); // advance past '#'
-
     AstNodeId id = parser_create_node(p, AST_IMPORT_DIRECTIVE, AST_FLAGS_IS_TOP_DECL, -1);
     AstNode* node = parser_get_node(p, id);
 
@@ -47,7 +44,7 @@ AstNodeId parse_directive(Parser* p) {
 
     StringId string_id = string_intern_token(p -> current_file -> id, directive);    
 
-    if (string_id > directive_count) {
+    if (string_id >= directive_count) {
         diagnostic_add_token(
             p -> current_file -> id,
             DIAG_ERROR,

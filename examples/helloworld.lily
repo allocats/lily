@@ -2,4 +2,119 @@
 
 main :: fn() {
     println("Hello world :3");
+
+    x: const i32 = 0;
+
+    if x > -100 && x < 10 {
+        println("boom!");
+    }
+
+    for i: i32 = 0; i < x; i += 1 {
+        println("for %d!", i);
+    }
+
+    while x > 10 {
+        x += 1;
+    }
 }
+
+#import "std/io";
+
+main :: fn() {
+    println("Hello world :3");
+
+    x: const i32 = 0;
+
+    if x > -100 && x < 10 {
+        println("boom!");
+    }
+
+    for i: i32 = 0; i < x; i += 1 {
+        println("for %d!", i);
+    }
+
+    while x > 10 {
+        x += 1;
+    }
+}
+
+#import "std/io";
+
+main :: fn() {
+    println("Hello world :3");
+
+    x: const i32 = 0;
+
+    if x > -100 && x < 10 {
+        println("boom!");
+    }
+
+    for i: i32 = 0; i < x; i += 1 {
+        println("for %d!", i);
+    }
+
+    while x > 10 {
+        x += 1;
+    }
+}
+
+#import "std/io";
+
+main :: fn() {
+    println("Hello world :3");
+
+    x: const i32 = 0;
+
+    if x > -100 && x < 10 {
+        println("boom!");
+    }
+
+    for i: i32 = 0; i < x; i += 1 {
+        println("for %d!", i);
+    }
+
+    while x > 10 {
+        x += 1;
+    }
+}
+
+#import "std/io";
+
+main :: fn() {
+    println("Hello world :3");
+
+    x: const i32 = 0;
+
+    if x > -100 && x < 10 {
+        println("boom!");
+    }
+
+    for i: i32 = 0; i < x; i += 1 {
+        println("for %d!", i);
+    }
+
+    while x > 10 {
+        x += 1;
+    }
+}
+
+#import "std/io";
+
+main :: fn() {
+    println("Hello world :3");
+
+    x: const i32 = 0;
+
+    if x > -100 && x < 10 {
+        println("boom!");
+    }
+
+    for i: i32 = 0; i < x; i += 1 {
+        println("for %d!", i);
+    }
+
+    while x > 10 {
+        x += 1;
+    }
+}
+

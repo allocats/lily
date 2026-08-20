@@ -10,15 +10,21 @@ static constexpr u32 AST_FLAGS_NONE        = 0 << 0;
 static constexpr u32 AST_FLAGS_IS_TOP_DECL = 1 << 0;
 static constexpr u32 AST_FLAGS_IS_CONSTANT = 1 << 1;
 static constexpr u32 AST_FLAGS_IS_EXTERNAL = 1 << 2;
+static constexpr u32 AST_FLAGS_IS_VARIADIC = 1 << 3;
 
 static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_TOP_DECL);
 static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_CONSTANT);
 static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_EXTERNAL);
+static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_VARIADIC);
 
 static_assert(AST_FLAGS_IS_TOP_DECL != AST_FLAGS_IS_CONSTANT);
 static_assert(AST_FLAGS_IS_TOP_DECL != AST_FLAGS_IS_EXTERNAL);
+static_assert(AST_FLAGS_IS_TOP_DECL != AST_FLAGS_IS_VARIADIC);
 
 static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_EXTERNAL);
+static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_VARIADIC);
+
+static_assert(AST_FLAGS_IS_EXTERNAL != AST_FLAGS_IS_VARIADIC);
 
 #define AST_NODES(X)        \
     X(AST_ERROR)            \
@@ -108,6 +114,8 @@ typedef struct {
 
 
 typedef struct {
+    AstNodeId binding;
+
     StringId path;
     ModuleId resolved;
 } AstImportDirective;
@@ -189,7 +197,13 @@ typedef struct {
 
 typedef struct {
     AstNodeId expr;
-} AstReturnStmt, AstDeferStmt;
+} AstReturnStmt;
+
+
+
+typedef struct {
+    AstNodeId stmt;
+} AstDeferStmt;
 
 
 

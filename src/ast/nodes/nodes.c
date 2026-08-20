@@ -1,4 +1,5 @@
 #include "ast/nodes/nodes.h"
+#include "ast/nodes/types.h"
 #include "ids.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -26,4 +27,8 @@ void ast_id_list_append(AstNodeIdList* list, Ast* ast, AstNodeId id) {
     }
 
     list -> ids[list -> count++] = id;
+}
+
+inline bool is_node_constant(Ast* ast, AstNodeId id) {
+    return ast -> nodes[id].kind & AST_FLAGS_IS_CONSTANT;
 }
