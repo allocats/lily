@@ -24,7 +24,7 @@ void ast_init(Ast* ast) {
     arena_init(&ast -> nodes_arena, ARENA_KB(nodes_arena_init_size_kb), ALIGN_DEFAULT);
     debug_printf("ast(%p) -> nodes_arena init arena with %luKB", ast, nodes_arena_init_size_kb);
 
-    ast -> nodes = arena_alloc(&ast -> nodes_arena, nodes_array_init_alloc_size);
+    ast -> nodes = arena_calloc(&ast -> nodes_arena, nodes_array_init_alloc_size);
     ast -> count = 0;
     ast -> capacity = ast_init_capacity;
 
@@ -37,11 +37,16 @@ void ast_init(Ast* ast) {
 
 AstNodeId ast_alloc_node(Ast* ast) {
     if (UNLIKELY(ast -> count >= ast -> capacity)) {
-        u64 old_size = ast -> capacity * sizeof(AstNode);
+        u64 old_capacity = ast -> capacity;
+        u64 new_capacity = old_capacity * 2;
+
+        u64 old_size = old_capacity * sizeof(AstNode);
         u64 new_size = old_size * 2;
 
         ast -> nodes = arena_realloc(&ast -> nodes_arena, ast -> nodes, old_size, new_size);
         ast -> capacity *= 2;
+
+        arena_memset(ast -> nodes + old_capacity, 0, (new_capacity - old_capacity) * sizeof(AstNode));
 
         debug_printf("ast -> nodes realloc from %lu to %lu bytes", old_size, new_size);
     }
