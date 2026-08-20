@@ -1,9 +1,7 @@
-external {
-    vprintf :: fn(fmt: *u8, ap: va_list) -> i32;
-    printf  :: fn(fmt: *u8, args: ...) -> i32;
+vprintf :: external fn(fmt: *u8, ap: va_list) -> i32;
+printf  :: external fn(fmt: *u8, args: ...) -> i32;
 
-    putchar :: fn(c: i32) -> i32;
-}
+putchar :: external fn(c: i32) -> i32;
 
 println :: fn(fmt: *u8, args: ...) -> i32 {
     x: i32 = vprintf(fmt, args);
