@@ -1,11 +1,13 @@
 #include "token/token.h"
 #include "files/files.h"
+#include "ids.h"
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static constexpr u64 arena_init_size_kb = 1;
 static constexpr u64 tokens_init_capacity = ARENA_KB(arena_init_size_kb) / sizeof(Token);
@@ -32,10 +34,10 @@ Token* tokens_get_new_token(TokenArray* arr) {
     // TODO: Profile these asserts to find out whether or not to make them debug asserts,
     // but keep as is, IN CASE we run into memory errors during development and can easily
     // catch scuffed/broken allocations
-    assert(arr != null);
-    assert(arr -> items != null);
-    assert(arr -> capacity > 0);
-    assert(arr -> count <= arr -> capacity);
+    debug_assert(arr != null);
+    debug_assert(arr -> items != null);
+    debug_assert(arr -> capacity > 0);
+    debug_assert(arr -> count <= arr -> capacity);
 
     if (UNLIKELY(arr -> count >= arr -> capacity)) {
         u64 old_size = arr -> capacity * sizeof(Token);
@@ -50,6 +52,70 @@ Token* tokens_get_new_token(TokenArray* arr) {
     }
 
     return &arr -> items[arr -> count++];
+}
+
+i64 token_get_int_literal(FileId id, Token token) {
+    assert(id < AST_NODE_ID_NONE);
+
+    File* file = file_lookup_id(id);
+
+    const char* start = file -> buffer.ptr + token.start;
+
+    char* end = ((char*) start) + token.length;
+
+    char putback = *end;
+
+    *end = 0;
+
+    i64 value = strtoll(start, null, 10);
+
+    *end = putback;
+
+    return value;
+}
+
+f64 token_get_float_literal(FileId id, Token token) {
+    assert(id < AST_NODE_ID_NONE);
+
+    File* file = file_lookup_id(id);
+
+    const char* start = file -> buffer.ptr + token.start;
+
+    char* end = ((char*) start) + token.length;
+
+    char putback = *end;
+
+    *end = 0;
+
+    f64 value = strtod(start, null);
+
+    *end = putback;
+
+    return value;
+}
+
+i64 token_get_char_literal(FileId id, Token token) {
+    assert(id < AST_NODE_ID_NONE);
+
+    File* file = file_lookup_id(id);
+
+    const char* start = file -> buffer.ptr + token.start;
+    const char* character = start + 1;
+
+    return *character;
+}
+
+void token_print(FileId id, Token token) {
+    File* file = file_lookup_id(id);
+
+    const char* token_start = file -> buffer.ptr + token.start;
+
+    printf(
+        "Token {\n  Lexeme: \"%.*s\"\n  Kind: %s\n}\n\n",
+        token.length,
+        token_start,
+        TOKEN_KIND_STRS[token.kind]
+    );
 }
 
 void tokens_print(FileId id) {
