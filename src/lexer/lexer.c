@@ -134,6 +134,8 @@ void lex_file(FileId id) {
 }
 
 static const char* lex_whitespace(File* file, const char* cursor) {
+    (void) file;
+
     while (IS_WHITESPACE(*cursor)) {
         cursor++;
     }
@@ -218,8 +220,9 @@ static const char* lex_word(File* file, const char* cursor) {
             switch (start[0]) {
                 case 'r': token -> kind = (memcmp(start, "return", 6) == 0) ? TOK_KW_RETURN : TOK_IDENT; break;
                 case 's': 
-                    token -> kind = (memcmp(start, "struct", 6) == 0) ? TOK_KW_STRUCT : TOK_IDENT; break;
-                    token -> kind = (memcmp(start, "switch", 6) == 0) ? TOK_KW_SWITCH : TOK_IDENT; break;
+                    if (memcmp(start, "struct", 6) == 0) { token -> kind = TOK_KW_STRUCT; break; }
+                    if (memcmp(start, "switch", 6) == 0) { token -> kind = TOK_KW_SWITCH; break; }
+                    token -> kind = TOK_IDENT;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;

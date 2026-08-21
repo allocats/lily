@@ -112,6 +112,29 @@ static AstNodeId nud(Parser* p, Token token) {
             return id;
         }
 
+        case TOK_L_PAREN: {
+            AstNodeId id = parse_expression(p, 0);
+
+            if (!parser_check(p, TOK_R_PAREN)) {
+                Token previous = parser_peek_previous(p);
+
+                diagnostic_add_token(
+                    p -> current_file -> id,
+                    DIAG_ERROR,
+                    &previous,
+                    DIAG_LOC_END_OF_TOK,
+                    "expected ')'",
+                    "add a ')' here"
+                );
+
+                return parser_error_stmt(p, id);
+            }
+
+            parser_advance(p);
+
+            return id;
+        }
+
         case TOK_STAR:
         case TOK_MINUS:
         case TOK_BANG:
@@ -121,7 +144,7 @@ static AstNodeId nud(Parser* p, Token token) {
             AstNode* node = parser_get_node(p, id);
 
             node -> as.unary_op.op = token.kind;
-            node -> as.unary_op.operand = parse_expression(p, 120);
+            node -> as.unary_op.operand = parse_expression(p, 119);
 
             return id;
         }
@@ -210,20 +233,31 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
                     DIAG_ERROR,
                     &bad,
                     DIAG_LOC_WHOLE_TOK,
-                    "expected an identifier after '.'",
+                    token.kind == TOK_ARROW ? "expected identifier after '->'" : "expected identifier after '.'",
                     "member access looks like: object.field"
                 );
+
+                AstNodeId err = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -1);
+
+                return parser_error_stmt(p, err);
             }
-         
+
+            Token member_tok = parser_advance(p);
+
+            AstNodeId member_node_id = parser_create_node(p, AST_IDENTIFIER, AST_FLAGS_NONE, 0);
+            AstNode* member_node = parser_get_node(p, member_node_id);
+
+            member_node -> as.identifier.name = string_intern_token(p -> current_file -> id, member_tok);
+            member_node -> tokens.start = p -> cursor - 1;
+            member_node -> tokens.end = p -> cursor - 1;
+
             AstNodeId id = parser_create_node(p, AST_MEMBER_ACCESS, AST_FLAGS_NONE, 0);
-            AstNodeId member = parse_expression(p, 0);
-         
             AstNode* node = parser_get_node(p, id);
 
             node -> as.member_access.used_pointer_access = (token.kind == TOK_ARROW);
             node -> as.member_access.object = left;
-            node -> as.member_access.member = member;
-         
+            node -> as.member_access.member = member_node_id;
+
             return id;
         }
 

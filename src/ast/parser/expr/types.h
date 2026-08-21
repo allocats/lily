@@ -11,7 +11,7 @@ typedef struct {
 } OpInfo;
 
 // helper: L(n) = left-assoc at level n, R(n) = right-assoc at level n
-#define L(n) { (n), (n) + 1 }
+#define L(n) { (n), (n) - 1 }
 #define R(n) { (n), (n) }
 
 static OpInfo op_table[] = {
@@ -71,6 +71,8 @@ static OpInfo op_table[] = {
     [TOK_L_BRACKET]     = L(120),
     [TOK_ARROW]         = L(120),
     [TOK_DOT]           = L(120),
+
+    [TOK_L_BRACE]       = L(120),
 };
 
 static constexpr u32 OP_TABLE_LEN = (sizeof(op_table) / sizeof(op_table[0]));

@@ -4,7 +4,6 @@
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
-#include <linux/limits.h>
 
 static constexpr u64 gpa_init_size_kb = 2;
 static constexpr u32 ast_init_capacity = 64;
@@ -58,8 +57,8 @@ AstNodeId ast_alloc_node(Ast* ast) {
 
 inline AstNode* ast_get_node(Ast* ast, AstNodeId id) {
     // TODO: Profile these asserts
-    assert(id < ast -> count);
-    assert(id >= 0);
+    debug_assert(id < ast -> count);
+    debug_assert(id >= 0);
 
     return &ast -> nodes[id];
 }

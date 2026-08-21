@@ -75,7 +75,14 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
             return parser_recover_end_of_fn(p, id);
         }
 
+        parser_advance(p); // advance past ':'
+
         AstNodeId param_type_expr_id = parse_param_type_expr(p);
+
+        if (param_type_expr_id == AST_NODE_ID_NONE) {
+            return parser_recover_end_of_fn(p, id);
+        }
+
         AstNode* param_type_node = parser_get_node(p, param_type_expr_id);
 
         param_node = parser_get_node(p, param_node_id);

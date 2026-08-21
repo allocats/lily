@@ -7,6 +7,7 @@
 #include "diagnostics/types.h"
 #include "token/types.h"
 #include "utils/types.h"
+
 #include <assert.h>
 
 static constexpr u8 type_modifier_max = U8_MAX;
@@ -85,18 +86,14 @@ AstNodeId parse_type_expr(Parser* p) {
             parser_advance(p);
 
             if (parser_check(p, TOK_R_BRACKET)) {
-                Token token = parser_peek_previous(p);
+                modifiers[modifier_count++] = (TypeModifier) {
+                    .kind = TYPE_MOD_ARRAY,
+                    .size_expr = AST_NODE_ID_NONE
+                };
+                
+                parser_advance(p);
 
-                diagnostic_add_token(
-                    p -> current_file -> id,
-                    DIAG_ERROR,
-                    &token,
-                    DIAG_LOC_END_OF_TOK,
-                    "sadly no vectors just yet",
-                    "TODO: Add slices/vectors?"
-                );
-
-                return AST_NODE_ID_NONE;
+                continue;
             }
 
             AstNodeId size_expr = parse_expression(p, 0);
@@ -258,7 +255,7 @@ AstNodeId parse_type_expr(Parser* p) {
 
         // regular type
 
-        AstNodeId primary = parse_expression(p, 140);
+        AstNodeId primary = parse_expression(p, 119);
 
         if (primary == AST_NODE_ID_NONE) {
             return AST_NODE_ID_NONE;
@@ -278,6 +275,7 @@ AstNodeId parse_type_expr(Parser* p) {
 
             return AST_NODE_ID_NONE;
         }
+
 
         AstNodeId type_id  = parser_create_node(p, AST_TYPE_BASE, flags, 0);
         AstNode* type_node = parser_get_node(p, type_id);

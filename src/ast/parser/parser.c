@@ -7,16 +7,18 @@
 #include "ast/parser/decl/decl.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
+#include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
-#include "token/token.h"
 #include "token/types.h"
 
 #include <assert.h>
 
+extern DriverCtx driver;
+
 void parse_file(FileId id) {
-    assert(id >= 0);
-    assert(id < FILE_ID_NONE);
+    assert(id != FILE_ID_NONE);
+    assert(id < driver.file_interner.count);
 
     File* file = file_lookup_id(id);
 
@@ -160,10 +162,12 @@ inline u64 parser_current_index(Parser* p) {
 }
 
 inline Token parser_peek(Parser* p) {
+    assert(p -> cursor < p -> token_count);
     return p -> tokens_array -> items[p -> cursor];
 }
 
 inline Token parser_peek_previous(Parser* p) {
+    assert(p -> cursor - 1 > 0);
     return p -> tokens_array -> items[p -> cursor - 1];
 }
 
@@ -178,6 +182,7 @@ inline Token parser_advance(Parser* p) {
 }
 
 inline bool parser_check(Parser* p, TokenKind kind) {
+    assert(p -> cursor < p -> token_count);
     return p -> tokens_array -> items[p -> cursor].kind == kind;
 }
 
