@@ -1,8 +1,7 @@
-#include "string_interner/interner.h"
-
 #include "driver/types.h"
 #include "files/files.h"
 #include "hash/hash.h"
+#include "string_interner/interner.h"
 #include "string_interner/types.h"
 #include "token/types.h"
 #include "utils/debug.h"

@@ -12,7 +12,6 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
-#include "token/token.h"
 #include "token/types.h"
 
 #include <assert.h>

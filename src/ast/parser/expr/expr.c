@@ -322,7 +322,7 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
     }
 }
 
-static u8 lbp_of(TokenKind kind) {
+static inline u8 lbp_of(TokenKind kind) {
     if ((u32) kind >= OP_TABLE_LEN) return 0;
     return op_table[kind].lbp;
 }
