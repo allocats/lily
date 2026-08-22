@@ -3,7 +3,11 @@
 #include "ast/parser/directive/directive.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/recovery/recovery.h"
+#include "ast/parser/recovery/types.h"
+#include "ast/parser/types.h"
 #include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
+#include "ids.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
 

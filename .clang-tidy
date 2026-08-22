@@ -1,7 +1,0 @@
-Checks: >
-  -*,
-  clang-analyzer-*,
-  misc-include-cleaner
-WarningsAsErrors: ''
-HeaderFilterRegex: '.*'
-FormatStyle: file

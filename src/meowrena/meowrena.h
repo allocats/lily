@@ -1,8 +1,8 @@
 #ifndef MEOWRENA_H
 #define MEOWRENA_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "utils/debug.h"
 #include "utils/types.h"

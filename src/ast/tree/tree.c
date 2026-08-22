@@ -1,9 +1,12 @@
 #include "ast/tree/tree.h"
 #include "ast/nodes/types.h"
+#include "ast/tree/types.h"
 #include "ids.h"
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/types.h"
+#include <assert.h>
 
 static constexpr u64 gpa_init_size_kb = 2;
 static constexpr u32 ast_init_capacity = 64;

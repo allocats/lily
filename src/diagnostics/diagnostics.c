@@ -3,15 +3,17 @@
 #include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
-#include "utils/macros.h"
+#include "files/types.h"
+#include "ids.h"
+#include "token/types.h"
 #include "utils/debug.h"
+#include "utils/macros.h"
+#include "utils/types.h"
 
 #include <assert.h>
-#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 extern DriverCtx driver;
 

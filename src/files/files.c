@@ -1,5 +1,6 @@
 #include "ast/tree/tree.h"
 #include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "files/types.h"
@@ -7,8 +8,10 @@
 #include "ids.h"
 #include "string_interner/interner.h"
 #include "token/token.h"
+#include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/types.h"
 
 #include <assert.h>
 #include <fcntl.h>

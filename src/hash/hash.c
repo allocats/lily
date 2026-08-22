@@ -1,4 +1,5 @@
 #include "hash/hash.h"
+#include "utils/types.h"
 
 #include <immintrin.h>
 #include <string.h>

@@ -1,8 +1,8 @@
 #ifndef LILY_AST_PARSER_RECOVERY_H
 #define LILY_AST_PARSER_RECOVERY_H
 
-#include "ast/parser/types.h"
 #include "ast/parser/recovery/types.h"
+#include "ast/parser/types.h"
 #include "ids.h"
 
 void parser_recover(Parser* p, RecoveryKind kind); // stops at sync token

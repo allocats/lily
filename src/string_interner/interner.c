@@ -1,6 +1,8 @@
 #include "driver/types.h"
 #include "files/files.h"
+#include "files/types.h"
 #include "hash/hash.h"
+#include "ids.h"
 #include "string_interner/interner.h"
 #include "string_interner/types.h"
 #include "token/types.h"

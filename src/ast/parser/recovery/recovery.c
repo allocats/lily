@@ -1,8 +1,10 @@
+#include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
-#include "ast/parser/types.h"
 #include "ast/parser/recovery/types.h"
+#include "ast/parser/types.h"
 #include "ids.h"
 #include "token/types.h"
+#include "utils/types.h"
 
 static constexpr u64 stmt_sync_tokens = (u64)  0
                                       | ((u64) 1 << TOK_EOF)

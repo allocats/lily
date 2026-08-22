@@ -2,7 +2,9 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/recovery/recovery.h"
+#include "ast/parser/recovery/types.h"
 #include "ast/parser/stmts/stmts.h"
+#include "ast/parser/types.h"
 #include "ids.h"
 #include "token/types.h"
 #include <assert.h>

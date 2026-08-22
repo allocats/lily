@@ -1,9 +1,12 @@
 #include "ast/nodes/nodes.h"
 #include "ast/nodes/types.h"
+#include "ast/tree/types.h"
 #include "ids.h"
+#include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
+#include <assert.h>
 
 void ast_id_list_init(Arena* arena, AstNodeIdList* list, u32 capacity) {
     assert(capacity > 0);

@@ -1,5 +1,6 @@
 #include "cli/cli.h"
 #include "utils/timer.h"
+#include "utils/types.h"
 
 #include <stdio.h>
 #include <unistd.h>

@@ -1,9 +1,11 @@
 #include "token/token.h"
 #include "files/files.h"
+#include "files/types.h"
 #include "ids.h"
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/types.h"
 
 #include <assert.h>
 #include <stdio.h>

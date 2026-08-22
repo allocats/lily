@@ -4,6 +4,7 @@
 #include "ast/parser/recovery/types.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ast/parser/stmts/stmts.h"
+#include "ast/parser/types.h"
 #include "ids.h"
 
 AstNodeId parse_defer_statement(Parser* p) {

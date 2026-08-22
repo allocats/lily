@@ -1,8 +1,8 @@
 #ifndef LILY_AST_PARSER_STMTS_H
 #define LILY_AST_PARSER_STMTS_H
 
-#include "ids.h"
 #include "ast/parser/types.h"
+#include "ids.h"
 
 // dispatcher
 AstNodeId parse_statement(Parser* p);

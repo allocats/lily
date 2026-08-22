@@ -1,8 +1,8 @@
 #ifndef LILY_DIAGNOSTICS_H
 #define LILY_DIAGNOSTICS_H
 
-#include "ids.h"
 #include "diagnostics/types.h"
+#include "ids.h"
 #include "utils/types.h"
 
 void diagnostic_engine_init(void);

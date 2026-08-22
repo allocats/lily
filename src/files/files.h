@@ -1,8 +1,8 @@
 #ifndef LILY_FILES_H
 #define LILY_FILES_H
 
-#include "ids.h"
 #include "files/types.h"
+#include "ids.h"
 #include "utils/types.h"
 
 void file_interner_init(u32 count);

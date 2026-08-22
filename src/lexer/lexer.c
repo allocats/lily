@@ -1,14 +1,16 @@
 #include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "files/files.h"
-#include "lexer/lexer.h"
 #include "files/types.h"
+#include "ids.h"
+#include "lexer/lexer.h"
 #include "lexer/types.h"
 #include "token/token.h"
 #include "token/types.h"
+#include "utils/types.h"
 
 #include <assert.h>
 #include <string.h>
-#include <strings.h>
 
 #define IS_DIGIT(c)         (CHAR_MAP[(unsigned char)(c)] & 1)
 #define IS_ALPHA(c)         (CHAR_MAP[(unsigned char)(c)] & 2)

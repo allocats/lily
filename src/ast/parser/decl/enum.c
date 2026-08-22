@@ -4,12 +4,15 @@
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/recovery/recovery.h"
+#include "ast/parser/recovery/types.h"
+#include "ast/parser/types.h"
 #include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "ids.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
+#include "utils/types.h"
 
 AstNodeId parse_enum_decl(Parser *p, StringId name) {
     AstNodeId id = parser_create_node(p, AST_ENUM_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_CONSTANT, -2);

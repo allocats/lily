@@ -2,8 +2,8 @@
 #define LILY_STRING_INTERNER_H
 
 #include "ids.h"
-#include "utils/types.h"
 #include "token/types.h"
+#include "utils/types.h"
 
 #define STRING_ID_LOOKUP(index)         (driver_ctx.string_interner.entries[index])
 #define STRING_ID_LOOKUP_REF(index)     (&driver_ctx.string_interner.entries[index])

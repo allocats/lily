@@ -1,15 +1,15 @@
 #include "ast/parser/directive/directive.h"
 #include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "driver/driver.h"
+#include "driver/types.h"
 #include "files/files.h"
 #include "string_interner/interner.h"
 #include "utils/debug.h"
+#include "utils/types.h"
 
 #include <assert.h>
-#include <dirent.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #define FLAG_MATCHES(len, flag, str) ((len == sizeof(str) - 1) && strncmp(flag, str, len) == 0)
 
