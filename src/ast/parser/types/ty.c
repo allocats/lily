@@ -3,8 +3,10 @@
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/types/ty.h"
+#include "ast/parser/recovery/recovery.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
+#include "ids.h"
 #include "token/types.h"
 #include "utils/types.h"
 
@@ -70,7 +72,8 @@ AstNodeId parse_type_expr(Parser* p) {
                     "type expression has too many pointer/array modifiers"
                 );
 
-                return AST_NODE_ID_NONE;
+                AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+                return parser_error(p, id, RECOVERY_TYPE);
             }
 
             modifiers[modifier_count++] = (TypeModifier) {
@@ -110,7 +113,8 @@ AstNodeId parse_type_expr(Parser* p) {
                     "add a ']' here"
                 );
 
-                return AST_NODE_ID_NONE;
+                AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+                return parser_error(p, id, RECOVERY_TYPE);
             }
 
             parser_advance(p);
@@ -127,7 +131,8 @@ AstNodeId parse_type_expr(Parser* p) {
                     "type expression has too many pointer/array modifiers"
                 );
 
-                return AST_NODE_ID_NONE;
+                AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+                return parser_error(p, id, RECOVERY_TYPE);
             }
 
             modifiers[modifier_count++] = (TypeModifier) {
@@ -163,7 +168,8 @@ AstNodeId parse_type_expr(Parser* p) {
                 "function type parameters start with '('"
             );
 
-            return AST_NODE_ID_NONE;
+            AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+            return parser_error(p, id, RECOVERY_TYPE);
         }
 
         parser_advance(p);
@@ -186,13 +192,15 @@ AstNodeId parse_type_expr(Parser* p) {
                     "add ')' to close the function type"
                 );
 
-                return AST_NODE_ID_NONE;
+                AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+                return parser_error(p, id, RECOVERY_TYPE);
             }
 
             AstNodeId param_type_id = parse_param_type_expr(p);
 
-            if (param_type_id == AST_NODE_ID_NONE) {
-                return AST_NODE_ID_NONE;
+            if (IS_NODE_ERROR(p, param_type_id)) {
+                AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+                return parser_error(p, id, RECOVERY_TYPE);
             }
 
             ast_id_list_append(&fn_node -> as.type_function.parameters, &p -> current_file -> ast, param_type_id);
@@ -214,7 +222,8 @@ AstNodeId parse_type_expr(Parser* p) {
                     "separate function parameter types with commas"
                 );
 
-                return AST_NODE_ID_NONE;
+                AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+                return parser_error(p, id, RECOVERY_TYPE);
             }
         }
 
@@ -234,20 +243,22 @@ AstNodeId parse_type_expr(Parser* p) {
                 "function types must specify a return type"
             );
 
-            return AST_NODE_ID_NONE;
+            AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+            return parser_error(p, id, RECOVERY_TYPE);
         }
 
         parser_advance(p);
 
-        AstNodeId return_type = parse_type_expr(p);
+        AstNodeId return_type_id = parse_type_expr(p);
 
-        if (return_type == AST_NODE_ID_NONE) {
-            return AST_NODE_ID_NONE;
+        if (IS_NODE_ERROR(p, return_type_id)) {
+            AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+            return parser_error(p, id, RECOVERY_TYPE);
         }
 
         fn_node = parser_get_node(p, fn_id);
 
-        fn_node -> as.type_function.return_type = return_type;
+        fn_node -> as.type_function.return_type = return_type_id;
         fn_node -> tokens.end = p -> cursor - 1;
 
         base_id = fn_id;
@@ -255,16 +266,16 @@ AstNodeId parse_type_expr(Parser* p) {
 
         // regular type
 
-        AstNodeId primary = parse_expression(p, 119);
+        AstNodeId primary_id = parse_expression(p, 119);
 
-        if (primary == AST_NODE_ID_NONE) {
-            return AST_NODE_ID_NONE;
+        if (IS_NODE_ERROR(p, primary_id)) {
+            AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+            return parser_error(p, id, RECOVERY_TYPE);
         }
 
-        AstNode* primary_node = parser_get_node(p, primary);
+        AstNode* primary_node = parser_get_node(p, primary_id);
 
-        if (primary_node -> kind != AST_IDENTIFIER &&
-            primary_node -> kind != AST_FUNCTION_CALL) {
+        if (primary_node -> kind != AST_IDENTIFIER && primary_node -> kind != AST_FUNCTION_CALL) {
             diagnostic_add_token_span(
                 p -> current_file -> id,
                 DIAG_ERROR,
@@ -273,7 +284,8 @@ AstNodeId parse_type_expr(Parser* p) {
                 "type must be an identifier, function type, or function call"
             );
 
-            return AST_NODE_ID_NONE;
+            AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+            return parser_error(p, id, RECOVERY_TYPE);
         }
 
 
@@ -281,7 +293,7 @@ AstNodeId parse_type_expr(Parser* p) {
         AstNode* type_node = parser_get_node(p, type_id);
 
         type_node -> tokens.start = start_index;
-        type_node -> as.type_base.expr = primary;
+        type_node -> as.type_base.expr = primary_id;
 
         base_id = type_id;
     }

@@ -1,6 +1,7 @@
 #include "ast/nodes/nodes.h"
 #include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ids.h"
 #include "token/types.h"
@@ -22,6 +23,14 @@ AstNodeId parse_block(Parser* p) {
         node = parser_get_node(p, id);
 
         ast_id_list_append(&node -> as.block.statements, &p -> current_file -> ast, stmt_id);
+
+        if (IS_NODE_ERROR(p, stmt_id)) {
+            parser_recover(p, RECOVERY_STMT); 
+
+            if (parser_check(p, TOK_SEMI)) {
+                parser_advance(p);
+            }
+        }
     }
 
     node = parser_get_node(p, id);

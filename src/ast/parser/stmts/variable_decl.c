@@ -2,6 +2,7 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
@@ -23,8 +24,8 @@ AstNodeId parse_variable_decl(Parser* p) {
 
     AstNodeId type_expr_id = parse_type_expr(p);
 
-    if (type_expr_id == AST_NODE_ID_NONE) {
-        return parser_error_stmt(p, id);
+    if (IS_NODE_ERROR(p, type_expr_id)) {
+        return parser_error(p, id, RECOVERY_NONE);
     }
 
     node = parser_get_node(p, id);
@@ -55,15 +56,15 @@ AstNodeId parse_variable_decl(Parser* p) {
             "add '=' or ';' here for variable declaration"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_NONE);
     }
 
     parser_advance(p); // advanced past '='
 
     AstNodeId value_expr_id = parse_expression(p, 0);
 
-    if (value_expr_id == AST_NODE_ID_NONE) {
-        return parser_error_stmt(p, id);
+    if (IS_NODE_ERROR(p, value_expr_id)) {
+        return parser_error(p, id, RECOVERY_NONE);
     }
 
     node = parser_get_node(p, id);
@@ -82,7 +83,7 @@ AstNodeId parse_variable_decl(Parser* p) {
             "add ';' here after variable declaration"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_NONE);
     }
 
     node -> tokens.end = p -> cursor;

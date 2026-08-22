@@ -1,9 +1,10 @@
 #include "ast/nodes/nodes.h"
 #include "ast/nodes/types.h"
 #include "ast/parser/decl/decl.h"
+#include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ast/parser/types/ty.h"
-#include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "ids.h"
@@ -28,7 +29,7 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
             "add a '(' here"
         );
 
-        return parser_recover_end_of_fn(p, id);
+        return parser_error(p, id, RECOVERY_DECL);
     }
 
     parser_advance(p);
@@ -51,7 +52,7 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
                 "add a valid identifier here"
             );
 
-            return parser_recover_end_of_fn(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         AstNodeId param_node_id = parser_create_node(p, AST_PARAMETER, AST_FLAGS_NONE,  -1);
@@ -72,15 +73,15 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
                 "add a ':' here"
             );
 
-            return parser_recover_end_of_fn(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         parser_advance(p); // advance past ':'
 
         AstNodeId param_type_expr_id = parse_param_type_expr(p);
 
-        if (param_type_expr_id == AST_NODE_ID_NONE) {
-            return parser_recover_end_of_fn(p, id);
+        if (IS_NODE_ERROR(p, param_type_expr_id)) {
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         AstNode* param_type_node = parser_get_node(p, param_type_expr_id);
@@ -105,7 +106,7 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
                     "remove the parameters after '...'"
                 );
 
-                return parser_recover_end_of_fn(p, id);
+                return parser_error(p, id, RECOVERY_DECL);
             }
 
             if (!parser_check(p, TOK_R_PAREN)) {
@@ -120,7 +121,7 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
                     "add a ')' here"
                 );
 
-                return parser_recover_end_of_fn(p, id);
+                return parser_error(p, id, RECOVERY_DECL);
             }
 
             parser_advance(p);
@@ -158,13 +159,17 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
             "add a ',' or ')' here"
         );
 
-        return parser_recover_end_of_fn(p, id);
+        return parser_error(p, id, RECOVERY_DECL);
     }
 
     if (parser_check(p, TOK_ARROW)) {
         parser_advance(p);
 
         AstNodeId return_type_expr = parse_type_expr(p);
+        
+        if (IS_NODE_ERROR(p, return_type_expr)) {
+            return parser_error(p, id, RECOVERY_DECL);
+        }
 
         node = parser_get_node(p, id);
         node -> as.function_decl.return_type_expr = return_type_expr;
@@ -182,10 +187,14 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
             "add a '{' here" 
         );
 
-        return parser_recover_end_of_fn(p, id);
+        return parser_error(p, id, RECOVERY_DECL);
     }
 
     AstNodeId block_id = parse_block(p);
+
+    if (IS_NODE_ERROR(p, block_id)) {
+        return parser_error(p, id, RECOVERY_DECL);
+    }
 
     node = parser_get_node(p, id);
 

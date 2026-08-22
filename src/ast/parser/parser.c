@@ -1,15 +1,18 @@
 #include "ast/nodes/nodes.h"
 #include "ast/nodes/types.h"
 #include "ast/parser/directive/directive.h"
+#include "ast/parser/recovery/types.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ast/tree/tree.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/decl/decl.h"
+#include "ast/parser/recovery/recovery.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
+#include "token/token.h"
 #include "token/types.h"
 
 #include <assert.h>
@@ -43,13 +46,15 @@ void parse_file(FileId id) {
         } else if (token.kind == TOK_IDENT) {
             Token op = parser_peek_ahead_by(&p, 1);
 
+            AstNodeId node_id = AST_NODE_ID_NONE;
+
             switch (op.kind) {
                 case TOK_COLON:
-                    parse_variable_decl(&p);
+                    node_id = parse_variable_decl(&p);
                     break;
 
                 case TOK_COLON_COLON:
-                    parse_top_level_decl(&p);
+                    node_id = parse_top_level_decl(&p);
                     break;
 
                 default:    
@@ -62,9 +67,14 @@ void parse_file(FileId id) {
                         "expected (':' | '::') after identifier"
                     );
 
-                    parser_recover_decl(&p);
+                    node_id = parser_create_node(&p, AST_ERROR, AST_FLAGS_NONE, 0);
                     break;
             }
+
+            if (IS_NODE_ERROR((&p), node_id)){
+                parser_error(&p, node_id, RECOVERY_DECL);
+            }
+
         } else {
             diagnostic_add_token(
                 p.current_file -> id,
@@ -75,7 +85,8 @@ void parse_file(FileId id) {
                 "expected (#directve | identifier)"
             );
 
-            parser_recover_decl(&p);
+            AstNodeId node_id = parser_create_node(&p, AST_ERROR, AST_FLAGS_NONE, 0);
+            parser_error(&p, node_id, RECOVERY_DECL);
         }
     }
 }
@@ -162,31 +173,31 @@ inline u64 parser_current_index(Parser* p) {
 }
 
 inline Token parser_peek(Parser* p) {
-    assert(p -> cursor < p -> token_count);
+    debug_assert(p -> cursor < p -> token_count);
     return p -> tokens_array -> items[p -> cursor];
 }
 
 inline Token parser_peek_previous(Parser* p) {
-    assert(p -> cursor - 1 > 0);
+    debug_assert(p -> cursor - 1 > 0);
     return p -> tokens_array -> items[p -> cursor - 1];
 }
 
 inline Token parser_peek_ahead_by(Parser* p, u32 count) {
-    assert(p -> cursor + count < p -> token_count);
+    debug_assert(p -> cursor + count < p -> token_count);
     return p -> tokens_array -> items[p -> cursor + count];
 }
 
 inline Token parser_advance(Parser* p) {
-    assert(p -> cursor < p -> token_count);
+    debug_assert(p -> cursor < p -> token_count);
     return p -> tokens_array -> items[p -> cursor++];
 }
 
 inline bool parser_check(Parser* p, TokenKind kind) {
-    assert(p -> cursor < p -> token_count);
+    debug_assert(p -> cursor < p -> token_count);
     return p -> tokens_array -> items[p -> cursor].kind == kind;
 }
 
 inline bool parser_check_ahead_by(Parser* p, TokenKind kind, u32 count) {
-    assert(p -> cursor + count < p -> token_count);
+    debug_assert(p -> cursor + count < p -> token_count);
     return p -> tokens_array -> items[p -> cursor + count].kind == kind;
 }

@@ -1,11 +1,12 @@
 #include "ast/parser/directive/directive.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/expr/expr.h"
+#include "ast/parser/recovery/recovery.h"
+#include "ast/parser/recovery/types.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "ids.h"
-#include "token/token.h"
 #include "token/types.h"
 
 AstNodeId parse_statement(Parser* p) {
@@ -13,6 +14,7 @@ AstNodeId parse_statement(Parser* p) {
 
     switch (token.kind) {
         case TOK_HASHTAG:
+            parser_advance(p);
             return parse_directive(p);
 
         case TOK_IDENT:
@@ -20,6 +22,10 @@ AstNodeId parse_statement(Parser* p) {
                 return parse_variable_decl(p);
             } else {
                 AstNodeId id = parse_expression(p, 0);
+
+                if (IS_NODE_ERROR(p, id)) {
+                    return parser_error(p, id, RECOVERY_STMT);
+                }
 
                 if (!parser_check(p, TOK_SEMI)) {
                     Token previous = parser_peek_previous(p);
@@ -33,7 +39,7 @@ AstNodeId parse_statement(Parser* p) {
                         "add a ';' here"
                     );
 
-                    return parser_error_stmt(p, id);
+                    return parser_error(p, id, RECOVERY_STMT);
                 }
 
                 parser_advance(p); // advance past ';'
@@ -65,6 +71,8 @@ AstNodeId parse_statement(Parser* p) {
         default:
             AstNodeId id = parse_expression(p, 0);
 
+            if (IS_NODE_ERROR(p, id)) return id;
+
             if (!parser_check(p, TOK_SEMI)) {
                 Token previous = parser_peek_previous(p);
 
@@ -77,7 +85,7 @@ AstNodeId parse_statement(Parser* p) {
                     "add a ';' here"
                 );
 
-                return parser_error_stmt(p, id);
+                return parser_error(p, id, RECOVERY_STMT);
             }
 
             parser_advance(p); // advance past ';'

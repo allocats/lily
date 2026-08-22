@@ -1,5 +1,7 @@
 #include "ast/nodes/nodes.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
+#include "ast/parser/recovery/types.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ast/parser/expr/expr.h"
 #include "diagnostics/diagnostics.h"
@@ -20,6 +22,10 @@ AstNodeId parse_switch_statement(Parser* p) {
     parser_advance(p); // advance past "switch"
  
     AstNodeId target = parse_expression(p, 0);
+
+    if (IS_NODE_ERROR(p, target)) {
+        return parser_error(p, id, RECOVERY_STMT);
+    }
  
     node = parser_get_node(p, id);
     node -> as.switch_stmt.value = target;
@@ -36,7 +42,7 @@ AstNodeId parse_switch_statement(Parser* p) {
             "add a '{' here"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
  
     parser_advance(p); // advance past '{'
@@ -47,6 +53,10 @@ AstNodeId parse_switch_statement(Parser* p) {
         if (parser_check(p, TOK_KW_CASE)) {
             AstNodeId case_id = parse_switch_case(p);
 
+            if (IS_NODE_ERROR(p, case_id)) {
+                return parser_error(p, id, RECOVERY_STMT);
+            }
+
             node = parser_get_node(p, id);
 
             ast_id_list_append(&node -> as.switch_stmt.cases, &p -> current_file -> ast, case_id);
@@ -55,6 +65,10 @@ AstNodeId parse_switch_statement(Parser* p) {
             Token default_token = parser_peek(p);
 
             AstNodeId default_id = parse_switch_default(p);
+
+            if (IS_NODE_ERROR(p, default_id)) {
+                return parser_error(p, id, RECOVERY_STMT);
+            } 
 
             if (has_default) {
                 diagnostic_add_token(
@@ -65,6 +79,8 @@ AstNodeId parse_switch_statement(Parser* p) {
                     "multiple 'default' cases in switch statement",
                     "a switch statement can only have one 'default' case"
                 );
+
+                return parser_error(p, id, RECOVERY_STMT);
             } else {
                 node = parser_get_node(p, id);
                 node -> as.switch_stmt.default_case = default_id;
@@ -83,7 +99,7 @@ AstNodeId parse_switch_statement(Parser* p) {
                 "add a valid case"
             );
 
-            return parser_error_stmt(p, id);
+            return parser_error(p, id, RECOVERY_STMT);
         }
     }
 
@@ -99,7 +115,7 @@ AstNodeId parse_switch_statement(Parser* p) {
             "add a '}' here"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
  
     node = parser_get_node(p, id);
@@ -118,6 +134,10 @@ static AstNodeId parse_switch_case(Parser* p) {
  
     do {
         AstNodeId pattern_id = parse_expression(p, 0);
+
+        if (IS_NODE_ERROR(p, pattern_id)) {
+            return parser_error(p, pattern_id, RECOVERY_STMT);
+        }
 
         node = parser_get_node(p, id);
 
@@ -142,12 +162,16 @@ static AstNodeId parse_switch_case(Parser* p) {
             "add a ':' here"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
  
     parser_advance(p); // advance past ':'
  
     AstNodeId body = parse_case_body(p);
+
+    if (IS_NODE_ERROR(p, body)) {
+        return parser_error(p, id, RECOVERY_STMT);
+    }
  
     node = parser_get_node(p, id);
     node -> as.switch_case.block = body;
@@ -171,7 +195,8 @@ static AstNodeId parse_switch_default(Parser* p) {
         );
 
         AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -1);
-        return parser_error_stmt(p, id);
+
+        return parser_error(p, id, RECOVERY_STMT);
     }
  
     parser_advance(p); // advance past ':'
@@ -195,6 +220,10 @@ static AstNodeId parse_case_body(Parser* p) {
            !parser_check(p, TOK_R_BRACE)
     ) {
         AstNodeId stmt_id = parse_statement(p);
+
+        if (IS_NODE_ERROR(p, stmt_id)) {
+            return parser_error(p, stmt_id, RECOVERY_STMT);
+        }
 
         node = parser_get_node(p, id);
 

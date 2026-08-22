@@ -3,6 +3,7 @@
 #include "ast/parser/decl/decl.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/types/ty.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
@@ -21,8 +22,8 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
 
         AstNodeId type_expr_id = parse_type_expr(p);
 
-        if (type_expr_id == AST_NODE_ID_NONE) {
-            return parser_error_decl(p, id);
+        if (IS_NODE_ERROR(p, type_expr_id)) {
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         if (!parser_check(p, TOK_R_BRACKET)) {
@@ -37,7 +38,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
                 "add a ']' here"
             );
 
-            return parser_error_decl(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
         
         parser_advance(p); // advance past ']'
@@ -58,7 +59,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
             "add a '}' here"
         );
 
-        return parser_error_decl(p, id);
+        return parser_error(p, id, RECOVERY_DECL);
     }
 
     parser_advance(p); // advance past '{'
@@ -79,7 +80,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
                 "add a valid identifier here"
             );
 
-            return parser_error_decl(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         parser_advance(p); // advance past identifier
@@ -90,7 +91,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
             value_expr_id = parse_expression(p, 0);
 
             if (IS_NODE_ERROR(p, value_expr_id)) {
-                return parser_error_decl(p, id);
+                return parser_error(p, id, RECOVERY_DECL);
             }
         }
 
@@ -106,7 +107,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
                 "add a ';' here"
             );
 
-            return parser_error_decl(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         AstNodeId variant_node_id = parser_create_node(p, AST_VARIANT, AST_FLAGS_NONE, 0);

@@ -3,6 +3,7 @@
 #include "ast/parser/parser.h"
 #include "ast/parser/decl/decl.h"
 #include "ast/parser/types/ty.h"
+#include "ast/parser/recovery/recovery.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "ids.h"
@@ -27,7 +28,7 @@ AstNodeId parse_struct_decl(Parser* p, StringId name) {
             "add a '{' here" 
         );
 
-        return parser_recover_end_of_fn(p, id);
+        return parser_error(p, id, RECOVERY_DECL);
     }
 
     parser_advance(p); // advance past '{'
@@ -48,7 +49,7 @@ AstNodeId parse_struct_decl(Parser* p, StringId name) {
                 "add a valid identifier here"
             );
 
-            return parser_error_decl(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         parser_advance(p); // advance past identifier
@@ -63,15 +64,15 @@ AstNodeId parse_struct_decl(Parser* p, StringId name) {
                 "add a ':' here"
             );
 
-            return parser_error_decl(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         parser_advance(p); // advance past ':'
 
         type_expr_id = parse_type_expr(p);
 
-        if (type_expr_id == AST_NODE_ID_NONE) {
-            return parser_error_decl(p, id);
+        if (IS_NODE_ERROR(p, type_expr_id)) {
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         if (!parser_check(p, TOK_SEMI)) {
@@ -86,7 +87,7 @@ AstNodeId parse_struct_decl(Parser* p, StringId name) {
                 "add a ';' here"
             );
 
-            return parser_error_decl(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
         }
 
         AstNodeId field_node_id = parser_create_node(p, AST_FIELD, AST_FLAGS_NONE, 0);

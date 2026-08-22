@@ -1,8 +1,9 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
+#include "ast/parser/recovery/types.h"
 #include "ast/parser/stmts/stmts.h"
 #include "ast/parser/stmts/stmts.h"
-#include "diagnostics/diagnostics.h"
 #include "ids.h"
 
 AstNodeId parse_defer_statement(Parser* p) {
@@ -13,6 +14,10 @@ AstNodeId parse_defer_statement(Parser* p) {
     // TODO: Think about this, could check in semantics that all 
     // statements are valid defers or create a block parser here
     AstNodeId deferred_statment = parse_statement(p);
+
+    if (IS_NODE_ERROR(p, deferred_statment)) {
+        return parser_error(p, id, RECOVERY_STMT);
+    }
 
     // if (!parser_check(p, TOK_SEMI)) {
     //     Token previous = parser_peek_previous(p);

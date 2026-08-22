@@ -10,10 +10,6 @@ AstNodeId parse_enum_decl(Parser* p, StringId name);
 AstNodeId parse_struct_decl(Parser* p, StringId name);
 AstNodeId parse_union_decl(Parser* p, StringId name);
 
-// recovery
-AstNodeId parser_error_decl(Parser* p, AstNodeId id);
-AstNodeId parser_recover_end_of_fn(Parser* p, AstNodeId id);
-
-void parser_recover_decl(Parser* p);
+// void parser_recover_decl(Parser* p);
 
 #endif // !LILY_AST_PARSER_DECL_H

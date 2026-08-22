@@ -1,6 +1,7 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
 #include "ids.h"
@@ -14,13 +15,13 @@ AstNodeId parse_for_loop(Parser* p ) {
     AstNodeId init_id = parse_variable_decl(p);
 
     if (IS_NODE_ERROR(p, init_id)) {
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
 
     AstNodeId cond_id = parse_expression(p, 0);
 
     if (IS_NODE_ERROR(p, cond_id)) {
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
 
     if (!parser_check(p, TOK_SEMI)) {
@@ -35,7 +36,7 @@ AstNodeId parse_for_loop(Parser* p ) {
             "add a ';' here"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
 
     parser_advance(p); // advance past ';'
@@ -43,7 +44,7 @@ AstNodeId parse_for_loop(Parser* p ) {
     AstNodeId step_id = parse_expression(p, 0);
 
     if (IS_NODE_ERROR(p, step_id)) {
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
 
     if (!parser_check(p, TOK_L_BRACE)) {
@@ -58,10 +59,14 @@ AstNodeId parse_for_loop(Parser* p ) {
             "add a '{' here"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
 
     AstNodeId block_id = parse_block(p);
+
+    if (IS_NODE_ERROR(p, block_id)) {
+        return parser_error(p, id, RECOVERY_STMT);
+    }
 
     AstNode* node = parser_get_node(p, id);
 

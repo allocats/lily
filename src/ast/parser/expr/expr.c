@@ -2,7 +2,7 @@
 #include "ast/parser/expr/expr.h"
 #include "ast/nodes/types.h"
 #include "ast/parser/expr/types.h"
-#include "ast/parser/stmts/stmts.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
 #include "string_interner/interner.h"
@@ -127,7 +127,7 @@ static AstNodeId nud(Parser* p, Token token) {
                     "add a ')' here"
                 );
 
-                return parser_error_stmt(p, id);
+                return parser_error(p, id, RECOVERY_EXPR);
             }
 
             parser_advance(p);
@@ -161,7 +161,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
             AstNodeId id  = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -1);
 
-            return parser_error_stmt(p, id);
+            return parser_error(p, id, RECOVERY_EXPR);
         } 
     }
 }
@@ -188,7 +188,7 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
                     "add a ')' here" 
                 );
 
-                return parser_error_stmt(p, id); 
+                return parser_error(p, id, RECOVERY_EXPR);
             }
 
             parser_advance(p);
@@ -215,7 +215,7 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
                     "add a ']' here" 
                 );
 
-                return parser_error_stmt(p, id); 
+                return parser_error(p, id, RECOVERY_EXPR);
             }
 
             parser_advance(p);
@@ -237,9 +237,9 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
                     "member access looks like: object.field"
                 );
 
-                AstNodeId err = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -1);
+                AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -1);
 
-                return parser_error_stmt(p, err);
+                return parser_error(p, id, RECOVERY_EXPR);
             }
 
             Token member_tok = parser_advance(p);
@@ -350,6 +350,8 @@ static void parse_call_args(Parser* p, AstNodeId id) {
 }
 
 static AstNodeId parse_field_init(Parser* p) {
+    AstNodeId id = parser_create_node(p, AST_FIELD_INIT, AST_FLAGS_NONE, 0);
+
     if (parser_check(p, TOK_DOT)) {
         parser_advance(p);
     } else {
@@ -363,15 +365,17 @@ static AstNodeId parse_field_init(Parser* p) {
             "expected '.' before field name",
             "struct literal fields look like: .name = value"
         );
+
+        return parser_error(p, id, RECOVERY_EXPR);
     }
  
-    AstNodeId id = parser_create_node(p, AST_FIELD_INIT, AST_FLAGS_NONE, 0);
     AstNodeId field = parse_expression(p, 0);
  
     if (parser_check(p, TOK_EQ)) {
         parser_advance(p);
     } else {
         Token bad = parser_peek(p);
+
         diagnostic_add_token(
             p -> current_file -> id,
             DIAG_ERROR,
@@ -380,6 +384,8 @@ static AstNodeId parse_field_init(Parser* p) {
             "expected '=' after field name",
             "struct literal fields look like: .name = value"
         );
+
+        return parser_error(p, id, RECOVERY_EXPR);
     }
  
     AstNodeId value = parse_expression(p, 0);

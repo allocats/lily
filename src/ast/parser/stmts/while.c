@@ -1,6 +1,7 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
 #include "ids.h"
@@ -12,6 +13,10 @@ AstNodeId parse_while_loop(Parser* p) {
     parser_advance(p); // advance past "while"
 
     AstNodeId condition_expr_id = parse_expression(p, 0);
+
+    if (IS_NODE_ERROR(p, condition_expr_id)) {
+        return parser_error(p, id, RECOVERY_STMT);
+    }
 
     AstNode* node = parser_get_node(p, id);
 
@@ -29,10 +34,14 @@ AstNodeId parse_while_loop(Parser* p) {
             "add a '{' here"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
 
     AstNodeId block_id = parse_block(p);
+
+    if (IS_NODE_ERROR(p, block_id)) {
+        return parser_error(p, id, RECOVERY_STMT);
+    }
 
     node = parser_get_node(p, id);
 

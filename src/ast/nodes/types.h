@@ -29,6 +29,7 @@ static_assert(AST_FLAGS_IS_EXTERNAL != AST_FLAGS_IS_VARIADIC);
 #define AST_NODES(X)        \
     X(AST_ERROR)            \
                             \
+    X(AST_EXECUTE_DIRECTIVE)\
     X(AST_IMPORT_DIRECTIVE) \
     X(AST_PASTE_DIRECTIVE)  \
                             \
@@ -110,6 +111,12 @@ typedef struct {
     u32 count;
     u32 capacity;
 } AstNodeIdList;
+
+
+
+typedef struct {
+    AstNodeId expr;
+} AstExecuteDirective;
 
 
 
@@ -364,6 +371,7 @@ typedef struct {
 
     union {
         // Directives ("#ident ...") 
+        AstExecuteDirective execute_directive;
         AstImportDirective import_directive;
         AstPasteDirective  paste_directive;
 

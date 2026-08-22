@@ -2,6 +2,8 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
+#include "ast/parser/recovery/types.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
 #include "ids.h"
@@ -18,6 +20,10 @@ AstNodeId parse_if_statement(Parser* p) {
     while (p -> cursor < p -> token_count) {
         AstNodeId condition_expr_id = parse_expression(p, 0); 
 
+        if (IS_NODE_ERROR(p, condition_expr_id)) {
+            return parser_error(p, id, RECOVERY_STMT);
+        }
+
         if (!parser_check(p, TOK_L_BRACE)) {
             Token previous = parser_peek_previous(p);
 
@@ -30,10 +36,14 @@ AstNodeId parse_if_statement(Parser* p) {
                 "add a '{' here"
             );
 
-            return parser_error_stmt(p, id);
+            return parser_error(p, id, RECOVERY_STMT);
         }
 
         AstNodeId block_id = parse_block(p);
+
+        if (IS_NODE_ERROR(p, block_id)) {
+            return parser_error(p, id, RECOVERY_STMT);
+        }
 
         AstNodeId branch_id  = parser_create_node(p, AST_BRANCH, AST_FLAGS_NONE, p -> cursor - starting_index);
         AstNode* branch_node = parser_get_node(p, branch_id);
@@ -54,6 +64,10 @@ AstNodeId parse_if_statement(Parser* p) {
         if (parser_check(p, TOK_L_BRACE)) {
             AstNodeId else_id = parse_block(p);
 
+            if (IS_NODE_ERROR(p, else_id)) {
+                return parser_error(p, id, RECOVERY_STMT);
+            }
+
             node = parser_get_node(p, id);
             node -> as.if_stmt.else_block = else_id;
             break;
@@ -71,7 +85,7 @@ AstNodeId parse_if_statement(Parser* p) {
                 "add a 'if' here"
             );
 
-            return parser_error_stmt(p, id);
+            return parser_error(p, id, RECOVERY_STMT);
         }
 
         parser_advance(p);

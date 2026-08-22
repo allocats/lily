@@ -2,6 +2,7 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/directive/directive.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "diagnostics/diagnostics.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
@@ -45,6 +46,6 @@ AstNodeId parse_top_level_decl(Parser* p) {
             );
 
             AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_IS_TOP_DECL, 0);
-            return parser_error_decl(p, id);
+            return parser_error(p, id, RECOVERY_DECL);
     }
 }

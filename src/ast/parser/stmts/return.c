@@ -1,6 +1,7 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
+#include "ast/parser/recovery/recovery.h"
 #include "ast/parser/stmts/stmts.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
@@ -12,6 +13,10 @@ AstNodeId parse_return_statement(Parser* p) {
     parser_advance(p); // advance past "return"
 
     AstNodeId return_expr = parse_expression(p, 0);
+
+    if (IS_NODE_ERROR(p, return_expr)) {
+        return parser_error(p, id, RECOVERY_STMT);
+    }
 
     if (!parser_check(p, TOK_SEMI)) {
         Token previous = parser_peek_previous(p);
@@ -25,7 +30,7 @@ AstNodeId parse_return_statement(Parser* p) {
             "add a ';' here after the return statement's expresion"
         );
 
-        return parser_error_stmt(p, id);
+        return parser_error(p, id, RECOVERY_STMT);
     }
 
     AstNode* node = parser_get_node(p, id);
