@@ -1,7 +1,41 @@
 #include "hash/hash.h"
 
+#include <immintrin.h>
+#include <string.h>
+
 #define FNV1A32_BASIS 0x811c9dc5
 #define FNV1A32_PRIME 0x01000193
+
+u32 hash_crc32_str(char* pointer, u32 length) {
+    u64 hash = 0xFFFFFFFF;
+
+    char* ptr = pointer;
+    u32 len = length;
+
+    while (len >= 8) {
+        u64 chunk;
+        memcpy(&chunk, ptr, 8);
+        hash = _mm_crc32_u64(hash, chunk);
+
+        ptr += 8;
+        len -= 8;
+    } 
+
+    while (len >= 4) {
+        u64 chunk;
+        memcpy(&chunk, ptr, 4);
+        hash = _mm_crc32_u32((u32)hash, chunk);
+
+        ptr += 4;
+        len -= 4;
+    } 
+
+    while (len--) {
+        hash = _mm_crc32_u8((u32) hash, *ptr++);
+    }
+
+    return (u32) hash;
+}
 
 u32 hash_fnv1a_str8(str8 str) {
     u32 hash = FNV1A32_BASIS;

@@ -7,19 +7,28 @@
 
 typedef struct {
     str8 str;
-    u32  hash;
+    u32 hash;
 } StringEntry;
+
+static_assert(sizeof(StringEntry) == 16);
+
+typedef struct {
+    StringId id;
+    u32 hash;
+} StringBucket;
 
 typedef struct {
     Arena arena;
 
     StringEntry* entries;
-    StringId* buckets;
+    StringBucket* buckets;
 
     u32 count;
 
     u32 bucket_capacity;
     u32 entry_capacity;
+
+    u32 resize_threshold_as_u32;
 } StringInterner;
 
 #endif // !LILY_STRING_INTERNER_TYPES_H
