@@ -6,7 +6,7 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
 #include "cli/cli.h"
-// #include "cmd/cmd.h"
+#include "cmd/cmd.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "driver/types.h"
