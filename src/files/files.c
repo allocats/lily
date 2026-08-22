@@ -72,7 +72,7 @@ FileId file_intern(str8 path) {
         files_buckets_resize(interner);
     }
 
-    u32 hash  = hash_fnv1a_str8(path);
+    u32 hash  = hash_crc32_str(path.ptr, path.len);
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask; 
 
@@ -132,7 +132,7 @@ FileId file_lookup(str8 path) {
 
     FileInterner* interner = &driver.file_interner;
 
-    u32 hash  = hash_fnv1a_str8(path);
+    u32 hash  = hash_crc32_str(path.ptr, path.len);
     u32 index = hash & (interner -> bucket_capacity - 1); 
 
     while (interner -> buckets[index] != FILE_ID_NONE) {
@@ -265,7 +265,7 @@ static str8 allocate_buffer(str8 path) {
         (i32) path.len,
         path.ptr,
         buffer_size,
-        hash_fnv1a_str8(path)
+        hash_crc32_str(path.ptr, path.len)
     );
 
 exit_fd_open:
