@@ -4,47 +4,25 @@
 #include "ids.h"
 #include "token/types.h"
 
-static const bool STMT_SYNC_TOKENS[] = {
-    [TOK_EOF]       = true,
+static constexpr u64 stmt_sync_tokens = (u64)  0
+                                      | ((u64) 1 << TOK_EOF)
+                                      | ((u64) 1 << TOK_KW_IF)
+                                      | ((u64) 1 << TOK_KW_SWITCH)
+                                      | ((u64) 1 << TOK_KW_FOR)
+                                      | ((u64) 1 << TOK_KW_WHILE)
+                                      | ((u64) 1 << TOK_KW_DEFER)
+                                      | ((u64) 1 << TOK_KW_RETURN)
+                                      | ((u64) 1 << TOK_R_BRACE)
+                                      | ((u64) 1 << TOK_SEMI)
+                                      | ((u64) 1 << TOK_HASHTAG);
 
-    [TOK_EOF + 1 ... TOK_KW_IF - 1] = false,
-
-    [TOK_KW_IF]     = true,
-    [TOK_KW_SWITCH] = true,
-    [TOK_KW_FOR]    = true,
-    [TOK_KW_WHILE]  = true,
-    [TOK_KW_DEFER]  = true,
-    [TOK_KW_RETURN] = true,
-
-    [TOK_KW_RETURN + 1 ... TOK_R_BRACE - 1] = false,
-
-    [TOK_R_BRACE]   = true,
-    [TOK_SEMI]      = true,
-
-    [TOK_SEMI + 1 ... TOK_HASHTAG - 1] = false,
-    
-    [TOK_HASHTAG]   = true,
-};
-
-static const bool EXPR_SYNC_TOKENS[] = {
-    [TOK_EOF]       = true,
-
-    [TOK_EOF + 1 ... TOK_R_PAREN - 1] = false,
-
-    [TOK_R_PAREN]   = true,
-    [TOK_R_PAREN + 1 ... TOK_R_BRACE - 1] = false,
-
-    [TOK_R_BRACE]   = true,
-    [TOK_R_BRACE + 1 ... TOK_R_BRACKET - 1] = false,
-    
-    [TOK_R_BRACKET] = true,
-    [TOK_R_BRACKET + 1 ... TOK_COMMA - 1] = false,
-
-    [TOK_COMMA]     = true,
-    [TOK_COMMA + 1 ... TOK_SEMI - 1] = false,
-
-    [TOK_SEMI]      = true,
-};
+static constexpr u64 expr_sync_tokens = (u64)  0
+                                      | ((u64) 1 << TOK_EOF)
+                                      | ((u64) 1 << TOK_R_PAREN)
+                                      | ((u64) 1 << TOK_R_BRACE)
+                                      | ((u64) 1 << TOK_R_BRACKET)
+                                      | ((u64) 1 << TOK_COMMA)
+                                      | ((u64) 1 << TOK_SEMI);
 
 static bool is_sync_token(RecoveryKind recovery_kind, TokenKind token_kind) {
     switch (recovery_kind) {
@@ -52,11 +30,11 @@ static bool is_sync_token(RecoveryKind recovery_kind, TokenKind token_kind) {
             return token_kind == TOK_HASHTAG || token_kind == TOK_EOF;
 
         case RECOVERY_STMT:
-            return STMT_SYNC_TOKENS[token_kind];
+            return stmt_sync_tokens & (1 << token_kind); 
 
         case RECOVERY_EXPR:
         case RECOVERY_TYPE:
-            return EXPR_SYNC_TOKENS[token_kind];
+            return expr_sync_tokens & (1 << token_kind);
 
         case RECOVERY_BLOCK:
             return token_kind == TOK_R_BRACE || token_kind == TOK_EOF;
