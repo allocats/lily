@@ -2,7 +2,6 @@
 #define LILY_LEXER_TYPES_H
 
 #include "utils/types.h"
-#include "token/types.h"
 
 static constexpr u32 DELIMITER_STACK_MAX_DEPTH = 2048;
 
