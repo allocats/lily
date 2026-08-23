@@ -26,6 +26,9 @@ AstNodeId parse_top_level_decl(Parser* p) {
         case TOK_HASHTAG:
             return parse_directive(p);
 
+        case TOK_KW_EXTERNAL:
+            return parse_external_decl(p, name_id);
+
         case TOK_KW_FN:
             return parse_function_decl(p, name_id);
 
@@ -46,7 +49,7 @@ AstNodeId parse_top_level_decl(Parser* p) {
                 &token,
                 DIAG_LOC_WHOLE_TOK,
                 "invalid top level declaration",
-                "expected (':' | '::') after identifier"
+                "expected (fn | struct | enum | union | external | #directive) after '::'"
             );
 
             AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_IS_TOP_DECL, 0);

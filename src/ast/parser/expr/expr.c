@@ -229,6 +229,52 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
 
         case TOK_ARROW:
         case TOK_DOT: {
+            if (parser_check(p, TOK_L_BRACE)) {
+                AstNodeId id = parser_create_node(p, AST_STRUCT_LITERAL, AST_FLAGS_NONE, -1);
+
+                parser_advance(p);
+
+                if (!parser_check(p, TOK_R_BRACE)) {
+                    while (p -> cursor < p -> token_count) {
+                        AstNodeId field_id = parse_field_init(p);
+
+                        AstNode* node = parser_get_node(p, id);
+                        ast_id_list_append(&node -> as.struct_literal.inits, &p -> current_file -> ast, field_id);
+
+                        if (!parser_check(p, TOK_COMMA)) {
+                            break;
+                        }
+
+                        parser_advance(p);
+
+                        if (parser_check(p, TOK_R_BRACE)) {
+                            break;
+                        }
+                    }
+                }
+
+                if (parser_check(p, TOK_R_BRACE)) {
+                    parser_advance(p);
+                } else {
+                    Token bad = parser_peek(p);
+
+                    diagnostic_add_token(
+                        p -> current_file -> id,
+                        DIAG_ERROR,
+                        &bad,
+                        DIAG_LOC_WHOLE_TOK,
+                        "expected '}' to close struct literal",
+                        "add a closing brace"
+                    );
+                }
+
+                AstNode* node = parser_get_node(p, id);
+
+                node -> as.struct_literal.struct_type = left;
+
+                return id;
+            }
+
             if (!parser_check(p, TOK_IDENT)) {
                 Token bad = parser_peek(p);
 
@@ -261,50 +307,6 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
             node -> as.member_access.used_pointer_access = (token.kind == TOK_ARROW);
             node -> as.member_access.object = left;
             node -> as.member_access.member = member_node_id;
-
-            return id;
-        }
-
-        case TOK_L_BRACE: {
-            AstNodeId id = parser_create_node(p, AST_STRUCT_LITERAL, AST_FLAGS_NONE, 0);
-
-            if (!parser_check(p, TOK_R_BRACE)) {
-                while (p -> cursor < p -> token_count) {
-                    AstNodeId field_id = parse_field_init(p);
-
-                    AstNode* node = parser_get_node(p, id);
-                    ast_id_list_append(&node -> as.struct_literal.inits, &p -> current_file -> ast, field_id);
-
-                    if (!parser_check(p, TOK_COMMA)) {
-                        break;
-                    }
-
-                    parser_advance(p);
-
-                    if (parser_check(p, TOK_R_BRACE)) {
-                        break;
-                    }
-                }
-            }
-
-            if (parser_check(p, TOK_R_BRACE)) {
-                parser_advance(p);
-            } else {
-                Token bad = parser_peek(p);
-
-                diagnostic_add_token(
-                    p -> current_file -> id,
-                    DIAG_ERROR,
-                    &bad,
-                    DIAG_LOC_WHOLE_TOK,
-                    "expected '}' to close struct literal",
-                    "add a closing brace"
-                );
-            }
-
-            AstNode* node = parser_get_node(p, id);
-
-            node -> as.struct_literal.struct_type = left;
 
             return id;
         }
@@ -373,7 +375,7 @@ static AstNodeId parse_field_init(Parser* p) {
         return parser_error(p, id, RECOVERY_EXPR);
     }
  
-    AstNodeId field = parse_expression(p, 0);
+    AstNodeId field = parse_expression(p, 119);
  
     if (parser_check(p, TOK_EQ)) {
         parser_advance(p);

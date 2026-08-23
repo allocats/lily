@@ -44,10 +44,17 @@ AstNodeId parse_param_type_expr(Parser* p) {
 }
 
 AstNodeId parse_type_expr(Parser* p) {
+    p -> parsing_type = true;
+
     u32 start_index = p -> cursor;
     u32 flags = AST_FLAGS_NONE;
 
     // NOTE: caller must set its identifier to const as well
+    if (parser_check(p, TOK_KW_EXTERNAL)) {
+        parser_advance(p);
+
+        flags |= AST_FLAGS_IS_EXTERNAL;
+    }
 
     if (parser_check(p, TOK_KW_CONST)) {
         parser_advance(p);
@@ -331,6 +338,8 @@ AstNodeId parse_type_expr(Parser* p) {
 
     node -> tokens.start = start_index;
     node -> tokens.end = p -> cursor - 1;
+
+    p -> parsing_type = false;
 
     return id;
 }

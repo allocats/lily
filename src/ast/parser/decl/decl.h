@@ -5,6 +5,7 @@
 
 AstNodeId parse_top_level_decl(Parser* p);
 
+AstNodeId parse_external_decl(Parser* p, StringId name);
 AstNodeId parse_function_decl(Parser* p, StringId name);
 AstNodeId parse_enum_decl(Parser* p, StringId name);
 AstNodeId parse_struct_decl(Parser* p, StringId name);

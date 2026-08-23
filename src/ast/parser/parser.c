@@ -35,7 +35,8 @@ void parse_file(FileId id) {
         .current_file = file,
         .tokens_array = &file -> tokens,
         .token_count = file -> tokens.count,
-        .cursor = 0
+        .cursor = 0,
+        .parsing_type = false
     };
 
     while (p.cursor < p.token_count) {
@@ -92,6 +93,8 @@ void parse_file(FileId id) {
             parser_error(&p, node_id, RECOVERY_DECL);
         }
     }
+
+    file -> stage = FILE_PARSED;
 }
 
 // going to keep this AstNodeId for dangling lifetime issues, 
@@ -104,6 +107,7 @@ AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, u32 start_o
     node -> kind = kind;
     node -> flags = flags;
     node -> tokens.start = p -> cursor + start_offset;
+    node -> tokens.end = node -> tokens.start;
 
     Arena* gpa = &p -> current_file -> ast.gpa;
 

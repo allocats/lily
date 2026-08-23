@@ -72,7 +72,7 @@ static OpInfo op_table[] = {
     [TOK_ARROW]         = L(120),
     [TOK_DOT]           = L(120),
 
-    [TOK_L_BRACE]       = L(120),
+    // [TOK_L_BRACE]       = L(120),
 };
 
 static constexpr u32 OP_TABLE_LEN = (sizeof(op_table) / sizeof(op_table[0]));

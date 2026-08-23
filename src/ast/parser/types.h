@@ -12,6 +12,8 @@ typedef struct {
 
     u32 cursor;
     u32 token_count;
+
+    bool parsing_type;
 } Parser;
 
 #endif // !LILY_PARSER_TYPES_H
