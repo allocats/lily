@@ -39,6 +39,8 @@ void file_interner_init(u32 count) {
     assert(count > 0);
     assert((count & (count - 1)) == 0); // assert that count is a power of two
 
+    count *= 2;
+
     FileInterner* interner = &driver.file_interner;
 
     arena_init(&interner -> buffer_arena, ARENA_KB(interner_init_buffers_arena_kb), ALIGN_DEFAULT);
@@ -50,10 +52,12 @@ void file_interner_init(u32 count) {
     interner -> entries = arena_alloc_array(&interner -> interner_arena, File, count);
     interner -> entry_capacity = count;
 
-    interner -> buckets = arena_alloc_array(&interner -> interner_arena, FileId, count);
+    interner -> buckets = arena_alloc_array(&interner -> interner_arena, FileBucket, count);
     interner -> bucket_capacity = count;
 
     interner -> count = 0;
+
+    interner -> resize_threshold_as_u32 = (u32)(count * interner_load_factor);
 
     arena_memset(interner -> entries, 0, sizeof(File) * count);
     arena_memset(interner -> buckets, U8_MAX, sizeof(FileId) * count);
@@ -68,7 +72,7 @@ FileId file_intern(str8 path) {
 
     FileInterner* interner = &driver.file_interner;
     
-    if (UNLIKELY(interner -> count >= interner -> bucket_capacity * interner_load_factor)) {
+    if (UNLIKELY(interner -> count >= interner -> resize_threshold_as_u32)) {
         files_buckets_resize(interner);
     }
 
@@ -76,17 +80,16 @@ FileId file_intern(str8 path) {
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask; 
 
-    while (interner -> buckets[index] != FILE_ID_NONE) {
-        FileId id  = interner -> buckets[index];
-        File* file = &interner -> entries[id]; 
+    while (interner -> buckets[index].id != FILE_ID_NONE) {
+        FileBucket bucket = interner -> buckets[index];
 
-        if (
-            file -> hash == hash &&
-            file -> path.len == path.len &&
-            memcmp(file -> path.ptr, path.ptr, path.len) == 0
-        ) {
-            debug_printf("intern() found %d for 0x%x", id, hash);
-            return id;
+        if (bucket.hash == hash) {
+            File* file = &interner -> entries[bucket.id]; 
+
+            if (file -> path.len == path.len && memcmp(file -> path.ptr, path.ptr, path.len) == 0) {
+                debug_printf("intern() found %d for 0x%x", bucket.id, hash);
+                return bucket.id;
+            }
         }
 
         index = (index + 1) & mask;
@@ -106,7 +109,8 @@ FileId file_intern(str8 path) {
     FileId id  = interner -> count++;
     File* file = &interner -> entries[id];
 
-    interner -> buckets[index] = id;
+    interner -> buckets[index].id = id;
+    interner -> buckets[index].hash = hash;
 
     file -> path   = path;
     file -> hash   = hash; 
@@ -135,17 +139,16 @@ FileId file_lookup(str8 path) {
     u32 hash  = hash_crc32_str(path.ptr, path.len);
     u32 index = hash & (interner -> bucket_capacity - 1); 
 
-    while (interner -> buckets[index] != FILE_ID_NONE) {
-        FileId id  = interner -> buckets[index];
-        File* file = &interner -> entries[id]; 
+    while (interner -> buckets[index].id != FILE_ID_NONE) {
+        FileBucket bucket = interner -> buckets[index];
 
-        if (
-            file -> hash == hash &&
-            file -> path.len == path.len &&
-            memcmp(file -> path.ptr, path.ptr, path.len) == 0
-        ) {
-            debug_printf("lookup() found file 0x%x at id=%u", hash, id);
-            return id;
+        if (bucket.hash == hash) {
+            File* file = &interner -> entries[bucket.id]; 
+
+            if (file -> path.len == path.len && memcmp(file -> path.ptr, path.ptr, path.len) == 0) {
+                debug_printf("lookup() found file 0x%x at id=%u", hash, bucket.id);
+                return bucket.id;
+            }
         }
 
         index = (index + 1) & (interner -> bucket_capacity - 1);
@@ -162,12 +165,12 @@ inline File* file_lookup_id(FileId id) {
 }
 
 static void files_buckets_resize(FileInterner* interner) {
-    u64 old_size = interner -> bucket_capacity * sizeof(FileId);
+    u64 old_size = interner -> bucket_capacity * sizeof(FileBucket);
     u64 new_size = old_size * 2;
 
     u32 new_capacity = interner -> bucket_capacity * 2;
 
-    FileId* new_buckets = arena_alloc(&interner -> interner_arena, new_size);
+    FileBucket* new_buckets = arena_alloc(&interner -> interner_arena, new_size);
     arena_memset(new_buckets, U8_MAX, new_size);
 
     debug_printf("Interner -> buckets resize %lu -> %lu bytes", old_size , new_size);
@@ -177,15 +180,17 @@ static void files_buckets_resize(FileInterner* interner) {
 
         u32 new_index = entry -> hash & (new_capacity - 1);
 
-        while (new_buckets[new_index] != FILE_ID_NONE) {
+        while (new_buckets[new_index].id != FILE_ID_NONE) {
             new_index = (new_index + 1) & (new_capacity - 1);
         }
 
-        new_buckets[new_index] = i;
+        new_buckets[new_index].id = i;
+        new_buckets[new_index].hash = entry -> hash;
     }
 
     interner -> buckets = new_buckets;
     interner -> bucket_capacity = new_capacity;
+    interner -> resize_threshold_as_u32 = (u32)(new_capacity * interner_load_factor);
 }
 
 static void files_entries_resize(FileInterner* interner) {

@@ -14,6 +14,11 @@ typedef enum {
 } FileStage;
 
 typedef struct {
+    FileId id;
+    u32 hash;
+} FileBucket;
+
+typedef struct {
     Ast ast;
 
     TokenArray tokens;
@@ -37,13 +42,15 @@ typedef struct {
     // arena for buckets and entries
     Arena interner_arena;
 
-    FileId* buckets;
-    File*   entries;
+    FileBucket* buckets;
+    File* entries;
 
     u32 count;
 
     u32 bucket_capacity;
     u32 entry_capacity;
+
+    u32 resize_threshold_as_u32;
 } FileInterner;
 
 #endif // !LILY_FILES_TYPES_H
