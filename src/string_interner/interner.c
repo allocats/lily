@@ -74,10 +74,7 @@ StringId string_intern_str8(str8 str) {
         if (bucket.hash == hash) {
             StringEntry entry = interner -> entries[bucket.id];
 
-            if (
-                entry.str.len == str.len &&
-                memcmp(entry.str.ptr, str.ptr, str.len) == 0
-            ) {
+            if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
                 debug_printf("string_intern_str8() found and returned %d", bucket.id);
                 return bucket.id;
             }
@@ -126,10 +123,7 @@ StringId string_lookup_str8(str8 str) {
         if (bucket.hash == hash) {
             StringEntry entry = interner -> entries[bucket.id];
 
-            if (
-                entry.str.len == str.len &&
-                memcmp(entry.str.ptr, str.ptr, str.len) == 0
-            ) {
+            if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
                 debug_printf("string_interner_lookup_str8() returned %d", bucket.id);
                 return bucket.id;
             }
@@ -166,10 +160,7 @@ StringId string_intern_cstr(const char* str) {
         if (bucket.hash == hash) {
             StringEntry entry = interner -> entries[bucket.id];
 
-            if (
-                entry.str.len == len &&
-                memcmp(entry.str.ptr, str, len) == 0
-            ) {
+            if (entry.str.len == len && memcmp(entry.str.ptr, str, len) == 0) {
                 debug_printf("string_intern_cstr() found and returned %d", bucket.id);
                 return bucket.id;
             }
@@ -222,10 +213,7 @@ StringId string_lookup_cstr(const char* str) {
         if (bucket.hash == hash) {
             StringEntry entry = interner -> entries[bucket.id];
 
-            if (
-                entry.str.len == len &&
-                memcmp(entry.str.ptr, str, len) == 0
-            ) {
+            if (entry.str.len == len && memcmp(entry.str.ptr, str, len) == 0) {
                 debug_printf("string_interner_lookup_cstr() returned %d", bucket.id);
                 return bucket.id;
             }

@@ -17,6 +17,8 @@ typedef struct {
     u32 hash;
 } StringBucket;
 
+static_assert(sizeof(StringBucket) == 8);
+
 typedef struct {
     Arena arena;
 

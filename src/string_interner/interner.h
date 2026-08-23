@@ -5,10 +5,10 @@
 #include "token/types.h"
 #include "utils/types.h"
 
-#define STRING_ID_LOOKUP(index)         (driver_ctx.string_interner.entries[index])
-#define STRING_ID_LOOKUP_REF(index)     (&driver_ctx.string_interner.entries[index])
+#define STRING_ID_LOOKUP(index)         (driver.string_interner.entries[index])
+#define STRING_ID_LOOKUP_REF(index)     (&driver.string_interner.entries[index])
 
-#define STR8_PRINT(id) STRING_ID_LOOKUP(id).str.length, STRING_ID_LOOKUP(id).str.pointer
+#define STR8_PRINT(id) STRING_ID_LOOKUP(id).str.len, STRING_ID_LOOKUP(id).str.ptr
 
 void string_interner_init(void);
 
