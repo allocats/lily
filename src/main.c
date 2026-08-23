@@ -1,15 +1,16 @@
-#include "files/types.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
 
 #include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
+#include "ast/tree/tree.h"
 #include "cli/cli.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "files/types.h"
 #include "lexer/lexer.h"
 #include "token/token.h"
 #include "token/types.h"
@@ -76,6 +77,12 @@ i32 main(i32 argc, char** argv) {
     if (driver.flags & DRIVER_FLAGS_DUMP_TOKENS) {
         for (u32 i = 0; i < driver.file_interner.count; i++) {
             tokens_print(i);
+        }
+    }
+
+    if (driver.flags & DRIVER_FLAGS_DUMP_AST) {
+        for (u32 i = 0; i < driver.file_interner.count; i++) {
+            ast_print("ast.txt\0", &driver.file_interner.entries[i].ast);
         }
     }
 

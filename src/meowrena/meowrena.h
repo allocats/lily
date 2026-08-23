@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "utils/debug.h"
 #include "utils/types.h"
@@ -59,7 +60,7 @@ void* arena_memset(void* ptr, u8 value, u64 size);
 void  arena_reset(Arena* arena);
 void  arena_destroy(Arena* arena);
 
-void  arena_print_stats(Arena* arena, char* label);
+void  arena_print_stats(FILE* fd, Arena* arena, char* label);
 u64   arena_total_usage(Arena* arena);
 u64   arena_total_capacity(Arena* arena);
 
@@ -208,17 +209,17 @@ void arena_destroy(Arena* arena) {
     }
 }
 
-void arena_print_stats(Arena* arena, char* label) {
+void arena_print_stats(FILE* fd, Arena* arena, char* label) {
     i64 block_count = 0;
 
     for (ArenaBlock* block = arena -> start; block != null; block = block -> next) {
         block_count++;
     }
 
-    printf("%s Stats:\n", label);
-    printf("  Blocks: %ld\n", block_count);
-    printf("  Total Usage: %ld\n", arena_total_usage(arena));
-    printf("  Total capacity: %ld\n\n", arena_total_capacity(arena));
+    fprintf(fd, "%s Stats:\n", label);
+    fprintf(fd, "  Blocks: %ld\n", block_count);
+    fprintf(fd, "  Total Usage: %ld\n", arena_total_usage(arena));
+    fprintf(fd, "  Total capacity: %ld\n\n", arena_total_capacity(arena));
 }
 
 u64 arena_total_usage(Arena* arena) {

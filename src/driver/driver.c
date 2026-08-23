@@ -44,10 +44,10 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
                 case 'd': {
                     if (FLAG_MATCHES(arg_len, arg, "-dump-tokens")) {
                         driver -> flags |= DRIVER_FLAGS_DUMP_TOKENS;
+                    } else if (FLAG_MATCHES(arg_len, arg, "-dump-ast")) {
+                        driver -> flags |= DRIVER_FLAGS_DUMP_AST;
                     } 
-                    // else if (FLAG_MATCHES(arg_len, arg, "-dump-ast")) {
-                    //     driver -> flags |= LILY_FLAGS_DUMP_AST;
-                    // } else if (FLAG_MATCHES(arg_len, arg, "-dump-types")) {
+                    // else if (FLAG_MATCHES(arg_len, arg, "-dump-types")) {
                     //     driver -> flags |= LILY_FLAGS_DUMP_TYPES;
                     // }
                 } break;

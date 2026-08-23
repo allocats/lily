@@ -26,60 +26,60 @@ static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_VARIADIC);
 
 static_assert(AST_FLAGS_IS_EXTERNAL != AST_FLAGS_IS_VARIADIC);
 
-#define AST_NODES(X)        \
-    X(AST_ERROR)            \
-                            \
-    X(AST_EXECUTE_DIRECTIVE)\
-    X(AST_IMPORT_DIRECTIVE) \
-    X(AST_PASTE_DIRECTIVE)  \
-                            \
-    X(AST_PARAMETER)        \
-    X(AST_FUNCTION_DECL)    \
-    X(AST_MACRO_DECL)       \
-                            \
-    X(AST_FIELD)            \
-    X(AST_STRUCT_DECL)      \
-    X(AST_UNION_DECL)       \
-                            \
-    X(AST_VARIANT)          \
-    X(AST_ENUM_DECL)        \
-                            \
-    X(AST_BLOCK)            \
-                            \
-    X(AST_VARIABLE_DECL)    \
-                            \
-    X(AST_DEFER_STMT)       \
-    X(AST_RETURN_STMT)      \
-                            \
-    X(AST_SWITCH_STMT)      \
-    X(AST_SWITCH_CASE)      \
-                            \
-    X(AST_BRANCH)           \
-    X(AST_IF_STMT)          \
-    X(AST_FOR_LOOP)         \
-    X(AST_WHILE_LOOP)       \
-                            \
-    X(AST_CONTINUE_STMT)    \
-    X(AST_BREAK_STMT)       \
-                            \
-    X(AST_BINARY_OP)        \
-    X(AST_UNARY_OP)         \
-    X(AST_FUNCTION_CALL)    \
-    X(AST_MACRO_CALL)       \
-    X(AST_IDENTIFIER)       \
-    X(AST_LITERAL)          \
-    X(AST_INDEX)            \
-    X(AST_MEMBER_ACCESS)    \
-    X(AST_FIELD_INIT)       \
-    X(AST_STRUCT_LITERAL)   \
-                            \
-    X(AST_TYPE_BASE)        \
-    X(AST_TYPE_ARRAY)       \
-    X(AST_TYPE_POINTER)     \
-    X(AST_TYPE_FUNCTION)    \
-    X(AST_TYPE_VARIADIC)    \
-                            \
-    X(AST_KINDS_COUNT)      \
+#define AST_NODES(X)            \
+    X(AST_ERROR)                \
+                                \
+    X(AST_EXECUTE_DIRECTIVE)    \
+    X(AST_IMPORT_DIRECTIVE)     \
+    X(AST_PASTE_DIRECTIVE)      \
+                                \
+    X(AST_PARAMETER)            \
+    X(AST_FUNCTION_DECL)        \
+    X(AST_MACRO_DECL)           \
+                                \
+    X(AST_FIELD)                \
+    X(AST_STRUCT_DECL)          \
+    X(AST_UNION_DECL)           \
+                                \
+    X(AST_VARIANT)              \
+    X(AST_ENUM_DECL)            \
+                                \
+    X(AST_BLOCK)                \
+                                \
+    X(AST_VARIABLE_DECL)        \
+                                \
+    X(AST_DEFER_STMT)           \
+    X(AST_RETURN_STMT)          \
+                                \
+    X(AST_SWITCH_STMT)          \
+    X(AST_SWITCH_CASE)          \
+                                \
+    X(AST_BRANCH)               \
+    X(AST_IF_STMT)              \
+    X(AST_FOR_LOOP)             \
+    X(AST_WHILE_LOOP)           \
+                                \
+    X(AST_CONTINUE_STMT)        \
+    X(AST_BREAK_STMT)           \
+                                \
+    X(AST_BINARY_OP)            \
+    X(AST_UNARY_OP)             \
+    X(AST_FUNCTION_CALL)        \
+    X(AST_MACRO_CALL)           \
+    X(AST_IDENTIFIER)           \
+    X(AST_LITERAL)              \
+    X(AST_INDEX)                \
+    X(AST_MEMBER_ACCESS)        \
+    X(AST_FIELD_INIT)           \
+    X(AST_STRUCT_LITERAL)       \
+                                \
+    X(AST_TYPE_BASE)            \
+    X(AST_TYPE_ARRAY)           \
+    X(AST_TYPE_POINTER)         \
+    X(AST_TYPE_FUNCTION)        \
+    X(AST_TYPE_VARIADIC)        \
+                                \
+    X(AST_KINDS_COUNT)          \
 
 typedef enum {
     AST_NODES(GENERATE_ENUM)
