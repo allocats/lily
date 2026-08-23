@@ -11,22 +11,6 @@
 
 extern DriverCtx driver;
 
-static void ast_print_indent(FILE *out, u32 depth) {
-    for (u32 i = 0; i < depth; i++) {
-        fprintf(out, "│   ");
-    }
-}
-
-static void ast_print_branch(FILE *out, u32 depth, bool last) {
-    ast_print_indent(out, depth);
-
-    if (last) {
-        fprintf(out, "└── ");
-    } else {
-        fprintf(out, "├── ");
-    }
-}
-
 static void ast_print_separator(FILE *out) {
     fprintf(out, "\n======================================================================\n");
 }
@@ -42,48 +26,6 @@ static void ast_print_string_id(FILE *out, const char *label, StringId id) {
     }
 
     fprintf(out, "\n");
-}
-
-static void ast_print_span(FILE *out, const char *label, SpanU32 span) {
-    fprintf(
-        out,
-        "%s: [%u, %u)" "  (length=%u)\n",
-        label,
-        span.start,
-        span.end,
-        span.end - span.start
-    );
-}
-
-static void ast_print_node_id(FILE *out, const char *label, AstNodeId id, u32 depth) {
-    fprintf(
-        out,
-        "%s%ss%s: AstNodeId=%u",
-        "",
-        "",
-        label,
-        (u32)id
-    );
-
-    fprintf(out, "\n");
-}
-
-static void ast_print_node_id_list(FILE *out, const char *label, AstNodeIdList list, u32 depth) {
-    fprintf(
-        out,
-        "%s%s: count=%u capacity=%u ids=%p\n",
-        "",
-        label,
-        list.count,
-        list.capacity,
-        (void*) list.ids
-    );
-
-    for (u32 i = 0; i < list.count; i++) {
-        ast_print_indent(out, depth + 1);
-
-        fprintf(out, "├── [%u] AstNodeId=%u\n", i, (u32)list.ids[i]);
-    }
 }
 
 static void ast_print_flags(FILE *out, u16 flags) {
