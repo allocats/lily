@@ -156,6 +156,8 @@ static const char* lex_word(File* file, const char* cursor) {
 
     u32 length = cursor - start;
 
+    assert(length < U16_MAX);
+
     token -> start  = start - file -> buffer.ptr;
     token -> length = length;
 
@@ -672,7 +674,11 @@ static const char* lex_string_lit(File* file, const char* cursor) {
 
     cursor++;
 
-    token -> length = cursor - start;
+    u32 length = cursor - start;
+
+    assert(length < U16_MAX);
+
+    token -> length = length;
 
     return cursor;
 }
@@ -698,7 +704,12 @@ static const char* lex_invalid(File* file, const char* cursor) {
 
     token -> kind = TOK_ERROR;
     token -> start = start - file -> buffer.ptr;
-    token -> length = cursor - start;
+
+    u32 length = cursor - start;
+
+    assert(length < U16_MAX);
+
+    token -> length = length;
 
     diagnostic_add_token(
         file -> id,
