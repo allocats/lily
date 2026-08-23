@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 extern DriverCtx driver;
@@ -270,7 +271,7 @@ void diagnostic_add_token_span(
     File* file = file_lookup_id(file_id);
 
     Token* start_tok = &file -> tokens.items[span.start];
-    Token* end_tok   = &file -> tokens.items[span.end - 1];
+    Token* end_tok   = &file -> tokens.items[span.end];
 
     char* cursor = file -> buffer.ptr;
     char* tok_start = file -> buffer.ptr + start_tok -> start;
@@ -291,7 +292,7 @@ void diagnostic_add_token_span(
 
     u32 span_end = end_tok -> start + end_tok -> length;
     u32 len = span_end - start_tok -> start;
-
+    
     Diagnostic* diag = diagnostic_get_new(engine);
 
     diag -> is_generic = false;
