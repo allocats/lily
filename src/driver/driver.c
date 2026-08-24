@@ -18,13 +18,29 @@
 #define FLAG_MATCHES(len, flag, str) ((len == sizeof(str) - 1) && strncmp(flag, str, len) == 0)
 
 static u64  next_pow2(u64 x);
+static str8 path_join(Arena* arena, str8 dir, const char* name);
 static void create_build_dir(void);
 static void destroy_build_dir(void);
+static StdlibFiles get_stdlib_files(str8 path);
 
-void driver_init(DriverCtx* driver, i32 argc, char** argv) {
+static Arena scratch = {0};
+static Arena stdlib_arena = {0};
+
+static char stdlib_path[1024] = {0};
+
+static constexpr char stdlib_dir[] = ".local/lily/std";
+static constexpr char build_path[] = "./.build";
+
+void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir) {
     assert(driver != null);
     assert(argc > 0);
     assert(argv != null);
+
+    arena_init(&scratch, ARENA_KB(1), ALIGN_DEFAULT);
+    debug_printf("Init Driver's static scratch arena with 1KB");
+
+    arena_init(&stdlib_arena, ARENA_KB(2), ALIGN_DEFAULT);
+    debug_printf("Init Driver's stdlib arena with 2KB");
 
     create_build_dir();
 
@@ -34,9 +50,18 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
     // asserts that the first string in the interner is "import"
     directive_ids_init();
 
-    u64 estimated_count = next_pow2(argc);
-    file_interner_init(estimated_count);
+    i32 n = snprintf(stdlib_path, sizeof(stdlib_path), "%s/%s", home_dir, stdlib_dir);
+    StdlibFiles stdlib_files = get_stdlib_files((str8) { .ptr = stdlib_path, .len = n });
+
+    // get an estimated number of files and round it up
+    u64 estimated_count = next_pow2(argc + stdlib_files.count);
     debug_printf("Allocating for %lu files", estimated_count);
+
+    file_interner_init(estimated_count);
+
+    for (u32 i = 0; i < stdlib_files.count; i++) {
+        file_intern(stdlib_files.paths[i]);
+    }
 
     for (i32 i = 0; i < argc; i++) {
         char* arg = argv[i];
@@ -72,11 +97,21 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
 }
 
 void driver_destroy(DriverCtx* driver) {
+    // TODO: free some stuff
+    (void) driver;
+
     destroy_build_dir();
 }
 
 static u64 next_pow2(u64 x) {
-	return x == 1 ? 1 : 1 << (64 - __builtin_clzl(x - 1));
+    return x == 1 ? 1 : 1 << (64 - __builtin_clzl(x - 1));
+}
+
+static str8 path_join(Arena* arena, str8 dir, const char* name) {
+    u64 size = dir.len + strlen(name) + 2;
+    char* buf = arena_alloc(arena, size);
+    i32 n = snprintf(buf, size, "%.*s/%s", (i32)dir.len, dir.ptr, name);
+    return (str8){ .ptr = buf, .len = n };
 }
 
 static void create_build_dir(void) {
@@ -84,10 +119,6 @@ static void create_build_dir(void) {
 }
 
 static void destroy_build_dir(void) {
-    Arena scratch = {0};
-
-    arena_init(&scratch, 512, ALIGN_DEFAULT);
-
     struct dirent* entry;
     DIR* dir = opendir("./.build/");
 
@@ -98,13 +129,9 @@ static void destroy_build_dir(void) {
 
         char* file_name = entry -> d_name;
 
-        u64 size = strlen("./.build/") + strlen(file_name) + 2;
+        str8 path = path_join(&scratch, (str8) { .ptr = build_path, .len = sizeof(build_path) - 1 }, file_name);
 
-        char* complete_path = arena_alloc(&scratch, size);
-
-        snprintf(complete_path, size, "./.build/%s", file_name);
-
-        remove(complete_path);
+        remove(path.ptr);
 
         arena_reset(&scratch);
     }
@@ -112,4 +139,48 @@ static void destroy_build_dir(void) {
     closedir(dir);
 
     rmdir("./.build/");
+}
+
+static StdlibFiles get_stdlib_files(str8 path) {
+    StdlibFiles files = {
+        .paths = arena_alloc(&stdlib_arena, sizeof(str8) * 16),
+        .count = 0,
+        .capacity = 16
+    };
+
+    struct dirent* entry;
+    DIR* dir = opendir(path.ptr);
+
+    if (dir == null) {
+        diagnostic_add_generic(
+            DIAG_ERROR,
+            "unable to open stdlib: %s",
+            path
+        );
+
+        return files;
+    }
+
+    while ((entry = readdir(dir)) != null) {
+        if (entry -> d_type != DT_REG) continue;
+
+        char* file_name = entry -> d_name;
+        str8 complete_path = path_join(&scratch, path, file_name);
+
+        if (files.count >= files.capacity) {
+            u64 old_size = files.capacity * sizeof(char*);
+            u64 new_size = old_size * 2; 
+
+            files.paths = arena_realloc(&stdlib_arena, files.paths, old_size, new_size);
+            files.capacity *= 2;
+        }
+
+        files.paths[files.count].ptr = complete_path.ptr;
+        files.paths[files.count].len = complete_path.len;
+        files.count += 1;
+    }
+
+    closedir(dir);
+
+    return files;
 }

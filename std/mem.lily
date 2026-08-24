@@ -1,0 +1,2 @@
+malloc :: external fn(size: usize) -> *void;
+free :: external fn(ptr: *void);

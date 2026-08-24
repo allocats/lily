@@ -42,7 +42,7 @@ i32 main(i32 argc, char** argv) {
         return 1;
     }
 
-    driver_init(&driver, argc - 1, argv + 1);
+    driver_init(&driver, argc - 1, argv + 1, home_dir);
 
     // timer for the frontend (lexing -> IR generation)
     Timer frontend_timer = {0};

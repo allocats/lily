@@ -13,4 +13,10 @@ typedef struct {
     StringInterner string_interner;
 } DriverCtx;
 
+typedef struct {
+    str8* paths;
+    u32 count;
+    u32 capacity;
+} StdlibFiles;
+
 #endif // !LILY_DRIVER_TYPES_H
