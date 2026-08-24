@@ -29,8 +29,8 @@ static AstNodeKind directive_lut[directive_count];
 void directive_ids_init() {
     assert(string_intern_cstr("import") == 0);
     
-    directive_lut[string_intern_cstr("import")] = AST_IMPORT_DIRECTIVE;
-    directive_lut[string_intern_cstr("paste")] = AST_PASTE_DIRECTIVE;
+    directive_lut[string_intern_cstr("import")]  = AST_IMPORT_DIRECTIVE;
+    directive_lut[string_intern_cstr("include")] = AST_INCLUDE_DIRECTIVE;
     directive_lut[string_intern_cstr("execute")] = AST_EXECUTE_DIRECTIVE;
 }
 
@@ -94,7 +94,7 @@ AstNodeId parse_directive(Parser* p) {
             break;
         }
 
-        case AST_PASTE_DIRECTIVE: {
+        case AST_INCLUDE_DIRECTIVE: {
             Token path_token = parser_advance(p);
 
             if (path_token.kind != TOK_STRING_LIT) {
@@ -118,7 +118,7 @@ AstNodeId parse_directive(Parser* p) {
             path_token.start  -= 1;
             path_token.length += 2;
 
-            node -> as.paste_directive.path = path_token_id;
+            node -> as.include_directive.path = path_token_id;
 
             str8 import_path_string  = STRING_ID_LOOKUP(path_token_id).str;
             str8 current_path_string = p -> current_file -> path;
@@ -155,21 +155,36 @@ AstNodeId parse_directive(Parser* p) {
                 .len = n
             };
 
-            FileId pasted_file_id = file_intern(final_input_path);
-            File* pasted_file = file_lookup_id(pasted_file_id);
-
-            node = parser_get_node(p, id);
-
-            // means it has not yet been imported yet
-            if (pasted_file -> stage == FILE_ALLOCATED) {
-                lex_and_parse(pasted_file_id);
-            } else if (pasted_file -> stage == FILE_PARSING) {
+            FileId included_file_id = file_intern(final_input_path);
+            
+            if (UNLIKELY(included_file_id == FILE_ID_NONE)) {
                 diagnostic_add_token(
                     p -> current_file -> id,
                     DIAG_ERROR,
                     &path_token,
                     DIAG_LOC_WHOLE_TOK,
-                    "circular pastes detected",
+                    "included file does not exist",
+                    "add a valid path to the file you are trying to include"
+                );
+
+                node -> kind = AST_ERROR;
+                break;
+            }
+
+            File* included_file = file_lookup_id(included_file_id);
+
+            node = parser_get_node(p, id);
+
+            // means it has not yet been imported yet
+            if (included_file -> stage == FILE_ALLOCATED) {
+                lex_and_parse(included_file_id);
+            } else if (included_file -> stage == FILE_PARSING) {
+                diagnostic_add_token(
+                    p -> current_file -> id,
+                    DIAG_ERROR,
+                    &path_token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "circular include detected",
                     "remove one and find a workaround"
                 );
 

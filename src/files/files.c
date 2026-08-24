@@ -101,8 +101,8 @@ FileId file_intern(str8 input_path) {
 
     str8 buffer = allocate_buffer(path);
 
-    if (buffer.len == 0) {
-        debug_printf("intern() returned early due to an empty file");
+    if (buffer.len == 0 && buffer.ptr == null) {
+        debug_printf("intern() returned early due to failure");
         return FILE_ID_NONE;
     }
 
@@ -168,6 +168,7 @@ FileId file_lookup(str8 input_path) {
 
 inline File* file_lookup_id(FileId id) {
     assert(id != FILE_ID_NONE);
+    assert(id <  driver.file_interner.count);
     return &driver.file_interner.entries[id];
 }
 
@@ -239,19 +240,6 @@ static str8 allocate_buffer(str8 path) {
     }
 
     u64 buffer_size = st.st_size + 1;
-
-    // Empty file
-    if (UNLIKELY(buffer_size == 0)) {
-        debug_printf("Found empty file '%s', not allocating...", path.ptr);
-
-        diagnostic_add_generic(
-            DIAG_WARNING,
-            "%s is an empty file",
-            path.ptr
-        );
-
-        goto exit_fd_open;
-    }
 
     FileInterner* interner = &driver.file_interner;
 

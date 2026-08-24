@@ -144,10 +144,10 @@ static void ast_print_payload(FILE *out, const AstNode *node) {
             fprintf(out, "│   resolved: ModuleId=%u\n", (u32)node -> as.import_directive.resolved);
             break;
 
-        case AST_PASTE_DIRECTIVE:
-            fprintf(out, "│ payload: AstPasteDirective\n");
+        case AST_INCLUDE_DIRECTIVE:
+            fprintf(out, "│ payload: AstIncludeDirective\n");
 
-            ast_print_string_id(out, "│   path", node -> as.paste_directive.path);
+            ast_print_string_id(out, "│   path", node -> as.include_directive.path);
             break;
 
 

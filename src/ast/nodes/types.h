@@ -31,7 +31,7 @@ static_assert(AST_FLAGS_IS_EXTERNAL != AST_FLAGS_IS_VARIADIC);
                                 \
     X(AST_EXECUTE_DIRECTIVE)    \
     X(AST_IMPORT_DIRECTIVE)     \
-    X(AST_PASTE_DIRECTIVE)      \
+    X(AST_INCLUDE_DIRECTIVE)    \
                                 \
     X(AST_PARAMETER)            \
     X(AST_FUNCTION_DECL)        \
@@ -132,7 +132,7 @@ typedef struct {
 typedef struct {
     StringId path;
     FileId file_id;
-} AstPasteDirective;
+} AstIncludeDirective;
 
 
 
@@ -373,8 +373,8 @@ typedef struct {
     union {
         // Directives ("#ident ...") 
         AstExecuteDirective execute_directive;
-        AstImportDirective import_directive;
-        AstPasteDirective  paste_directive;
+        AstImportDirective  import_directive;
+        AstIncludeDirective include_directive;
 
         // Function & Macro
         AstParameterDecl parameter_decl;

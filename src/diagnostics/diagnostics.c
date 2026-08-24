@@ -317,6 +317,8 @@ bool diagnostics_print() {
 
     u32 count = MIN(engine -> count, engine -> threshold_value);
     
+    if (count == 0) return false;
+    
     FILE* fd = stderr;
 
     if (engine -> dump_path != null) {
@@ -328,6 +330,8 @@ bool diagnostics_print() {
         }
     }
 
+    fprintf(fd, "\n");
+
     for (u32 i = 0; i < count; i++) {
         Diagnostic diag = engine -> diags[i];
 
@@ -337,7 +341,7 @@ bool diagnostics_print() {
         if (diag.is_generic) {
             fprintf(
                 fd,
-                "%s%s:%s %s%.*s%s\n",
+                "%s%s:%s %s%.*s%s\n\n",
                 level_colour,
                 level,
                 ANSI_RESET,

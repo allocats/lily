@@ -51,7 +51,7 @@ void parse_file(FileId id) {
             parser_advance(&p);
             parse_directive(&p); 
             
-            // can realloc as `#paste` calls file_intern() and lex_and_parse()
+            // can realloc as `#include` calls file_intern() and lex_and_parse()
             p.current_file = file_lookup_id(id);
         } else if (token.kind == TOK_IDENT) {
             Token op = parser_peek_ahead_by(&p, 1);
