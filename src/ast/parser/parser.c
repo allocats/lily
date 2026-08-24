@@ -31,6 +31,8 @@ void parse_file(FileId id) {
     // should not be possible to be here with any other stage
     assert(file -> stage == FILE_LEXED);
 
+    file -> stage = FILE_PARSING;
+
     Parser p = {
         .current_file = file,
         .tokens_array = &file -> tokens,

@@ -1,6 +1,6 @@
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
-#undef MEOWRENA_IMPL
+#undef  MEOWRENA_IMPL
 
 #include "ast/nodes/types.h"
 #include "ast/parser/parser.h"
@@ -93,7 +93,7 @@ i32 main(i32 argc, char** argv) {
         for (u32 i = 0; i < driver.file_interner.count; i++) {
             char buffer[16];
             snprintf(buffer, sizeof(buffer), "ast_%u.txt", i);
-            ast_print(buffer, &driver.file_interner.entries[i].ast);
+            ast_print(buffer, i);
         }
     }
 

@@ -9,6 +9,7 @@
 typedef enum {
     FILE_ALLOCATED,
     FILE_LEXED,
+    FILE_PARSING,
     FILE_PARSED,
     FILE_ERROR
 } FileStage;

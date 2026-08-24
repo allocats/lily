@@ -2,9 +2,3 @@ vprintf :: external fn(fmt: *u8, ap: va_list) -> i32;
 printf  :: external fn(fmt: *u8, args: ...) -> i32;
 
 putchar :: external fn(c: i32) -> i32;
-
-println :: fn(fmt: *u8, args: ...) -> i32 {
-    x: i32 = vprintf(fmt, args);
-    x += putchar(10);
-    return x;
-}

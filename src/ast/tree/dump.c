@@ -5,6 +5,7 @@
 #include "ast/nodes/types.h"
 #include "ast/tree/types.h"
 #include "driver/types.h"
+#include "files/files.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
 #include "utils/types.h"
@@ -678,9 +679,12 @@ static void ast_print_payload(FILE *out, const AstNode *node) {
 }
 
 
-void ast_print(char *path, Ast *ast) {
+void ast_print(char *path, FileId file_id) {
     FILE *out = stderr;
     bool close_output = false;
+
+    File* file = file_lookup_id(file_id);
+    Ast* ast = &file -> ast;
 
     if (path != NULL) {
         FILE *file = fopen(path, "w");
@@ -704,6 +708,7 @@ void ast_print(char *path, Ast *ast) {
 
     fprintf(
         out,
+        "File: %.*s\n\n"
         "Ast\n"
         "├── address:         %p\n"
         "├── nodes:           %p\n"
@@ -713,6 +718,8 @@ void ast_print(char *path, Ast *ast) {
         "├── allocated_size:  %zu bytes\n"
         "├── gpa:             %p\n"
         "└── nodes_arena:     %p\n",
+        file -> path.len, 
+        file -> path.ptr,
         (void*) ast,
         (void*) ast -> nodes,
         ast -> count,

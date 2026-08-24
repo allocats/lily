@@ -131,6 +131,7 @@ typedef struct {
 
 typedef struct {
     StringId path;
+    FileId file_id;
 } AstPasteDirective;
 
 

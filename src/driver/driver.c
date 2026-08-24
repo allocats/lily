@@ -80,9 +80,6 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
                     } else if (FLAG_MATCHES(arg_len, arg, "-dump-ast")) {
                         driver -> flags |= DRIVER_FLAGS_DUMP_AST;
                     } 
-                    // else if (FLAG_MATCHES(arg_len, arg, "-dump-types")) {
-                    //     driver -> flags |= LILY_FLAGS_DUMP_TYPES;
-                    // }
                 } break;
             }
         } else {
@@ -141,13 +138,20 @@ static void destroy_build_dir(void) {
     rmdir("./.build/");
 }
 
-static StdlibFiles get_stdlib_files(str8 path) {
-    StdlibFiles files = {
-        .paths = arena_alloc(&stdlib_arena, sizeof(str8) * 16),
-        .count = 0,
-        .capacity = 16
-    };
+static void push_stdlib_file(StdlibFiles* files, str8 path) {
+    if (files->count >= files->capacity) {
+        u64 old_size = files->capacity * sizeof(str8);
+        u64 new_size = old_size * 2;
 
+        files->paths = arena_realloc(&stdlib_arena, files->paths, old_size, new_size);
+        files->capacity *= 2;
+    }
+
+    files->paths[files->count] = path;
+    files->count += 1;
+}
+
+static void collect_stdlib_files(StdlibFiles* files, str8 path) {
     struct dirent* entry;
     DIR* dir = opendir(path.ptr);
 
@@ -158,29 +162,34 @@ static StdlibFiles get_stdlib_files(str8 path) {
             path
         );
 
-        return files;
+        return;
     }
 
     while ((entry = readdir(dir)) != null) {
-        if (entry -> d_type != DT_REG) continue;
+        char* name = entry -> d_name;
 
-        char* file_name = entry -> d_name;
-        str8 complete_path = path_join(&scratch, path, file_name);
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
 
-        if (files.count >= files.capacity) {
-            u64 old_size = files.capacity * sizeof(char*);
-            u64 new_size = old_size * 2; 
+        str8 complete_path = path_join(&scratch, path, name);
 
-            files.paths = arena_realloc(&stdlib_arena, files.paths, old_size, new_size);
-            files.capacity *= 2;
+        if (entry -> d_type == DT_DIR) {
+            collect_stdlib_files(files, complete_path);
+        } else if (entry -> d_type == DT_REG) {
+            push_stdlib_file(files, complete_path);
         }
-
-        files.paths[files.count].ptr = complete_path.ptr;
-        files.paths[files.count].len = complete_path.len;
-        files.count += 1;
     }
 
     closedir(dir);
+}
+
+static StdlibFiles get_stdlib_files(str8 path) {
+    StdlibFiles files = {
+        .paths = arena_alloc(&stdlib_arena, sizeof(str8) * 16),
+        .count = 0,
+        .capacity = 16
+    };
+
+    collect_stdlib_files(&files, path);
 
     return files;
 }
