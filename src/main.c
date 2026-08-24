@@ -23,6 +23,24 @@
 
 DriverCtx driver = {0};
 
+static inline void lex_and_parse(FileId id) {
+    lex_file(id);
+
+    File* file = file_lookup_id(id);
+    
+    if (file -> stage != FILE_LEXED) return;
+
+    parse_file(id);
+}
+
+static inline void lex_and_parse_files(void) {
+    u32 file_count = driver.file_interner.count;
+
+    for (u32 i = 0; i < file_count; i++) {
+        lex_and_parse(i);
+    }
+}
+
 i32 main(i32 argc, char** argv) {
     // compile time asserts to ensure that things are as expected 
     static_assert(8  == sizeof(Token) && "sizeof(Token) != 8 bytes");
@@ -49,16 +67,7 @@ i32 main(i32 argc, char** argv) {
 
     timer_start(&frontend_timer);
 
-    for (u32 i = 0; i < driver.file_interner.count; i++) {
-        // lex_and_parse(i);
-        lex_file(i);
-
-        File* file = file_lookup_id(i);
-
-        if (file -> stage != FILE_LEXED) continue;
-
-        parse_file(i);
-    }
+    lex_and_parse_files();
 
     timer_end(&frontend_timer);
 
