@@ -57,6 +57,8 @@ StringId string_intern_str8(str8 str) {
     assert(str.ptr != null);
     assert(str.len > 0);
 
+    debug_printf("Interning string: \"%.*s\"", str.len, str.ptr);
+
     StringInterner* interner = &driver.string_interner;
 
     if (UNLIKELY(interner -> count >= interner -> resize_threshold_as_u32)) {
@@ -75,7 +77,7 @@ StringId string_intern_str8(str8 str) {
             StringEntry entry = interner -> entries[bucket.id];
 
             if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
-                debug_printf("string_intern_str8() found and returned %d", bucket.id);
+                debug_printf("string_intern_str8() found \"%.*s\"and returned %d", str.len, str.ptr, bucket.id);
                 return bucket.id;
             }
         }
@@ -233,6 +235,10 @@ inline StringId string_intern_token(FileId file_id, Token token) {
         .ptr = file -> buffer.ptr + token.start, 
         .len = token.length
     };
+
+    // Saved my mental, keep these and use these
+    debug_assert(str.ptr < (file -> buffer.ptr + file -> buffer.len));
+    debug_assert(str.ptr + str.len < (file -> buffer.ptr + file -> buffer.len));
 
     return string_intern_str8(str);
 }

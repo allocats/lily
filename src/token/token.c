@@ -113,10 +113,11 @@ void token_print(FileId id, Token token) {
     const char* token_start = file -> buffer.ptr + token.start;
 
     printf(
-        "Token {\n  Lexeme: \"%.*s\"\n  Kind: %s\n}\n\n",
+        "Token {\n  Kind: \"%s\"\n  Lexeme: %.*s\n  Length: %u\n}\n\n",
+        TOKEN_KIND_STRS[token.kind],
         token.length,
         token_start,
-        TOKEN_KIND_STRS[token.kind]
+        token.length
     );
 }
 

@@ -573,6 +573,8 @@ static const char* lex_delimiter(File* file, const char* cursor) {
 
         case '\0': {
             token -> kind = TOK_EOF;
+
+            cursor = file -> buffer.ptr + file -> buffer.len;
         } break;
     }
 

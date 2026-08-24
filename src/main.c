@@ -82,7 +82,9 @@ i32 main(i32 argc, char** argv) {
 
     if (driver.flags & DRIVER_FLAGS_DUMP_AST) {
         for (u32 i = 0; i < driver.file_interner.count; i++) {
-            ast_print("ast.txt\0", &driver.file_interner.entries[i].ast);
+            char buffer[16];
+            snprintf(buffer, sizeof(buffer), "ast_%u.txt", i);
+            ast_print(buffer, &driver.file_interner.entries[i].ast);
         }
     }
 

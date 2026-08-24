@@ -5,6 +5,7 @@ build/
 compile_commands.json
 
 ast.txt
+ast_*.txt
 
 cachegrind.*
 callgrind.*

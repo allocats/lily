@@ -112,6 +112,7 @@ FileId file_intern(str8 path) {
     interner -> buckets[index].id = id;
     interner -> buckets[index].hash = hash;
 
+    file -> id     = id;
     file -> path   = path;
     file -> hash   = hash; 
     file -> buffer = buffer;
@@ -249,7 +250,7 @@ static str8 allocate_buffer(str8 path) {
     FileInterner* interner = &driver.file_interner;
 
     buffer.ptr = arena_alloc(&interner -> buffer_arena, buffer_size);
-    buffer.len= buffer_size;
+    buffer.len = buffer_size;
 
     buffer.ptr[buffer_size - 1] = 0;
 
