@@ -1,9 +1,11 @@
 #include "ast/parser/directive/directive.h"
+#include "ast/parser/parser.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "lexer/lexer.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
 #include "utils/debug.h"
@@ -192,4 +194,14 @@ static StdlibFiles get_stdlib_files(str8 path) {
     collect_stdlib_files(&files, path);
 
     return files;
+}
+
+inline void lex_and_parse(FileId id) {
+    lex_file(id);
+
+    File* file = file_lookup_id(id);
+    
+    if (file -> stage != FILE_LEXED) return;
+
+    parse_file(id);
 }

@@ -64,11 +64,15 @@ void file_interner_init(u32 count) {
 
     debug_printf("Allocated FileInterner -> entries with %lu bytes, capacity = %u", count * sizeof(File), count);
     debug_printf("Allocated FileInterner -> buckets with %lu bytes, capacity = %u", count * sizeof(FileId), count);
+
+    path_normalizer_init();
 }
 
-FileId file_intern(str8 path) {
-    assert(path.ptr != null);
-    assert(path.len > 0);
+FileId file_intern(str8 input_path) {
+    assert(input_path.ptr != null);
+    assert(input_path.len > 0);
+
+    str8 path = get_absolute_path(input_path);
 
     FileInterner* interner = &driver.file_interner;
     
@@ -126,14 +130,16 @@ FileId file_intern(str8 path) {
 
     debug_printf("intern() returned %d for 0x%x", id, hash);
 
-    assert(id == file_lookup(path));
+    debug_assert(id == file_lookup(input_path));
 
     return id;
 }
 
-FileId file_lookup(str8 path) {
-    assert(path.ptr != null);
-    assert(path.len > 0);
+FileId file_lookup(str8 input_path) {
+    assert(input_path.ptr != null);
+    assert(input_path.len > 0);
+
+    str8 path = get_absolute_path(input_path);
 
     FileInterner* interner = &driver.file_interner;
 

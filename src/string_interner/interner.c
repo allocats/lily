@@ -77,7 +77,7 @@ StringId string_intern_str8(str8 str) {
             StringEntry entry = interner -> entries[bucket.id];
 
             if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
-                debug_printf("string_intern_str8() found \"%.*s\"and returned %d", str.len, str.ptr, bucket.id);
+                debug_printf("string_intern_str8() found \"%.*s\" and returned %d", str.len, str.ptr, bucket.id);
                 return bucket.id;
             }
         }

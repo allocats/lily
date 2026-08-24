@@ -71,8 +71,14 @@ static AstNodeId nud(Parser* p, Token token) {
             AstNodeId id = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, 0);
             AstNode* node = parser_get_node(p, id);
 
+            token.length -= 2;
+            token.start  += 1;
+
             node -> as.literal.kind = LITERAL_STRING;
             node -> as.literal.as.string = string_intern_token(p -> current_file -> id, token);
+
+            token.length += 2;
+            token.start  -= 1;
 
             return id;
         }

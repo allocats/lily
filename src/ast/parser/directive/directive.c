@@ -3,10 +3,11 @@
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/recovery/recovery.h"
-#include "ast/parser/recovery/types.h"
-#include "ast/parser/types.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
+#include "driver/driver.h"
+#include "driver/types.h"
+#include "files/files.h"
 #include "ids.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
@@ -14,6 +15,11 @@
 #include "utils/types.h"
 
 #include <assert.h>
+#include <linux/limits.h>
+#include <stdio.h>
+#include <string.h>
+
+extern DriverCtx driver;
 
 static constexpr u32 directive_count = 3;
 
@@ -89,13 +95,13 @@ AstNodeId parse_directive(Parser* p) {
         }
 
         case AST_PASTE_DIRECTIVE: {
-            Token path = parser_advance(p);
+            Token path_token = parser_advance(p);
 
-            if (path.kind != TOK_STRING_LIT) {
+            if (path_token.kind != TOK_STRING_LIT) {
                 diagnostic_add_token(
                     p -> current_file -> id,
                     DIAG_ERROR,
-                    &path,
+                    &path_token,
                     DIAG_LOC_WHOLE_TOK,
                     "expected string literal",
                     "add a valid string literal here"            
@@ -104,7 +110,72 @@ AstNodeId parse_directive(Parser* p) {
                 return parser_error(p, id, RECOVERY_DECL);
             }
 
-            node -> as.paste_directive.path = string_intern_token(p -> current_file -> id, path);
+            path_token.start  += 1;
+            path_token.length -= 2;
+
+            StringId path_token_id = string_intern_token(p -> current_file -> id, path_token);
+
+            path_token.start  -= 1;
+            path_token.length += 2;
+
+            node -> as.paste_directive.path = path_token_id;
+
+            str8 import_path_string  = STRING_ID_LOOKUP(path_token_id).str;
+            str8 current_path_string = p -> current_file -> path;
+
+            char* last_slash = strrchr(current_path_string.ptr, '/');
+
+            char buffer[PATH_MAX] = {0};
+            i32 n = 0;
+
+            if (!last_slash) {
+                n = snprintf(
+                    buffer,
+                    sizeof(buffer),
+                    "%.*s/%.*s",
+                    current_path_string.len,
+                    current_path_string.ptr,
+                    import_path_string.len,
+                    import_path_string.ptr
+                );
+            } else {
+                n = snprintf(
+                    buffer,
+                    sizeof(buffer),
+                    "%.*s/%.*s",
+                    (i32) (last_slash - current_path_string.ptr),
+                    current_path_string.ptr,
+                    import_path_string.len,
+                    import_path_string.ptr
+                );
+            }
+
+            str8 final_input_path = {
+                .ptr = buffer,
+                .len = n
+            };
+
+            FileId pasted_file_id = file_intern(final_input_path);
+            File* pasted_file = file_lookup_id(pasted_file_id);
+
+            // means it has not yet been imported yet
+            if (pasted_file -> stage == FILE_ALLOCATED) {
+                lex_and_parse(pasted_file_id);
+            } else if (pasted_file -> stage == FILE_PARSING) {
+                diagnostic_add_token(
+                    p -> current_file -> id,
+                    DIAG_ERROR,
+                    &path_token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "circular pastes detected",
+                    "remove one and find a workaround"
+                );
+            }
+
+            node = parser_get_node(p, id);
+
+            node -> kind = AST_ERROR;
+
             break;
         }
 

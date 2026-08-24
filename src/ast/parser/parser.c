@@ -28,9 +28,6 @@ void parse_file(FileId id) {
 
     File* file = file_lookup_id(id);
 
-    // should not be possible to be here with any other stage
-    assert(file -> stage == FILE_LEXED);
-
     file -> stage = FILE_PARSING;
 
     Parser p = {
@@ -49,6 +46,9 @@ void parse_file(FileId id) {
         } else if (token.kind == TOK_HASHTAG) {
             parser_advance(&p);
             parse_directive(&p); 
+            
+            // can realloc as `#paste` calls file_intern() and lex_and_parse()
+            p.current_file = file_lookup_id(id);
         } else if (token.kind == TOK_IDENT) {
             Token op = parser_peek_ahead_by(&p, 1);
 
@@ -96,7 +96,7 @@ void parse_file(FileId id) {
         }
     }
 
-    file -> stage = FILE_PARSED;
+    p.current_file -> stage = FILE_PARSED;
 }
 
 // going to keep this AstNodeId for dangling lifetime issues, 

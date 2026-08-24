@@ -1,4 +1,5 @@
 #include "hash/hash.h"
+#include "utils/debug.h"
 #include "utils/types.h"
 
 #include <immintrin.h>
@@ -34,6 +35,8 @@ u32 hash_crc32_str(char* pointer, u32 length) {
     while (len--) {
         hash = _mm_crc32_u8((u32) hash, *ptr++);
     }
+
+    debug_printf("Hashed \"%.*s\" length=%u hash=0x%x", length, pointer, length, hash);
 
     return (u32) hash;
 }

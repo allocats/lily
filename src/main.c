@@ -3,15 +3,12 @@
 #undef  MEOWRENA_IMPL
 
 #include "ast/nodes/types.h"
-#include "ast/parser/parser.h"
 #include "ast/tree/tree.h"
 #include "cli/cli.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "driver/types.h"
-#include "files/files.h"
 #include "files/types.h"
-#include "lexer/lexer.h"
 #include "token/token.h"
 #include "token/types.h"
 #include "utils/timer.h"
@@ -22,16 +19,6 @@
 #include <stdlib.h>
 
 DriverCtx driver = {0};
-
-static inline void lex_and_parse(FileId id) {
-    lex_file(id);
-
-    File* file = file_lookup_id(id);
-    
-    if (file -> stage != FILE_LEXED) return;
-
-    parse_file(id);
-}
 
 static inline void lex_and_parse_files(void) {
     u32 file_count = driver.file_interner.count;
