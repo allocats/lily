@@ -5,20 +5,28 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "string_interner/interner.h"
+#include "token/types.h"
 #include "utils/debug.h"
 #include "utils/types.h"
 
 #include <assert.h>
+#include <dirent.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #define FLAG_MATCHES(len, flag, str) ((len == sizeof(str) - 1) && strncmp(flag, str, len) == 0)
 
-static u64 next_pow2(u64 x);
+static u64  next_pow2(u64 x);
+static void create_build_dir(void);
+static void destroy_build_dir(void);
 
 void driver_init(DriverCtx* driver, i32 argc, char** argv) {
     assert(driver != null);
     assert(argc > 0);
     assert(argv != null);
+
+    create_build_dir();
 
     diagnostic_engine_init();
     string_interner_init();
@@ -63,35 +71,45 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv) {
     }
 }
 
+void driver_destroy(DriverCtx* driver) {
+    destroy_build_dir();
+}
+
 static u64 next_pow2(u64 x) {
 	return x == 1 ? 1 : 1 << (64 - __builtin_clzl(x - 1));
 }
 
-// static void create_build_dir(void) {
-//     mkdir("./.build/", 0700);
-// }
-//
-// static void destroy_build_dir(void) {
-//     struct dirent* entry;
-//     DIR* dir = opendir("./.build/");
-//
-//     assert(dir != null);
-//
-//     while ((entry = readdir(dir)) != null) {
-//         if (entry -> d_type != DT_REG) continue;
-//
-//         char* file_name = entry -> d_name;
-//
-//         u64 size = strlen("./.build/") + strlen(file_name) + 2;
-//
-//         char* complete_path = arena_alloc(driver_ctx.gpa, size);
-//
-//         snprintf(complete_path, size, "./.build/%s", file_name);
-//
-//         remove(complete_path);
-//     }
-//
-//     closedir(dir);
-//
-//     rmdir("./.build/");
-// }
+static void create_build_dir(void) {
+    mkdir("./.build/", 0700);
+}
+
+static void destroy_build_dir(void) {
+    Arena scratch = {0};
+
+    arena_init(&scratch, 512, ALIGN_DEFAULT);
+
+    struct dirent* entry;
+    DIR* dir = opendir("./.build/");
+
+    assert(dir != null);
+
+    while ((entry = readdir(dir)) != null) {
+        if (entry -> d_type != DT_REG) continue;
+
+        char* file_name = entry -> d_name;
+
+        u64 size = strlen("./.build/") + strlen(file_name) + 2;
+
+        char* complete_path = arena_alloc(&scratch, size);
+
+        snprintf(complete_path, size, "./.build/%s", file_name);
+
+        remove(complete_path);
+
+        arena_reset(&scratch);
+    }
+
+    closedir(dir);
+
+    rmdir("./.build/");
+}

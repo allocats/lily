@@ -115,5 +115,7 @@ lily_done:
         );
     }
 
+    driver_destroy(&driver);
+
     return 0;
 }
