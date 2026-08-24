@@ -28,6 +28,10 @@ void parse_file(FileId id) {
 
     File* file = file_lookup_id(id);
 
+    if (file -> stage == FILE_PARSED) {
+        return;
+    }
+
     file -> stage = FILE_PARSING;
 
     Parser p = {
