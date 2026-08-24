@@ -158,6 +158,8 @@ AstNodeId parse_directive(Parser* p) {
             FileId pasted_file_id = file_intern(final_input_path);
             File* pasted_file = file_lookup_id(pasted_file_id);
 
+            node = parser_get_node(p, id);
+
             // means it has not yet been imported yet
             if (pasted_file -> stage == FILE_ALLOCATED) {
                 lex_and_parse(pasted_file_id);
@@ -170,11 +172,9 @@ AstNodeId parse_directive(Parser* p) {
                     "circular pastes detected",
                     "remove one and find a workaround"
                 );
+
+                node -> kind = AST_ERROR;
             }
-
-            node = parser_get_node(p, id);
-
-            node -> kind = AST_ERROR;
 
             break;
         }
@@ -208,6 +208,7 @@ AstNodeId parse_directive(Parser* p) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
+    node = parser_get_node(p, id);
     node -> tokens.end = p -> cursor;
 
     parser_advance(p);
