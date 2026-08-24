@@ -60,7 +60,7 @@ void file_interner_init(u32 count) {
     interner -> resize_threshold_as_u32 = (u32)(count * interner_load_factor);
 
     arena_memset(interner -> entries, 0, sizeof(File) * count);
-    arena_memset(interner -> buckets, U8_MAX, sizeof(FileId) * count);
+    arena_memset(interner -> buckets, U8_MAX, sizeof(FileBucket) * count);
 
     debug_printf("Allocated FileInterner -> entries with %lu bytes, capacity = %u", count * sizeof(File), count);
     debug_printf("Allocated FileInterner -> buckets with %lu bytes, capacity = %u", count * sizeof(FileId), count);
