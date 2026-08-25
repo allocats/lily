@@ -121,7 +121,7 @@ typedef struct {
 
 
 typedef struct {
-    AstNodeId binding;
+    StringId binding;
 
     StringId path;
     ModuleId resolved;
