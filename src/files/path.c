@@ -12,6 +12,9 @@ static Arena arena = {0};
 static char cwd_ptr[PATH_MAX] = {0};
 static u32  cwd_len = 0;
 
+static char* normalize_stack[PATH_MAX / 2 + 1];
+static char  combine_scratch[PATH_MAX];
+
 void path_normalizer_init(void) {
     assert(getcwd(cwd_ptr, sizeof(cwd_ptr)) != NULL);
 
@@ -24,69 +27,88 @@ void path_normalizer_init(void) {
 }
 
 static str8 normalize_path(str8 path) {
-    char scratch[PATH_MAX] = {0};
-    memcpy(scratch, path.ptr, path.len + 1);
+    assert(path.len + 1 < PATH_MAX && "path too long for normalize_scratch");
 
-    char** stack = arena_alloc(&arena, sizeof(char*) * (path.len + 1));
     usize top = 0;
 
-    char* saveptr = NULL;
-    char* token = strtok_r(scratch, "/", &saveptr);
-
-    while (token != NULL) {
-        if (strcmp(token, ".") == 0) {
-            // no-op
-        } else if (strcmp(token, "..") == 0) {
-            if (top > 0) {
-                top--;
-            }
-        } else {
-            stack[top++] = token;
-        }
-
-        token = strtok_r(NULL, "/", &saveptr);
-    }
-
     char* result = arena_alloc(&arena, path.len + 2);
-    char* w = result;
+    char* cursor = result;
 
-    *w++ = '/';
+    *cursor++ = '/';
 
-    for (usize i = 0; i < top; i++) {
-        usize len = strlen(stack[i]);
-        memcpy(w, stack[i], len);
-        w += len;
+    usize i = 0;
 
-        if (i + 1 < top) {
-            *w++ = '/';
+    while (i < path.len) {
+        while (i < path.len && path.ptr[i] == '/') { // advance past repeated '/'s
+            i++;
         }
+
+        if (i == path.len) {
+            break;
+        }
+
+        usize start = i;
+
+        while (i < path.len && path.ptr[i] != '/') { // gets end marker of '/'
+            i++;
+        }
+
+        usize len = i - start;
+
+        if (len == 1 && path.ptr[start] == '.') {
+            continue;
+        }
+
+        if (len == 2 && path.ptr[start] == '.' && path.ptr[start + 1] == '.') {
+            if (top > 0) {
+                cursor = normalize_stack[--top];
+            }
+
+            continue;
+        }
+
+        normalize_stack[top++] = cursor;
+
+        if (top > 1) {
+            *cursor++ = '/';
+        }
+
+        memcpy(cursor, path.ptr + start, len);
+
+        cursor += len;
     }
 
-    *w = '\0';
+    *cursor = '\0';
 
-    return (str8) { .ptr = result, .len = w - result };
+    return (str8) {
+        .ptr = result,
+        .len = (u32)(cursor - result),
+    };
 }
 
 str8 get_absolute_path(str8 input_path) {
     assert(input_path.ptr != NULL);
     assert(input_path.len != 0);
 
-    str8 combined = {0};
-
     if (input_path.ptr[0] == '/') {
-        combined.ptr = (char*) input_path.ptr;
-        combined.len = input_path.len;
-    } else {
-        u32 len = cwd_len + 1 + input_path.len + 1;
-
-        combined.ptr = arena_alloc(&arena, len);
-        combined.len = len;
-
-        memcpy(combined.ptr, cwd_ptr, cwd_len);
-        combined.ptr[cwd_len] = '/';
-        memcpy(combined.ptr + cwd_len + 1, input_path.ptr, input_path.len + 1);
+        return normalize_path(input_path);
     }
 
-    str8 normalized = normalize_path(combined);
-    return normalized;
+    usize len = cwd_len + 1 + input_path.len;
+    assert(len + 1 <= PATH_MAX && "combined path too long for combine_scratch");
+
+    memcpy(combine_scratch, cwd_ptr, cwd_len);
+
+    combine_scratch[cwd_len] = '/';
+
+    memcpy(combine_scratch + cwd_len + 1, input_path.ptr, input_path.len);
+
+    combine_scratch[len] = '\0';
+
+    str8 combined = {
+        .ptr = combine_scratch,
+        .len = len,
+    };
+
+    return normalize_path(combined);
 }

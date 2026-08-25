@@ -94,17 +94,12 @@ void lex_file(FileId id) {
 
     str8 buffer = file -> buffer;
 
-    assert(buffer.len != 0);
-
     const char* buffer_start = buffer.ptr;
     const char* buffer_end   = buffer_start + buffer.len;
 
     const char* cursor = buffer_start;
 
-    delimiter_stack = (DelimiterStack) {
-        .top = 0,
-        .items = {0}
-    };
+    delimiter_stack.top = 0;
 
     while (cursor < buffer_end) {
         LexFn fn = LEXER_DISPATCH[(unsigned char) *cursor];

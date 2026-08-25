@@ -120,7 +120,7 @@ FileId file_intern(str8 input_path) {
     file -> path   = path;
     file -> hash   = hash; 
     file -> buffer = buffer;
-    file -> stage  = FILE_ALLOCATED;
+    file -> stage  = buffer.len == 0 ? FILE_DONE : FILE_ALLOCATED;
 
     file -> path_string_id = string_intern_str8(path);
 

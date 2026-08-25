@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include <dirent.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -28,7 +29,7 @@ static StdlibFiles get_stdlib_files(str8 path);
 static Arena scratch = {0};
 static Arena stdlib_arena = {0};
 
-static char stdlib_path[1024] = {0};
+static char stdlib_path[PATH_MAX] = {0};
 
 static constexpr char stdlib_dir[] = ".local/lily/std";
 static constexpr char build_path[] = "./.build";
@@ -197,10 +198,14 @@ static StdlibFiles get_stdlib_files(str8 path) {
 }
 
 inline void lex_and_parse(FileId id) {
-    lex_file(id);
-
     File* file = file_lookup_id(id);
+
+    if (file -> stage == FILE_DONE) return;
+
+    lex_file(id);
     
+    file = file_lookup_id(id);
+
     if (file -> stage != FILE_LEXED) return;
 
     parse_file(id);

@@ -36,7 +36,7 @@ u32 hash_crc32_str(char* pointer, u32 length) {
         hash = _mm_crc32_u8((u32) hash, *ptr++);
     }
 
-    debug_printf("Hashed \"%.*s\" length=%u hash=0x%x", length, pointer, length, hash);
+    debug_printf("Hashed \"%.*s\" length=%u hash=0x%x", length, pointer, length, (u32) hash);
 
     return (u32) hash;
 }

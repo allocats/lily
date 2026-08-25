@@ -11,6 +11,7 @@ typedef enum {
     FILE_LEXED,
     FILE_PARSING,
     FILE_PARSED,
+    FILE_DONE,
     FILE_ERROR
 } FileStage;
 
