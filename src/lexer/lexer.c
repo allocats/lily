@@ -221,7 +221,8 @@ static const char* lex_word(File* file, const char* cursor) {
                 case 's': 
                     if (memcmp(start, "struct", 6) == 0) { token -> kind = TOK_KW_STRUCT; break; }
                     if (memcmp(start, "switch", 6) == 0) { token -> kind = TOK_KW_SWITCH; break; }
-                    token -> kind = TOK_IDENT;
+                    token -> kind = TOK_IDENT; 
+                    break;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;
