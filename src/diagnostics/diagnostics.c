@@ -13,7 +13,6 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 extern DriverCtx driver;
@@ -395,7 +394,7 @@ bool diagnostics_print() {
         fprintf(fd, "%*s", spaces, "");
 
         fprintf(fd, "%s%s", ANSI_GREEN, ANSI_BOLD);
-        u32 caret_len = diag.len;
+        u32 caret_len = diag.len == 0 ? 1 : diag.len;
 
         for (u32 i = 0; i < caret_len; i++) {
             fprintf(fd, "^");
