@@ -14,6 +14,7 @@ AstNode*  parser_get_node(Parser* p, AstNodeId id);
 Token parser_peek(Parser* p);
 Token parser_peek_previous(Parser* p);
 Token parser_peek_ahead_by(Parser* p, u32 count);
+Token parser_peek_behind_by(Parser* p, u32 count);
 
 Token parser_advance(Parser* p);
 

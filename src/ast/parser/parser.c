@@ -49,7 +49,7 @@ void parse_file(FileId id) {
             break;
         } else if (token.kind == TOK_HASHTAG) {
             parser_advance(&p);
-            parse_directive(&p); 
+            parse_directive(&p, STRING_ID_NONE); 
             
             // can realloc as `#include` calls file_intern() and lex_and_parse()
             p.current_file = file_lookup_id(id);
@@ -198,6 +198,11 @@ inline Token parser_peek_previous(Parser* p) {
 inline Token parser_peek_ahead_by(Parser* p, u32 count) {
     debug_assert(p -> cursor + count < p -> token_count);
     return p -> tokens_array -> items[p -> cursor + count];
+}
+
+inline Token parser_peek_behind_by(Parser* p, u32 count) {
+    debug_assert(p -> cursor - count > 0);
+    return p -> tokens_array -> items[p -> cursor - count];
 }
 
 inline Token parser_advance(Parser* p) {

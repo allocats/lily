@@ -7,6 +7,6 @@
 // LUT relies on an assertion that the first strings in the interner are directives
 void directive_ids_init();
 
-AstNodeId parse_directive(Parser* p); 
+AstNodeId parse_directive(Parser* p, StringId name_id); 
 
 #endif // !LILY_AST_PARSER_DIRECTIVE_H

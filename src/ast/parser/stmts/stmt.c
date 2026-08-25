@@ -16,7 +16,7 @@ AstNodeId parse_statement(Parser* p) {
     switch (token.kind) {
         case TOK_HASHTAG:
             parser_advance(p);
-            return parse_directive(p);
+            return parse_directive(p, STRING_ID_NONE);
 
         case TOK_IDENT:
             if (parser_check_ahead_by(p, TOK_COLON, 1)) {

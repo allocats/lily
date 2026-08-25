@@ -24,7 +24,7 @@ AstNodeId parse_top_level_decl(Parser* p) {
 
     switch (token.kind) {
         case TOK_HASHTAG:
-            return parse_directive(p);
+            return parse_directive(p, name_id);
 
         case TOK_KW_EXTERNAL:
             return parse_external_decl(p, name_id);
