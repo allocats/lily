@@ -6,6 +6,8 @@
 #include "string_interner/types.h"
 
 typedef struct {
+    const char* stdlib_path;
+
     u64 flags;
 
     FileInterner file_interner;

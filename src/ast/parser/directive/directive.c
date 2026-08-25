@@ -26,7 +26,8 @@ static constexpr u32 directive_count = 3;
 
 static AstNodeKind directive_lut[directive_count];
 
-static char scratch[PATH_MAX];
+static char scratch_relative[PATH_MAX];
+static char scratch_stdlib[PATH_MAX];
 
 // see note in header file
 void directive_ids_init() {
@@ -119,33 +120,51 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
 
             str8 import_path_string = STRING_ID_LOOKUP(path_string_id).str;
 
-            i32 n = snprintf(
-                scratch,
-                sizeof(scratch),
+            i32 n_relative = snprintf(
+                scratch_relative,
+                sizeof(scratch_relative),
                 "%.*s/module.lily",
                 import_path_string.len,
                 import_path_string.ptr
             );
 
-            str8 import_module_path_str8 = {
-                .ptr = scratch,
-                .len = n
+            str8 import_module_path_relative = {
+                .ptr = scratch_relative,
+                .len = n_relative
             };
 
-            FileId imported_file_id = file_intern(import_module_path_str8);
-            
-            if (UNLIKELY(imported_file_id == FILE_ID_NONE)) {
-                diagnostic_add_token(
-                    p -> current_file -> id,
-                    DIAG_ERROR,
-                    &path_token,
-                    DIAG_LOC_WHOLE_TOK,
-                    "imported file does not exist",
-                    "add a valid path to the file you are trying to importe"
-                );
+            i32 n_stdlib = snprintf(
+                scratch_stdlib,
+                sizeof(scratch_stdlib),
+                "%s/%.*s/module.lily",
+                driver.stdlib_path,
+                import_path_string.len,
+                import_path_string.ptr
+            );
 
-                node -> kind = AST_ERROR;
-                break;
+            str8 import_module_path_stdlib = {
+                .ptr = scratch_stdlib,
+                .len = n_stdlib
+            };
+
+            FileId imported_file_id = file_intern(import_module_path_relative);
+
+            if (imported_file_id == FILE_ID_NONE) {
+                imported_file_id = file_intern(import_module_path_stdlib);
+
+                if (imported_file_id == FILE_ID_NONE) {
+                    diagnostic_add_token(
+                        p -> current_file -> id,
+                        DIAG_ERROR,
+                        &path_token,
+                        DIAG_LOC_WHOLE_TOK,
+                        "imported file does not exist",
+                        "add a valid path to the file you are trying to import"
+                    );
+
+                    node -> kind = AST_ERROR;
+                    break;
+                }
             }
 
             File* imported_file = file_lookup_id(imported_file_id);
@@ -232,8 +251,8 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
 
             if (!last_slash) {
                 n = snprintf(
-                    scratch,
-                    sizeof(scratch),
+                    scratch_relative,
+                    sizeof(scratch_relative),
                     "%.*s",
                     // current_path_string.len,
                     // current_path_string.ptr,
@@ -242,8 +261,8 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
                 );
             } else {
                 n = snprintf(
-                    scratch,
-                    sizeof(scratch),
+                    scratch_relative,
+                    sizeof(scratch_relative),
                     "%.*s/%.*s",
                     (i32) (last_slash - current_path_string.ptr),
                     current_path_string.ptr,
@@ -253,7 +272,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             }
 
             str8 final_input_path = {
-                .ptr = scratch,
+                .ptr = scratch_relative,
                 .len = n
             };
 

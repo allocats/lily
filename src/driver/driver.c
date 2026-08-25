@@ -5,6 +5,7 @@
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "ids.h"
 #include "lexer/lexer.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
@@ -14,6 +15,7 @@
 #include <assert.h>
 #include <dirent.h>
 #include <linux/limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -31,7 +33,7 @@ static Arena stdlib_arena = {0};
 
 static char stdlib_path[PATH_MAX] = {0};
 
-static constexpr char stdlib_dir[] = ".local/lily/std";
+static constexpr char stdlib_dir[] = ".local/lily";
 static constexpr char build_path[] = "./.build";
 
 void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir) {
@@ -55,6 +57,8 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
 
     i32 n = snprintf(stdlib_path, sizeof(stdlib_path), "%s/%s", home_dir, stdlib_dir);
     StdlibFiles stdlib_files = get_stdlib_files((str8) { .ptr = stdlib_path, .len = n });
+
+    driver -> stdlib_path = stdlib_path;
 
     // get an estimated number of files and round it up
     u64 estimated_count = next_pow2(argc + stdlib_files.count);
@@ -91,7 +95,14 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
                 .len = arg_len,
             };
 
-            file_intern(path);
+            if (file_intern(path) == AST_NODE_ID_NONE) {
+                diagnostic_add_generic(
+                    DIAG_ERROR,
+                    "unable to open file: %.*s",
+                    path.len,
+                    path.ptr
+                );
+            }
         }
     }
 }
@@ -129,7 +140,11 @@ static void destroy_build_dir(void) {
 
         char* file_name = entry -> d_name;
 
-        str8 path = path_join(&scratch, (str8) { .ptr = build_path, .len = sizeof(build_path) - 1 }, file_name);
+        str8 path = path_join(
+            &scratch,
+            (str8) { .ptr = (char*) build_path, .len = sizeof(build_path) - 1 },
+            file_name
+        );
 
         remove(path.ptr);
 

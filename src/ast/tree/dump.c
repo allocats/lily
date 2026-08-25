@@ -148,6 +148,7 @@ static void ast_print_payload(FILE *out, const AstNode *node) {
             fprintf(out, "│ payload: AstIncludeDirective\n");
 
             ast_print_string_id(out, "│   path", node -> as.include_directive.path);
+            fprintf(out, "│   file: Id=%u\n", node -> as.include_directive.file_id);
             break;
 
 

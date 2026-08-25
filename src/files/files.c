@@ -1,6 +1,5 @@
 #include "ast/tree/tree.h"
 #include "diagnostics/diagnostics.h"
-#include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "files/types.h"
@@ -218,13 +217,6 @@ static str8 allocate_buffer(str8 path) {
     i32 fd = open(path.ptr, O_RDONLY);
     if (fd < 0) {
         // errno, error diagnostics
-        diagnostic_add_generic(
-            DIAG_ERROR,
-            "unable to open file: %.*s",
-            path.len,
-            path.ptr
-        );
-
         goto exit;
     }
 

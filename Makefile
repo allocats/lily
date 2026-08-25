@@ -17,7 +17,7 @@ $(BINARY): $(OBJS) | $(BIN_DIR)
 	$(CC) $(CF) -o $@ $(OBJS)
 	rm -rf $(STD_PATH)
 	mkdir -p $(STD_PATH)
-	cp -r ./std $(STD_PATH)
+	cp -r ./stdlib $(STD_PATH)/std
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	mkdir -p $(dir $@)
