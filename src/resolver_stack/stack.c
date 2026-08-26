@@ -1,9 +1,9 @@
-#include "driver/types.h"
+#include "types.h"
 #include "resolver_stack/stack.h"
 #include "resolver_stack/types.h"
 #include "utils/macros.h"
 
-extern DriverCtx driver;
+static ResolverStack resolver_stack = {0};
 
 static bool resolver_is_eq(ResolveQuery a, ResolveQuery b) {
     if (a.kind != b.kind || a.file_id != b.file_id) {
@@ -22,22 +22,22 @@ static bool resolver_is_eq(ResolveQuery a, ResolveQuery b) {
 }
 
 bool resolver_stack_push(ResolveQuery item) {
-    if (UNLIKELY(driver.resolver_stack.top >= RESOLVER_STACK_MAX)) {
+    if (UNLIKELY(resolver_stack.top >= RESOLVER_STACK_MAX)) {
         return false;
     }
 
-    driver.resolver_stack.items[driver.resolver_stack.top++] = item; 
+    resolver_stack.items[resolver_stack.top++] = item; 
 
     return true;
 }
 
 void resolver_stack_pop() {
-    driver.resolver_stack.top -= 1;
+    resolver_stack.top -= 1;
 }
 
 i32 resolver_stack_find(ResolveQuery item) {
-    for (u32 i = 0; i < driver.resolver_stack.top; i++) {
-        if (resolver_is_eq(driver.resolver_stack.items[i], item)) {
+    for (u32 i = 0; i < resolver_stack.top; i++) {
+        if (resolver_is_eq(resolver_stack.items[i], item)) {
             return i;
         }
     }

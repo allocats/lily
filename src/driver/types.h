@@ -3,7 +3,6 @@
 
 #include "diagnostics/types.h"
 #include "files/types.h"
-#include "resolver_stack/types.h"
 #include "string_interner/types.h"
 #include "symbols/table/types.h"
 
@@ -17,8 +16,6 @@ typedef struct {
     StringInterner string_interner;
 
     SymbolTable symbol_table;
-
-    ResolverStack resolver_stack;
 } DriverCtx;
 
 typedef struct {
