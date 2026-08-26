@@ -1,0 +1,73 @@
+#include "driver/types.h"
+#include "ids.h"
+#include "symbols/scope/scope.h"
+#include "symbols/scope/types.h"
+#include "symbols/table/table.h"
+#include "symbols/table/types.h"
+#include "utils/debug.h"
+#include "utils/macros.h"
+
+extern DriverCtx driver;
+
+void symbol_table_init(u32 count) {
+    SymbolTable* table = &driver.symbol_table;
+
+    const u32 symbols_init_capacity = NEXT_POWER_OF_TWO(count);
+    const u64 symbols_init_arena_size_in_bytes = sizeof(Symbol) * symbols_init_capacity;
+
+    debug_printf("Allocating symbol table for %u symbols", symbols_init_capacity);
+
+    arena_init(&table -> symbol_arena, symbols_init_arena_size_in_bytes, ALIGN_DEFAULT);
+    debug_printf("Init Symbol Table's symbols arena with %lu bytes", symbols_init_arena_size_in_bytes);
+
+    table -> symbols = arena_alloc(&table -> symbol_arena, symbols_init_arena_size_in_bytes);
+    table -> symbol_count = 0;
+    table -> symbol_capacity = symbols_init_capacity;
+
+    debug_printf("Allocated Symbol Table's symbols array with %lu bytes", symbols_init_arena_size_in_bytes);
+
+    const u32 scopes_init_capacity = NEXT_POWER_OF_TWO(driver.file_interner.count * 4);
+    const u64 scopes_init_arena_size_in_bytes = sizeof(Scope) * scopes_init_capacity;
+
+    arena_init(&table -> scope_array_arena, scopes_init_arena_size_in_bytes, ALIGN_DEFAULT);
+    debug_printf("Init Symbol Table's scope array arena with %lu bytes", scopes_init_arena_size_in_bytes);
+
+    const u64 data_init_arena_size_in_bytes = scopes_init_capacity * scope_init_capacity * (sizeof(ScopeBucket) + sizeof(SymbolId));
+
+    arena_init(&table -> scope_data_arena, data_init_arena_size_in_bytes, ALIGN_DEFAULT);
+    debug_printf("Init Symbol Table's scope data arena with %lu bytes", data_init_arena_size_in_bytes);
+
+    table -> scopes = arena_alloc(&table -> scope_array_arena, scopes_init_arena_size_in_bytes);
+    table -> scope_count = 0;
+    table -> scope_capacity = scopes_init_capacity;
+
+    debug_printf("Allocated Symbol Table's scopes array with %lu bytes", scopes_init_arena_size_in_bytes);
+
+    for (u32 i = 0; i < scopes_init_capacity; i++) {
+        scope_init(i);
+    }
+}
+
+inline ScopeId symbol_table_alloc_scope(void) {
+    SymbolTable* table = &driver.symbol_table;
+    
+    if (UNLIKELY(table -> scope_count >= table -> scope_capacity)) {
+        u64 old_size = sizeof(Scope) * table -> scope_capacity;
+        u64 new_size = old_size * 2;
+
+        table -> scopes = arena_realloc(&table -> scope_array_arena, table -> scopes, old_size, new_size);
+        table -> scope_capacity *= 2;
+
+        for (u32 i = table -> scope_count + 1; i < table -> scope_capacity; i++) {
+            scope_init(i);
+        }
+    }
+
+    return table -> scope_count++;
+}
+
+inline SymbolId symbol_table_alloc_symbol(void) {
+    SymbolTable* table = &driver.symbol_table;
+    assert(table -> symbol_count + 1 < table -> symbol_capacity);
+    return table -> symbol_count++;
+}

@@ -5,6 +5,7 @@
 #include "files/types.h"
 #include "resolver_stack/types.h"
 #include "string_interner/types.h"
+#include "symbols/table/types.h"
 
 typedef struct {
     const char* stdlib_path;
@@ -14,6 +15,8 @@ typedef struct {
     FileInterner file_interner;
     DiagnosticEngine diagnostic_engine;
     StringInterner string_interner;
+
+    SymbolTable symbol_table;
 
     ResolverStack resolver_stack;
 } DriverCtx;

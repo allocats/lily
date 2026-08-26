@@ -1,3 +1,4 @@
+#include "symbols/table/table.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef  MEOWRENA_IMPL
@@ -56,6 +57,15 @@ i32 main(i32 argc, char** argv) {
 
     lex_and_parse_files();
 
+    u32 file_count = driver.file_interner.count;
+    u32 total_declaration_count = 0;
+
+    for (u32 i = 0; i < file_count; i++) {
+        total_declaration_count += driver.file_interner.entries[i].ast.declaration_count;
+    }
+
+    symbol_table_init(total_declaration_count);
+
     // register_top_level_symbols();
     //
     // resolve_modules();
@@ -97,6 +107,8 @@ lily_done:
 
     cli_print_compiler_stats(&frontend_timer, &backend_timer, &linker_timer);
 
+    i32 exit_code = 0;
+
     if (!has_errors) {
         printf(
             "%s%s%s:%s compiled %ssuccessfully%s\n",
@@ -107,6 +119,8 @@ lily_done:
             ANSI_BOLD,
             ANSI_RESET
         );
+
+        exit_code = 0;
     } else {
         printf(
             "%s%s%s:%s compiler %sfailed%s\n",
@@ -117,9 +131,11 @@ lily_done:
             ANSI_BOLD,
             ANSI_RESET
         );
+
+        exit_code = 1;
     }
 
     driver_destroy(&driver);
 
-    return 0;
+    return exit_code;
 }

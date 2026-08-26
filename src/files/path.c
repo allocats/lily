@@ -26,6 +26,10 @@ void path_normalizer_init(void) {
     assert(cwd_len > 0);
 }
 
+void path_normalizer_destroy(void) {
+    arena_destroy(&arena);
+}
+
 static str8 normalize_path(str8 path) {
     assert(path.len + 1 < PATH_MAX && "path too long for normalize_scratch");
 

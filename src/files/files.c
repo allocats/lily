@@ -21,7 +21,7 @@
 extern DriverCtx driver;
 
 static constexpr f64 interner_load_factor = 0.75;
-static constexpr u64 interner_init_buffers_arena_kb  = 512;
+static constexpr u64 interner_init_buffers_arena_kb = 128;
 static constexpr u64 interner_init_interner_arena_kb = 4;
 
 static_assert(interner_load_factor > 0.0f);

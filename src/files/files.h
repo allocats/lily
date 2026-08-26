@@ -13,6 +13,8 @@ FileId file_lookup(str8 path);
 File*  file_lookup_id(FileId id);
 
 void path_normalizer_init(void);
+void path_normalizer_destroy(void);
+
 str8 get_absolute_path(str8 input_path);
 
 #endif // !LILY_FILES_H

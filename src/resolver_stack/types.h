@@ -6,6 +6,13 @@
 static constexpr u64 RESOLVER_STACK_MAX = 256;
 
 typedef enum {
+    RESOLVE_UNRESOLVED,
+    RESOLVE_RESOLVING,
+    RESOLVE_RESOLVED,
+    RESOLVE_ERROR
+} ResolveState;
+
+typedef enum {
     QUERY_SYMBOL,
     QUERY_TYPE,
 } ResolveQueryKind;
