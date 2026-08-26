@@ -51,10 +51,10 @@ void cli_print_compiler_stats(Timer* frontend_timer, Timer* backend_timer, Timer
     f64 backend_time = timer_elapsed_seconds(backend_timer);
     f64 linker_time = timer_elapsed_seconds(linker_timer);
 
-    fprintf(stderr, "\nFrontend time: %.6fs\n", frontend_time);
-    fprintf(stderr, "Backend time: %.6fs\n", backend_time);
-    fprintf(stderr, "Linker time: %.6fs\n\n", linker_time);
-    fprintf(stderr, "Total time: %.6fs\n\n", frontend_time + backend_time + linker_time);
+    fprintf(stdout, "\nFrontend time: %.6fs\n", frontend_time);
+    fprintf(stdout, "Backend time: %.6fs\n", backend_time);
+    fprintf(stdout, "Linker time: %.6fs\n\n", linker_time);
+    fprintf(stdout, "Total time: %.6fs\n\n", frontend_time + backend_time + linker_time);
 
-    fflush(stderr);
+    fflush(stdout);
 }
