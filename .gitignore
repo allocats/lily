@@ -9,6 +9,7 @@ ast_*.txt
 
 cachegrind.*
 callgrind.*
+heaptrack.*
 massif.*
 vgcore.*
 core.*
