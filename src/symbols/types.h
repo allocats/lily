@@ -29,6 +29,8 @@ typedef struct {
 
     union {
         struct {
+            // TODO: think about exports, thinking of just making a top level scope attached to each file
+            // then that holds the exported symbols? then perhaps change this to ScopeId rather than ModuleId?
             ModuleId module_id;
         } SymbolImport;
 
