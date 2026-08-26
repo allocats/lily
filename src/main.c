@@ -56,6 +56,14 @@ i32 main(i32 argc, char** argv) {
 
     lex_and_parse_files();
 
+    // register_top_level_symbols();
+    //
+    // resolve_modules();
+    //
+    // resolve_symbols();
+    //
+    // type_check_modules();
+
     timer_end(&frontend_timer);
 
     // timer for llvm

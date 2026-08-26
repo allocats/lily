@@ -3,6 +3,7 @@
 
 #include "diagnostics/types.h"
 #include "files/types.h"
+#include "resolver_stack/types.h"
 #include "string_interner/types.h"
 
 typedef struct {
@@ -13,6 +14,8 @@ typedef struct {
     FileInterner file_interner;
     DiagnosticEngine diagnostic_engine;
     StringInterner string_interner;
+
+    ResolverStack resolver_stack;
 } DriverCtx;
 
 typedef struct {

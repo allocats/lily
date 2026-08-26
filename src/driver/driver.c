@@ -5,6 +5,7 @@
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "files/types.h"
 #include "ids.h"
 #include "lexer/lexer.h"
 #include "string_interner/interner.h"
@@ -215,7 +216,7 @@ static StdlibFiles get_stdlib_files(str8 path) {
 inline void lex_and_parse(FileId id) {
     File* file = file_lookup_id(id);
 
-    if (file -> stage == FILE_DONE) return;
+    if (file -> stage != FILE_ALLOCATED) return;
 
     lex_file(id);
     

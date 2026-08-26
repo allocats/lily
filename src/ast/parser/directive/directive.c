@@ -174,18 +174,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             // means it has not yet been imported yet
             if (imported_file -> stage == FILE_ALLOCATED) {
                 lex_and_parse(imported_file_id);
-            } else if (imported_file -> stage == FILE_PARSING) {
-                diagnostic_add_token(
-                    p -> current_file -> id,
-                    DIAG_ERROR,
-                    &path_token,
-                    DIAG_LOC_WHOLE_TOK,
-                    "circular imports detected",
-                    "remove one and find a workaround"
-                );
-
-                node -> kind = AST_ERROR;
-            }
+            } 
 
             break;
         }
@@ -299,6 +288,8 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             // means it has not yet been imported yet
             if (included_file -> stage == FILE_ALLOCATED) {
                 lex_and_parse(included_file_id);
+            } else if (included_file -> stage == FILE_LEXED) {
+                parse_file(included_file_id);
             } else if (included_file -> stage == FILE_PARSING) {
                 diagnostic_add_token(
                     p -> current_file -> id,
@@ -307,6 +298,17 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
                     DIAG_LOC_WHOLE_TOK,
                     "circular include detected",
                     "remove one and find a workaround"
+                );
+
+                node -> kind = AST_ERROR;
+            } else if (included_file -> stage == FILE_ERROR) {
+                diagnostic_add_token(
+                    p -> current_file -> id,
+                    DIAG_ERROR,
+                    &path_token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "cannot include file",
+                    null
                 );
 
                 node -> kind = AST_ERROR;
