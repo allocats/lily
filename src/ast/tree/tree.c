@@ -32,6 +32,7 @@ void ast_init(Ast* ast) {
     ast -> capacity = ast_init_capacity;
 
     ast -> declaration_count = 0;
+    ast -> top_level_declaration_count = 0;
 
     debug_printf(
         "Allocated AST ast -> nodes with %lu bytes (%u nodes)",

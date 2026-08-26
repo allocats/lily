@@ -710,15 +710,16 @@ void ast_print(char *path, FileId file_id) {
         out,
         "File: %.*s\n\n"
         "Ast\n"
-        "├── address:         %p\n"
-        "├── nodes:           %p\n"
-        "├── count:           %u\n"
-        "├── capacity:        %u\n"
-        "├── declarations:    %u\n"
-        "├── node_size:       %zu bytes\n"
-        "├── allocated_size:  %zu bytes\n"
-        "├── gpa:             %p\n"
-        "└── nodes_arena:     %p\n",
+        "├── address:                   %p\n"
+        "├── nodes:                     %p\n"
+        "├── count:                     %u\n"
+        "├── capacity:                  %u\n"
+        "├── declarations:              %u\n"
+        "├── top-level declarations:    %u\n"
+        "├── node_size:                 %zu bytes\n"
+        "├── allocated_size:            %zu bytes\n"
+        "├── gpa:                       %p\n"
+        "└── nodes_arena:               %p\n",
         file -> path.len, 
         file -> path.ptr,
         (void*) ast,
@@ -726,6 +727,7 @@ void ast_print(char *path, FileId file_id) {
         ast -> count,
         ast -> capacity,
         ast -> declaration_count,
+        ast -> top_level_declaration_count,
         sizeof(AstNode),
         sizeof(AstNode) * (usize)ast -> capacity,
         (void*) &ast -> gpa,

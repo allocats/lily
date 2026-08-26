@@ -15,7 +15,11 @@ typedef struct {
     u32 count;
     u32 capacity;
 
+    // ALL declarations, used for the global table allocation
     u32 declaration_count;
+
+    // symbols to be exported, functions, structs, enums, unions and globals, used for scope allocation
+    u32 top_level_declaration_count;
 } Ast;
 
 #endif // !LILY_AST_TREE_TYPES_H

@@ -85,6 +85,7 @@ void parse_file(FileId id) {
                 parser_error(&p, node_id, RECOVERY_DECL);
             } else {
                 p.current_file -> ast.declaration_count += 1;
+                p.current_file -> ast.top_level_declaration_count += 1;
             }
 
         } else {
