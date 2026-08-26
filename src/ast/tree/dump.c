@@ -714,6 +714,7 @@ void ast_print(char *path, FileId file_id) {
         "├── nodes:           %p\n"
         "├── count:           %u\n"
         "├── capacity:        %u\n"
+        "├── declarations:    %u\n"
         "├── node_size:       %zu bytes\n"
         "├── allocated_size:  %zu bytes\n"
         "├── gpa:             %p\n"
@@ -724,6 +725,7 @@ void ast_print(char *path, FileId file_id) {
         (void*) ast -> nodes,
         ast -> count,
         ast -> capacity,
+        ast -> declaration_count,
         sizeof(AstNode),
         sizeof(AstNode) * (usize)ast -> capacity,
         (void*) &ast -> gpa,

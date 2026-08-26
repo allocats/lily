@@ -123,6 +123,12 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
                     "add a ')' here"
                 );
 
+                ast_id_list_append(
+                    &node -> as.function_decl.parameters,
+                    &p -> current_file -> ast,
+                    param_node_id
+                );
+
                 return parser_error(p, id, RECOVERY_DECL);
             }
 
@@ -202,6 +208,8 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
 
     node -> as.function_decl.block = block_id;
     node -> tokens.end = p -> cursor;
+
+    p -> current_file -> ast.declaration_count += node -> as.function_decl.parameters.count;
 
     return id;
 }

@@ -141,6 +141,13 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
             }
 
             parser_advance(p);
+
+            ast_id_list_append(
+                &node -> as.function_decl.parameters,
+                &p -> current_file -> ast,
+                param_node_id
+            );
+
             break;
         }
 
@@ -202,9 +209,12 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
         return parser_error(p, id, RECOVERY_DECL);
     }
 
+    node = parser_get_node(p, id);
     node -> tokens.end = p -> cursor;
 
     parser_advance(p);
+
+    p -> current_file -> ast.declaration_count += node -> as.function_decl.parameters.count;
 
     return id;
 }

@@ -15,7 +15,7 @@ typedef struct {
     u32 count;
     u32 capacity;
 
-    u32 top_level_declaration_count;
+    u32 declaration_count;
 } Ast;
 
 #endif // !LILY_AST_TREE_TYPES_H

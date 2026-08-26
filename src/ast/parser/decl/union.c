@@ -114,5 +114,7 @@ AstNodeId parse_union_decl(Parser* p, StringId name) {
 
     parser_advance(p); // advance past '}'
 
+    p -> current_file -> ast.declaration_count += node -> as.struct_decl.fields.count;
+
     return id;
 }

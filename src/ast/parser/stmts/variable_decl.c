@@ -92,5 +92,7 @@ AstNodeId parse_variable_decl(Parser* p) {
 
     parser_advance(p); // advance past ';'
 
+    p -> current_file -> ast.declaration_count += 1;
+
     return id;
 }
