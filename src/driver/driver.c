@@ -109,10 +109,30 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
 }
 
 void driver_destroy(DriverCtx* driver) {
-    // TODO: free some stuff
-    (void) driver;
-
     destroy_build_dir();
+
+    arena_destroy(&driver -> diagnostic_engine.arena);
+    arena_destroy(&driver -> string_interner.arena);
+
+    for (u32 i = 0; i < driver -> file_interner.count; i++) {
+        File* file = &driver -> file_interner.entries[i];
+
+        arena_destroy(&file -> tokens.arena);
+        arena_destroy(&file -> ast.gpa);
+        arena_destroy(&file -> ast.nodes_arena);
+    }
+
+    arena_destroy(&driver -> symbol_table.symbol_arena);
+    arena_destroy(&driver -> symbol_table.scope_array_arena);
+    arena_destroy(&driver -> symbol_table.scope_data_arena);
+
+    arena_destroy(&driver -> file_interner.interner_arena);
+    arena_destroy(&driver -> file_interner.buffer_arena);
+
+    arena_destroy(&scratch);
+    arena_destroy(&stdlib_arena);
+
+    path_normalizer_destroy();
 }
 
 static str8 path_join(Arena* arena, str8 dir, const char* name) {
