@@ -4,8 +4,12 @@
 #include "symbols/scope/types.h"
 #include "symbols/table/table.h"
 #include "symbols/table/types.h"
+#include "symbols/symbols/types.h"
+#include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+
+#include <assert.h>
 
 extern DriverCtx driver;
 
@@ -17,12 +21,15 @@ void symbol_table_init(u32 count) {
 
     debug_printf("Allocating symbol table for %u symbols", symbols_init_capacity);
 
-    arena_init(&table -> symbol_arena, symbols_init_arena_size_in_bytes, ALIGN_DEFAULT);
+    arena_init(&table -> symbol_array_arena, symbols_init_arena_size_in_bytes, ALIGN_DEFAULT);
     debug_printf("Init Symbol Table's symbols arena with %lu bytes", symbols_init_arena_size_in_bytes);
 
-    table -> symbols = arena_alloc(&table -> symbol_arena, symbols_init_arena_size_in_bytes);
+    table -> symbols = arena_alloc(&table -> symbol_array_arena, symbols_init_arena_size_in_bytes);
     table -> symbol_count = 0;
     table -> symbol_capacity = symbols_init_capacity;
+
+    arena_init(&table -> symbol_data_arena, ARENA_KB(1), ALIGN_DEFAULT);
+    debug_printf("Init Symbol Table's symbols data arena with 1KB");
 
     debug_printf("Allocated Symbol Table's symbols array with %lu bytes", symbols_init_arena_size_in_bytes);
 

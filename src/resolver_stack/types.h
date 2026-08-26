@@ -10,7 +10,7 @@ typedef enum {
     RESOLVE_RESOLVING,
     RESOLVE_RESOLVED,
     RESOLVE_ERROR
-} ResolveState;
+} __attribute__((packed)) ResolveState;
 
 typedef enum {
     QUERY_SYMBOL,

@@ -3,7 +3,7 @@
 
 #include "meowrena/meowrena.h"
 #include "symbols/scope/types.h"
-#include "symbols/types.h"
+#include "symbols/symbols/types.h"
 
 // using two arenas for realloc optimisations (last used pointer extension)
 typedef struct {
@@ -16,7 +16,8 @@ typedef struct {
     u32 scope_capacity;
 
     // symbols
-    Arena symbol_arena;
+    Arena symbol_array_arena;
+    Arena symbol_data_arena;
 
     Symbol* symbols;
     u32 symbol_count;

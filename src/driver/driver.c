@@ -122,9 +122,10 @@ void driver_destroy(DriverCtx* driver) {
         arena_destroy(&file -> ast.nodes_arena);
     }
 
-    arena_destroy(&driver -> symbol_table.symbol_arena);
-    arena_destroy(&driver -> symbol_table.scope_array_arena);
+    arena_destroy(&driver -> symbol_table.symbol_data_arena);
+    arena_destroy(&driver -> symbol_table.symbol_array_arena);
     arena_destroy(&driver -> symbol_table.scope_data_arena);
+    arena_destroy(&driver -> symbol_table.scope_array_arena);
 
     arena_destroy(&driver -> file_interner.interner_arena);
     arena_destroy(&driver -> file_interner.buffer_arena);

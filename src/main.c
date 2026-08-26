@@ -1,4 +1,3 @@
-#include "symbols/table/table.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef  MEOWRENA_IMPL
@@ -10,6 +9,7 @@
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "files/types.h"
+#include "symbols/table/table.h"
 #include "token/token.h"
 #include "token/types.h"
 #include "utils/timer.h"
@@ -33,6 +33,7 @@ i32 main(i32 argc, char** argv) {
     // compile time asserts to ensure that things are as expected 
     static_assert(8  == sizeof(Token) && "sizeof(Token) != 8 bytes");
     static_assert(64 == sizeof(AstNode) && "sizeof(AstNode) != 64 bytes");
+    static_assert(40 == sizeof(Symbol) && "sizeof(Symbol) != 40 bytes");
 
     // loads terminal colours or none if unable to
     cli_init_ansi_codes();
