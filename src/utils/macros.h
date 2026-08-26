@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+#define NEXT_POWER_OF_TWO(x) ((x) == 1 ? 1 : 1 << (64 - __builtin_clzl((x) - 1)))
+
 #define LIKELY(x)   __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 

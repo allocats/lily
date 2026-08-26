@@ -11,6 +11,7 @@
 #include "string_interner/interner.h"
 #include "token/types.h"
 #include "utils/debug.h"
+#include "utils/macros.h"
 #include "utils/types.h"
 
 #include <assert.h>
@@ -23,7 +24,6 @@
 
 #define FLAG_MATCHES(len, flag, str) ((len == sizeof(str) - 1) && strncmp(flag, str, len) == 0)
 
-static u64  next_pow2(u64 x);
 static str8 path_join(Arena* arena, str8 dir, const char* name);
 static void create_build_dir(void);
 static void destroy_build_dir(void);
@@ -62,7 +62,7 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
     driver -> stdlib_path = stdlib_path;
 
     // get an estimated number of files and round it up
-    u64 estimated_count = next_pow2(argc + stdlib_files.count);
+    u64 estimated_count = NEXT_POWER_OF_TWO(argc + stdlib_files.count);
     debug_printf("Allocating for %lu files", estimated_count);
 
     file_interner_init(estimated_count);
@@ -113,10 +113,6 @@ void driver_destroy(DriverCtx* driver) {
     (void) driver;
 
     destroy_build_dir();
-}
-
-static u64 next_pow2(u64 x) {
-    return x == 1 ? 1 : 1 << (64 - __builtin_clzl(x - 1));
 }
 
 static str8 path_join(Arena* arena, str8 dir, const char* name) {
