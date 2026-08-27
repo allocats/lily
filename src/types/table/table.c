@@ -89,6 +89,9 @@ TypeId type_table_intern_nominal(StringId name_id, TypeKind kind) {
 
     TypeId id = table -> entry_count++;
 
+    table -> nominal_buckets[index].id = id;
+    table -> nominal_buckets[index].hash = hash;
+
     TypeEntry* entry = &table -> entries[id];
 
     entry -> id = id;
