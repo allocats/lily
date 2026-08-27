@@ -12,12 +12,15 @@ typedef struct {
 } ScopeBucket;
 
 typedef struct {
-    ScopeId parent; // SCOPE_ID_NONE for no parent
-
     ScopeBucket* buckets;
     SymbolId* entries;
+
     u32 count;
     u32 capacity; // must be power of two
+
+    u32 resize_threshold_as_u32;
+
+    ScopeId parent; // SCOPE_ID_NONE for no parent
 } Scope;
 
 #endif // !LILY_SYMBOLS_SCOPE_TYPES_H

@@ -32,7 +32,8 @@ typedef struct {
     // cache performance (don't have to touch AST to check if const)
     u16 flags;
 
-    // file it is from
+    // file it is from. 27/08: might not actually need this since scope's will be attached 
+    // to files so the FileId is present when accessing the symbols
     FileId file_id;
 
     // binding

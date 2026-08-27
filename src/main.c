@@ -31,9 +31,10 @@ static inline void lex_and_parse_files(void) {
 
 i32 main(i32 argc, char** argv) {
     // compile time asserts to ensure that things are as expected 
-    static_assert(8  == sizeof(Token) && "sizeof(Token) != 8 bytes");
     static_assert(64 == sizeof(AstNode) && "sizeof(AstNode) != 64 bytes");
+    static_assert(32 == sizeof(Scope) && "sizeof(Scope) != 32 bytes");
     static_assert(40 == sizeof(Symbol) && "sizeof(Symbol) != 40 bytes");
+    static_assert(8  == sizeof(Token) && "sizeof(Token) != 8 bytes");
 
     // loads terminal colours or none if unable to
     cli_init_ansi_codes();
@@ -76,6 +77,10 @@ i32 main(i32 argc, char** argv) {
     // type_check_modules();
 
     timer_end(&frontend_timer);
+
+    if (driver.diagnostic_engine.error_count > 0) {
+        goto lily_done;
+    }
 
     // timer for llvm
     Timer backend_timer = {0}; 
