@@ -45,7 +45,7 @@ void symbol_table_init(u32 count) {
     debug_printf("Init Symbol Table's scope data arena with %lu bytes", data_init_arena_size_in_bytes);
 
     table -> scopes = arena_alloc(&table -> scope_array_arena, scopes_init_arena_size_in_bytes);
-    table -> scope_count = 0;
+    table -> scope_count = 1; // scope 0 is reserved for the compiler scope (builtins)
     table -> scope_capacity = scopes_init_capacity;
 
     debug_printf("Allocated Symbol Table's scopes array with %lu bytes", scopes_init_arena_size_in_bytes);
@@ -77,4 +77,22 @@ inline SymbolId symbol_table_alloc_symbol(void) {
     SymbolTable* table = &driver.symbol_table;
     assert(table -> symbol_count + 1 < table -> symbol_capacity);
     return table -> symbol_count++;
+}
+
+SymbolId symbol_table_lookup(ScopeId scope_id, StringId name_id) {
+    SymbolId id = SYMBOL_ID_NONE;
+
+    while (scope_id != SCOPE_ID_NONE) {
+        Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
+
+        id = scope_lookup(scope_id, name_id);
+
+        if (id != SYMBOL_ID_NONE)  {
+            break;
+        }
+
+        scope_id = scope -> parent;
+    }
+
+    return id;
 }

@@ -3,6 +3,7 @@
 
 #include "ast/tree/types.h"
 #include "ids.h"
+#include "symbols/scope/types.h"
 #include "token/types.h"
 #include "utils/types.h"
 
@@ -34,6 +35,8 @@ typedef struct {
     FileStage stage;
     
     FileId id;
+
+    ScopeId scope_id;
 } File;
 
 typedef struct {

@@ -5,17 +5,18 @@
 #include "files/types.h"
 #include "string_interner/types.h"
 #include "symbols/table/types.h"
+#include "types/table/types.h"
 
 typedef struct {
-    const char* stdlib_path;
-
-    u64 flags;
-
+    SymbolTable symbol_table;
+    TypeTable type_table;
     FileInterner file_interner;
     DiagnosticEngine diagnostic_engine;
     StringInterner string_interner;
 
-    SymbolTable symbol_table;
+    u64 flags;
+
+    const char* stdlib_path;
 } DriverCtx;
 
 typedef struct {

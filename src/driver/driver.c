@@ -10,6 +10,7 @@
 #include "lexer/lexer.h"
 #include "string_interner/interner.h"
 #include "token/types.h"
+#include "types/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
@@ -55,6 +56,8 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
 
     // asserts that the first string in the interner is "import"
     directive_ids_init();
+
+    type_table_init();
 
     i32 n = snprintf(stdlib_path, sizeof(stdlib_path), "%s/%s", home_dir, stdlib_dir);
     StdlibFiles stdlib_files = get_stdlib_files((str8) { .ptr = stdlib_path, .len = n });
@@ -126,6 +129,10 @@ void driver_destroy(DriverCtx* driver) {
     arena_destroy(&driver -> symbol_table.symbol_array_arena);
     arena_destroy(&driver -> symbol_table.scope_data_arena);
     arena_destroy(&driver -> symbol_table.scope_array_arena);
+
+    arena_destroy(&driver -> type_table.nominal_arena);
+    arena_destroy(&driver -> type_table.structural_arena);
+    arena_destroy(&driver -> type_table.entry_arena);
 
     arena_destroy(&driver -> file_interner.interner_arena);
     arena_destroy(&driver -> file_interner.buffer_arena);

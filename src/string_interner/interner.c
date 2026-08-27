@@ -245,9 +245,11 @@ inline StringId string_intern_token(FileId file_id, Token token) {
 
 static void string_interner_buckets_resize(StringInterner* interner) {
     u32 new_capacity = interner -> bucket_capacity * 2;
+
+    u64 old_size = sizeof(StringBucket) * interner -> bucket_capacity;
     u64 new_size = new_capacity * sizeof(StringBucket);
 
-    StringBucket* new_buckets = arena_alloc(&interner -> arena, new_size);
+    StringBucket* new_buckets = arena_realloc(&interner -> arena, interner -> buckets, old_size, new_size);
     arena_memset(new_buckets, U8_MAX, new_size);
 
     debug_printf("interner -> buckets new allocation from %lu to %lu", new_size / 2, new_size);

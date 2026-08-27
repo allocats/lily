@@ -11,6 +11,7 @@ typedef enum {
     SYMBOL_IMPORT,
     SYMBOL_PARAMETER,
     SYMBOL_STRUCT,
+    SYMBOL_TYPE,
     SYMBOL_UNION,
     SYMBOL_VARIABLE,
     SYMBOL_VARIANT,
@@ -46,7 +47,7 @@ typedef struct {
         struct {
             // TODO: think about exports, thinking of just making a top level scope attached to each file
             // then that holds the exported symbols? then perhaps change this to ScopeId rather than ModuleId?
-            ModuleId module_id;
+            ScopeId scope_id;
         } import_symbol;
 
         struct {
@@ -85,6 +86,10 @@ typedef struct {
         struct {
             TypeId type_id;
         } variable_symbol;
+
+        struct {
+            TypeId type_id;
+        } type_symbol;
     } as;
 } Symbol;
 

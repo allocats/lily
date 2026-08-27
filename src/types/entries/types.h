@@ -1,0 +1,92 @@
+#ifndef LILY_TYPES_ENTRIES_TYPES_H
+#define LILY_TYPES_ENTRIES_TYPES_H
+
+#include "ids.h"
+#include "resolver_stack/types.h"
+#include <assert.h>
+#include <stddef.h>
+
+typedef enum {
+    TYPE_FAMILY_STRUCUTRAL,
+    TYPE_FAMILY_NOMINAL,
+    TYPE_FAMILY_ERROR
+} TypeFamily;
+
+typedef enum {
+    TYPE_ARRAY,
+    TYPE_BASE,
+    TYPE_ENUM,
+    TYPE_FUNCTION,
+    TYPE_MODULE,
+    TYPE_POINTER,
+    TYPE_SLICE,
+    TYPE_STRUCT,
+    TYPE_UNION,
+    TYPE_ERROR,
+} __attribute__((packed)) TypeKind;
+
+typedef struct {
+    TypeId id;
+    TypeKind kind;
+
+    ResolveState state;
+
+    u16 alignment;
+    u32 size;
+
+    u32 hash;
+
+    union {
+        struct {
+            StringId name;
+        } base_type;
+
+        struct {
+            TypeId base;
+        } pointer_type;
+
+        struct {
+            TypeId element;
+            u32 size;
+        } array_type;
+
+        struct {
+            TypeId element;
+        } slice_type;
+
+        struct {
+            TypeId* fields;
+            u32 field_count;
+
+            SymbolId symbol_id;
+        } struct_type;
+
+        struct {
+            TypeId* fields;
+            u32 field_count;
+
+            SymbolId symbol_id;
+        } union_type;
+
+        struct {
+            TypeId underlying_type;
+
+            SymbolId symbol_id;
+        } enum_type;
+
+        struct {
+            TypeId* parameters;
+            u32 parameter_count;
+
+            TypeId return_type;
+        } function_type; // TODO: think about this. no binding, this is meant for types only for now
+
+        struct {
+            ScopeId scope_id;
+        } module_type;
+    } as;
+} TypeEntry;
+
+static_assert(sizeof(TypeEntry) == 32);
+
+#endif // !LILY_TYPES_ENTRIES_TYPES_H

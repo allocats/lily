@@ -34,7 +34,7 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
             symbol -> name_id = node -> as.import_directive.binding;
 
             // TODO
-            symbol -> as.import_symbol.module_id = 0;
+            symbol -> as.import_symbol.scope_id = 0;
             break;
 
         case AST_FUNCTION_DECL:

@@ -19,4 +19,6 @@ static constexpr u32 STRING_ID_NONE = U32_MAX;
 static constexpr u32 SYMBOL_ID_NONE = U32_MAX;
 static constexpr u32 TYPE_ID_NONE = U32_MAX;
 
+static constexpr u32 COMPILER_SCOPE_ID = 0;
+
 #endif // !LILY_IDS_H

@@ -1,4 +1,0 @@
-#ifndef LILY_SYMBOLS_TYPES_H
-#define LILY_SYMBOLS_TYPES_H
-
-#endif // !LILY_SYMBOLS_TYPES_H

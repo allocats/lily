@@ -177,7 +177,7 @@ static void files_buckets_resize(FileInterner* interner) {
 
     u32 new_capacity = interner -> bucket_capacity * 2;
 
-    FileBucket* new_buckets = arena_alloc(&interner -> interner_arena, new_size);
+    FileBucket* new_buckets = arena_realloc(&interner -> interner_arena, interner -> buckets, old_size, new_size);
     arena_memset(new_buckets, U8_MAX, new_size);
 
     debug_printf("Interner -> buckets resize %lu -> %lu bytes", old_size , new_size);
