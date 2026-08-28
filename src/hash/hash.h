@@ -1,13 +1,10 @@
 #ifndef LILY_HASH_H
 #define LILY_HASH_H
 
-#include "ids.h"
 #include "utils/types.h"
 
 u32 hash_crc32_str(char* pointer, u32 length);
-
-u32 hash_fnv1a_str8(str8 str);
-u32 hash_fnv1a_cstr(const char* str, u32 len);
-u32 hash_fnv1a_u32(u32 i);
+u32 hash_crc32_u32(u32 n);
+u32 hash_crc32_u32_with_u32_base(u32 base, u32 n);
 
 #endif // !LILY_HASH_H

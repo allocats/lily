@@ -1,14 +1,20 @@
 #include "driver/types.h"
+#include "ids.h"
 #include "resolver_stack/types.h"
 #include "string_interner/interner.h"
 #include "string_interner/types.h"
 #include "token/types.h"
+#include "types/builtins/builtins.h"
 #include "types/entries/entries.h"
 #include "types/entries/types.h"
+#include "types/hash/hash.h"
+#include "types/table/table.h"
 #include "types/table/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
-#include "types/table/table.h"
+
+#include <assert.h>
+#include <sys/types.h>
 
 extern DriverCtx driver;
 
@@ -57,10 +63,12 @@ void type_table_init(void) {
     arena_memset(table -> nominal_buckets, 0xff, buckets_array_size);
     arena_memset(table -> structural_buckets, 0xff, buckets_array_size);
 
-    // TODO: register builtins
+    types_register_builtins();
 }
 
 TypeId type_table_intern_nominal(StringId name_id, TypeKind kind) {
+    assert(type_family_lut[kind] == TYPE_FAMILY_NOMINAL);
+
     TypeTable* table = &driver.type_table;
 
     if (UNLIKELY(table -> nominal_count >= table -> nominal_resize_threshold_as_u32)) {
@@ -101,6 +109,143 @@ TypeId type_table_intern_nominal(StringId name_id, TypeKind kind) {
 
     entry -> size = 0;
     entry -> alignment = 0;
+
+    return id;
+}
+
+TypeId type_table_intern_pointer(TypeId base) {
+    TypeTable* table = &driver.type_table;
+
+    if (UNLIKELY(table -> structural_count >= table -> structural_resize_threshold_as_u32)) {
+        structural_buckets_resize();
+    }
+
+    u32 hash  = types_hash_pointer(base);
+    u32 mask  = table -> structural_capacity - 1;
+    u32 index = hash & mask; 
+
+    while (table -> structural_buckets[index].id != SYMBOL_ID_NONE) {
+        TypeBucket bucket = table -> structural_buckets[index];
+
+        if (bucket.hash == hash) {
+            return bucket.id;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table -> entry_count >= table -> entry_resize_threshold_as_u32)) {
+        entries_resize();
+    }
+
+    TypeId id = table -> entry_count++;
+
+    table -> structural_buckets[index].id = id;
+    table -> structural_buckets[index].hash = hash;
+
+    TypeEntry* entry = &table -> entries[id];
+
+    entry -> id = id;
+    entry -> hash = hash;
+    entry -> kind = TYPE_POINTER;
+    entry -> state = RESOLVE_RESOLVED;
+
+    entry -> size = sizeof(void*);
+    entry -> alignment = _Alignof(void*);
+
+    entry -> as.pointer_type.base = base;
+
+    return id;
+}
+
+TypeId type_table_intern_slice(TypeId base) {
+    TypeTable* table = &driver.type_table;
+
+    if (UNLIKELY(table -> structural_count >= table -> structural_resize_threshold_as_u32)) {
+        structural_buckets_resize();
+    }
+
+    u32 hash  = types_hash_slice(base);
+    u32 mask  = table -> structural_capacity - 1;
+    u32 index = hash & mask; 
+
+    while (table -> structural_buckets[index].id != SYMBOL_ID_NONE) {
+        TypeBucket bucket = table -> structural_buckets[index];
+
+        if (bucket.hash == hash) {
+            return bucket.id;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table -> entry_count >= table -> entry_resize_threshold_as_u32)) {
+        entries_resize();
+    }
+
+    TypeId id = table -> entry_count++;
+
+    table -> structural_buckets[index].id = id;
+    table -> structural_buckets[index].hash = hash;
+
+    TypeEntry* entry = &table -> entries[id];
+
+    entry -> id = id;
+    entry -> hash = hash;
+    entry -> kind = TYPE_SLICE;
+    entry -> state = RESOLVE_RESOLVED;
+
+    entry -> size = sizeof(void*);
+    entry -> alignment = _Alignof(void*);
+
+    entry -> as.slice_type.element = base;
+
+    return id;
+}
+
+TypeId type_table_intern_function(TypeId return_type, TypeId* arguments, u32 argument_count) {
+    TypeTable* table = &driver.type_table;
+
+    if (UNLIKELY(table -> structural_count >= table -> structural_resize_threshold_as_u32)) {
+        structural_buckets_resize();
+    }
+
+    u32 hash  = types_hash_function(return_type, arguments, argument_count);
+    u32 mask  = table -> structural_capacity - 1;
+    u32 index = hash & mask; 
+
+    while (table -> structural_buckets[index].id != SYMBOL_ID_NONE) {
+        TypeBucket bucket = table -> structural_buckets[index];
+
+        if (bucket.hash == hash) {
+            return bucket.id;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table -> entry_count >= table -> entry_resize_threshold_as_u32)) {
+        entries_resize();
+    }
+
+    TypeId id = table -> entry_count++;
+
+    table -> structural_buckets[index].id = id;
+    table -> structural_buckets[index].hash = hash;
+
+    TypeEntry* entry = &table -> entries[id];
+
+    entry -> id = id;
+    entry -> hash = hash;
+    entry -> kind = TYPE_FUNCTION;
+    entry -> state = RESOLVE_RESOLVED;
+
+    entry -> size = sizeof(void*);
+    entry -> alignment = _Alignof(void*);
+
+    entry -> as.function_type.return_type = return_type;
+    entry -> as.function_type.arguments = arguments;
+    entry -> as.function_type.argument_count = argument_count;
 
     return id;
 }

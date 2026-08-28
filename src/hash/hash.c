@@ -5,9 +5,6 @@
 #include <immintrin.h>
 #include <string.h>
 
-#define FNV1A32_BASIS 0x811c9dc5
-#define FNV1A32_PRIME 0x01000193
-
 u32 hash_crc32_str(char* pointer, u32 length) {
     u64 hash = 0xFFFFFFFF;
 
@@ -41,33 +38,14 @@ u32 hash_crc32_str(char* pointer, u32 length) {
     return (u32) hash;
 }
 
-u32 hash_fnv1a_str8(str8 str) {
-    u32 hash = FNV1A32_BASIS;
+u32 hash_crc32_u32(u32 n) {
+    u64 hash = 0xFFFFFFFF;
 
-    for (u32 i = 0; i < str.len; i++) {
-        hash ^= str.ptr[i];
-        hash *= FNV1A32_PRIME;
-    }
+    hash = _mm_crc32_u32((u32) hash, n);
 
     return hash;
 }
 
-u32 hash_fnv1a_cstr(const char* str, u32 len) {
-    u32 hash = FNV1A32_BASIS;
-
-    for (u32 i = 0; i < len; i++) {
-        hash ^= str[i];
-        hash *= FNV1A32_PRIME;
-    }
-
-    return hash;
-}
-
-u32 hash_fnv1a_u32(u32 i) {
-    u32 hash = FNV1A32_BASIS;
-
-    hash ^= i;
-    hash *= FNV1A32_PRIME;
-
-    return hash;
+u32 hash_crc32_u32_with_u32_base(u32 base, u32 n) {
+    return _mm_crc32_u32(base, n);
 }

@@ -75,8 +75,8 @@ typedef struct {
         } enum_type;
 
         struct {
-            TypeId* parameters;
-            u32 parameter_count;
+            TypeId* arguments;
+            u32 argument_count;
 
             TypeId return_type;
         } function_type; // TODO: think about this. no binding, this is meant for types only for now

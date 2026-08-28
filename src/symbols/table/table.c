@@ -1,11 +1,13 @@
 #include "driver/types.h"
 #include "ids.h"
+#include "symbols/register/register.h"
 #include "symbols/scope/scope.h"
 #include "symbols/scope/types.h"
 #include "symbols/table/table.h"
 #include "symbols/table/types.h"
 #include "symbols/symbols/types.h"
 #include "token/types.h"
+#include "types/builtins/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -16,7 +18,7 @@ extern DriverCtx driver;
 void symbol_table_init(u32 count) {
     SymbolTable* table = &driver.symbol_table;
 
-    const u32 symbols_init_capacity = NEXT_POWER_OF_TWO(count);
+    const u32 symbols_init_capacity = NEXT_POWER_OF_TWO(count + BUILTIN_NOMINAL_TYPES_COUNT);
     const u64 symbols_init_arena_size_in_bytes = sizeof(Symbol) * symbols_init_capacity;
 
     debug_printf("Allocating symbol table for %u symbols", symbols_init_capacity);
@@ -53,6 +55,8 @@ void symbol_table_init(u32 count) {
     for (u32 i = 0; i < scopes_init_capacity; i++) {
         scope_init(i);
     }
+
+    symbols_register_builtin_types();
 }
 
 inline ScopeId symbol_table_alloc_scope(void) {

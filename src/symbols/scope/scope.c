@@ -1,6 +1,8 @@
+#include "ast/nodes/types.h"
 #include "driver/types.h"
 #include "ids.h"
 #include "symbols/scope/scope.h"
+#include "resolver_stack/types.h"
 #include "string_interner/interner.h"
 #include "symbols/scope/types.h"
 #include "symbols/symbols/symbols.h"
@@ -33,7 +35,51 @@ void scope_init(ScopeId id) {
     debug_printf("Scope (%p) allocated %lu bytes for entries", scope, entries_size_as_bytes);
 }
 
-SymbolId scope_intern(ScopeId scope_id, FileId file_id, StringId name_id, AstNodeId node_id) {
+SymbolId scope_intern(ScopeId scope_id, StringId name_id, SymbolKind kind) {
+    Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
+
+    if (UNLIKELY(scope -> count >= scope -> capacity)) {
+        scope_resize(scope_id);
+    }
+
+    StringEntry string_entry = STRING_ID_LOOKUP(name_id);
+
+    u32 hash  = string_entry.hash;
+    u32 mask  = scope -> capacity - 1;
+    u32 index = hash & mask;
+
+    while (scope -> entries[index] != SYMBOL_ID_NONE) {
+        if (scope -> buckets[index].hash == hash) {
+            if (scope -> buckets[index].string_id == name_id) {
+                return scope -> entries[index];
+            }
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    SymbolId id = symbol_table_alloc_symbol();
+    
+    scope -> buckets[index].hash = hash;
+    scope -> buckets[index].string_id = name_id;
+
+    scope -> entries[index] = id;
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+    symbol -> id = id;
+    symbol -> kind = kind; 
+    symbol -> name_id = name_id;
+    symbol -> state = RESOLVE_UNRESOLVED;
+
+    symbol -> flags = AST_FLAGS_NONE;
+    symbol -> file_id = FILE_ID_NONE;
+    symbol -> ast_node_id = AST_NODE_ID_NONE;
+
+    return id;
+}
+
+SymbolId scope_intern_from_node(ScopeId scope_id, FileId file_id, StringId name_id, AstNodeId node_id) {
     Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
 
     if (UNLIKELY(scope -> count >= scope -> capacity)) {
@@ -58,7 +104,7 @@ SymbolId scope_intern(ScopeId scope_id, FileId file_id, StringId name_id, AstNod
 
     SymbolId id = make_symbol_from_ast_node(file_id, node_id);
 
-    scope -> buckets[index].hash = string_entry.hash;
+    scope -> buckets[index].hash = hash;
     scope -> buckets[index].string_id = name_id;
 
     scope -> entries[index] = id;

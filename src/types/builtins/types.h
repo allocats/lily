@@ -5,8 +5,14 @@
 #include "types/builtins/builtins.h"
 #include "utils/types.h"
 
+#include <stdarg.h>
+
 typedef struct {
+    TypeId id;
+
     str8 name;
+    StringId name_id;
+
     u16 align;
     u32 size;
 } TypeBuiltin;
@@ -17,7 +23,7 @@ typedef struct {
     #undef X
 } TypeBuiltinIds;
 
-static const TypeBuiltin BUILTIN_NOMINAL_TYPES[] = {
+static TypeBuiltin BUILTIN_NOMINAL_TYPES[] = {
 #define X(id, str, sz, al)              \
     {                                   \
         .name = {                       \
