@@ -93,6 +93,8 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
 
         node = parser_get_node(p, id);
 
+        param_node -> flags |= param_type_node -> flags;
+
         if (param_type_node -> kind == AST_TYPE_VARIADIC) {
             node -> flags |= AST_FLAGS_IS_VARIADIC;
 
@@ -134,10 +136,6 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
 
             parser_advance(p);
             break;
-        }
-
-        if (is_node_constant(&p -> current_file -> ast, param_type_expr_id)) {
-            param_node -> flags |=  AST_FLAGS_IS_CONSTANT;
         }
 
         ast_id_list_append(

@@ -33,7 +33,7 @@ void ast_id_list_append(AstNodeIdList* list, Ast* ast, AstNodeId id) {
 }
 
 inline bool is_node_constant(Ast* ast, AstNodeId id) {
-    return ast -> nodes[id].kind & AST_FLAGS_IS_CONSTANT;
+    return ast -> nodes[id].flags & AST_FLAGS_IS_CONSTANT;
 }
 
 inline void set_node_flag(Ast* ast, AstNodeId id, u16 flag) {

@@ -93,7 +93,9 @@ AstNodeId parse_struct_decl(Parser* p, StringId name) {
             return parser_error(p, id, RECOVERY_DECL);
         }
 
-        AstNodeId field_node_id = parser_create_node(p, AST_FIELD, AST_FLAGS_NONE, 0);
+        AstNode* type_expr_node = parser_get_node(p, type_expr_id);
+
+        AstNodeId field_node_id = parser_create_node(p, AST_FIELD, type_expr_node -> flags, 0);
         AstNode* field_node = parser_get_node(p, field_node_id);
 
         field_node -> as.field.name = string_intern_token(p -> current_file -> id, field_name_token);

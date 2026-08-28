@@ -317,14 +317,14 @@ AstNodeId parse_type_expr(Parser* p) {
         TypeModifier modifier = modifiers[--modifier_count];
 
         if (modifier.kind == TYPE_MOD_POINTER) {
-            AstNodeId ptr_id  = parser_create_node(p, AST_TYPE_POINTER, AST_FLAGS_NONE, 0);
+            AstNodeId ptr_id  = parser_create_node(p, AST_TYPE_POINTER, flags, 0);
             AstNode* ptr_node = parser_get_node(p, ptr_id);
 
             ptr_node -> as.type_pointer.base_type = id;
 
             id = ptr_id;
         } else if (modifier.kind == TYPE_MOD_ARRAY) {
-            AstNodeId arr_id  = parser_create_node(p, AST_TYPE_ARRAY, AST_FLAGS_NONE, 0);
+            AstNodeId arr_id  = parser_create_node(p, AST_TYPE_ARRAY, flags, 0);
             AstNode* arr_node = parser_get_node(p, arr_id);
 
             arr_node -> as.type_array.element = id;

@@ -105,6 +105,8 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
         param_node = parser_get_node(p, param_node_id);
         param_node -> as.parameter_decl.type_expr = param_type_expr_id;
 
+        param_node -> flags |= param_type_node -> flags;
+
         node = parser_get_node(p, id);
 
         if (param_type_node -> kind == AST_TYPE_VARIADIC) {
@@ -149,10 +151,6 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
             );
 
             break;
-        }
-
-        if (is_node_constant(&p -> current_file -> ast, param_type_expr_id)) {
-            param_node -> flags |=  AST_FLAGS_IS_CONSTANT;
         }
 
         ast_id_list_append(&node -> as.function_decl.parameters, &p -> current_file -> ast, param_node_id);
