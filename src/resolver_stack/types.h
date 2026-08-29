@@ -19,7 +19,6 @@ typedef enum {
 
 typedef struct {
     ResolveQueryKind kind;
-    FileId file_id;
 
     union {
         SymbolId symbol;

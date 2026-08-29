@@ -6,7 +6,7 @@
 static ResolverStack resolver_stack = {0};
 
 static bool resolver_is_eq(ResolveQuery a, ResolveQuery b) {
-    if (a.kind != b.kind || a.file_id != b.file_id) {
+    if (a.kind != b.kind) {
         return false;
     }
 
@@ -21,12 +21,12 @@ static bool resolver_is_eq(ResolveQuery a, ResolveQuery b) {
     return false;
 }
 
-bool resolver_stack_push(ResolveQuery item) {
+bool resolver_stack_push(ResolveQuery query) {
     if (UNLIKELY(resolver_stack.top >= RESOLVER_STACK_MAX)) {
         return false;
     }
 
-    resolver_stack.items[resolver_stack.top++] = item; 
+    resolver_stack.items[resolver_stack.top++] = query; 
 
     return true;
 }
@@ -35,9 +35,9 @@ void resolver_stack_pop() {
     resolver_stack.top -= 1;
 }
 
-i32 resolver_stack_find(ResolveQuery item) {
+i32 resolver_stack_find(ResolveQuery query) {
     for (u32 i = 0; i < resolver_stack.top; i++) {
-        if (resolver_is_eq(resolver_stack.items[i], item)) {
+        if (resolver_is_eq(resolver_stack.items[i], query)) {
             return i;
         }
     }

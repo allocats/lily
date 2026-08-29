@@ -66,7 +66,7 @@ void type_table_init(void) {
     types_register_builtins();
 }
 
-TypeId type_table_intern_nominal(StringId name_id, TypeKind kind) {
+TypeId type_table_intern_nominal(SymbolId symbol_id, StringId name_id, TypeKind kind) {
     assert(type_family_lut[kind] == TYPE_FAMILY_NOMINAL);
 
     TypeTable* table = &driver.type_table;
@@ -85,7 +85,9 @@ TypeId type_table_intern_nominal(StringId name_id, TypeKind kind) {
         TypeBucket bucket = table -> nominal_buckets[index];
 
         if (bucket.hash == hash) {
-            return bucket.id;
+            if (TYPE_ID_LOOKUP_REF(bucket.id) -> symbol_id == symbol_id) {
+                return bucket.id;
+            }
         }
 
         index = (index + 1) & mask;
@@ -106,6 +108,7 @@ TypeId type_table_intern_nominal(StringId name_id, TypeKind kind) {
     entry -> hash = hash;
     entry -> kind = kind;
     entry -> state = RESOLVE_UNRESOLVED;
+    entry -> symbol_id = symbol_id;
 
     entry -> size = 0;
     entry -> alignment = 0;
@@ -149,6 +152,7 @@ TypeId type_table_intern_pointer(TypeId base) {
     entry -> hash = hash;
     entry -> kind = TYPE_POINTER;
     entry -> state = RESOLVE_RESOLVED;
+    entry -> symbol_id = SYMBOL_ID_NONE;
 
     entry -> size = sizeof(void*);
     entry -> alignment = _Alignof(void*);
@@ -194,6 +198,7 @@ TypeId type_table_intern_slice(TypeId base) {
     entry -> hash = hash;
     entry -> kind = TYPE_SLICE;
     entry -> state = RESOLVE_RESOLVED;
+    entry -> symbol_id = SYMBOL_ID_NONE;
 
     entry -> size = sizeof(void*);
     entry -> alignment = _Alignof(void*);
@@ -239,6 +244,7 @@ TypeId type_table_intern_function(TypeId return_type, TypeId* arguments, u32 arg
     entry -> hash = hash;
     entry -> kind = TYPE_FUNCTION;
     entry -> state = RESOLVE_RESOLVED;
+    entry -> symbol_id = SYMBOL_ID_NONE;
 
     entry -> size = sizeof(void*);
     entry -> alignment = _Alignof(void*);

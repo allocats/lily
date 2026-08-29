@@ -9,6 +9,8 @@
 #include "symbols/symbols/types.h"
 #include "symbols/table/table.h"
 #include "types/builtins/types.h"
+#include "types/entries/types.h"
+#include "types/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include <stdio.h>
@@ -38,7 +40,9 @@ static inline SymbolId register_builtin_type(TypeId id, TypeBuiltin* type) {
 inline void symbols_register_builtin_types(void) {
     for (u32 i = 0; i < BUILTIN_NOMINAL_TYPES_COUNT; i++) {
         TypeBuiltin* type = &BUILTIN_NOMINAL_TYPES[i];
-        register_builtin_type(type -> id, type);
+        TypeEntry* entry = TYPE_ID_LOOKUP_REF(type -> id);
+
+        entry -> symbol_id = register_builtin_type(type -> id, type);
     }
 }
 
@@ -169,6 +173,9 @@ static void register_struct(Registrar* r, AstNode* node) {
         diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
     } else {
         id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
+
+        Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+        symbol -> as.struct_symbol.resolved_type_id = type_table_intern_nominal(id, name_id, TYPE_STRUCT);
     }
 }
 
@@ -181,6 +188,9 @@ static void register_union(Registrar* r, AstNode* node) {
         diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
     } else {
         id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
+
+        Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+        symbol -> as.union_symbol.resolved_type_id = type_table_intern_nominal(id, name_id, TYPE_UNION);
     }
 }
 
@@ -193,6 +203,9 @@ static void register_enum(Registrar* r, AstNode* node) {
         diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
     } else {
         id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
+
+        Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+        symbol -> as.enum_symbol.resolved_type_id = type_table_intern_nominal(id, name_id, TYPE_ENUM);
     }
 }
 

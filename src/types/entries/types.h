@@ -36,6 +36,8 @@ typedef struct {
 
     u32 hash;
 
+    SymbolId symbol_id;
+
     union {
         struct {
             StringId name;
@@ -86,7 +88,5 @@ typedef struct {
         } module_type;
     } as;
 } TypeEntry;
-
-static_assert(sizeof(TypeEntry) == 32);
 
 #endif // !LILY_TYPES_ENTRIES_TYPES_H
