@@ -85,9 +85,7 @@ TypeId type_table_intern_nominal(SymbolId symbol_id, StringId name_id, TypeKind 
         TypeBucket bucket = table -> nominal_buckets[index];
 
         if (bucket.hash == hash) {
-            if (TYPE_ID_LOOKUP_REF(bucket.id) -> symbol_id == symbol_id) {
-                return bucket.id;
-            }
+            return bucket.id;
         }
 
         index = (index + 1) & mask;
