@@ -9,6 +9,7 @@
 #include "symbols/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include <assert.h>
 
 extern DriverCtx driver;
 
@@ -71,6 +72,7 @@ SymbolId scope_intern(ScopeId scope_id, StringId name_id, SymbolKind kind) {
     symbol -> kind = kind; 
     symbol -> name_id = name_id;
     symbol -> state = RESOLVE_UNRESOLVED;
+    symbol -> hash = hash;
 
     symbol -> flags = AST_FLAGS_NONE;
     symbol -> file_id = FILE_ID_NONE;
@@ -109,7 +111,58 @@ SymbolId scope_intern_from_node(ScopeId scope_id, FileId file_id, StringId name_
 
     scope -> entries[index] = id;
 
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+    symbol -> hash = hash;
+
     return id;
+}
+
+SymbolId scope_add_symbol(ScopeId scope_id, SymbolId symbol_id) {
+    Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
+
+    if (UNLIKELY(scope -> count >= scope -> capacity)) {
+        scope_resize(scope_id);
+    }
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+    u32 hash  = symbol -> hash;
+    u32 mask  = scope -> capacity - 1;
+    u32 index = hash & mask;
+
+    while (scope -> entries[index] != SYMBOL_ID_NONE) {
+        if (scope -> buckets[index].hash == hash) {
+            if (scope -> buckets[index].string_id == symbol -> name_id) {
+                return scope -> entries[index];
+            }
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    scope -> buckets[index].hash = hash;
+    scope -> buckets[index].string_id = symbol -> name_id;
+
+    scope -> entries[index] = symbol_id;
+
+    return symbol_id;
+}
+
+ScopeId scope_merge(ScopeId dest_id, ScopeId src_id) {
+    Scope* src_scope = SCOPE_ID_LOOKUP_REF(src_id);
+
+    for (u32 i = 0; i < src_scope -> capacity; i++) {
+        SymbolId symbol_id = src_scope -> entries[i];
+
+        if (symbol_id != SYMBOL_ID_NONE) {
+            scope_add_symbol(dest_id, symbol_id);
+        }
+    }
+
+    debug_printf("Merged scope=%u into scope=%u", src_id, dest_id);
+
+    return dest_id;
 }
 
 SymbolId scope_lookup(ScopeId scope_id, StringId name_id) {
@@ -132,6 +185,30 @@ SymbolId scope_lookup(ScopeId scope_id, StringId name_id) {
     }
 
     return SYMBOL_ID_NONE;
+}
+
+ScopeId scope_enter(Registrar* r) {
+    ScopeId new_id = symbol_table_alloc_scope();
+    Scope* new_scope = SCOPE_ID_LOOKUP_REF(new_id);
+
+    new_scope -> parent = r -> scope_id;
+
+    r -> scope_id = new_id;
+
+    return new_id;
+}
+
+ScopeId scope_exit(Registrar* r) {
+    ScopeId id = r -> scope_id;
+
+    assert(id != COMPILER_SCOPE_ID);
+
+    Scope* scope = SCOPE_ID_LOOKUP_REF(id);
+    ScopeId parent_id = scope -> parent;
+
+    r -> scope_id = parent_id;
+
+    return parent_id;
 }
 
 static void scope_resize(ScopeId id) {

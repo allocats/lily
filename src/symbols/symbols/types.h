@@ -43,6 +43,8 @@ typedef struct {
     // declaration within the AST
     AstNodeId ast_node_id;
 
+    u32 hash;
+
     union {
         struct {
             // TODO: think about exports, thinking of just making a top level scope attached to each file

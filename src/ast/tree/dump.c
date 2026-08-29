@@ -140,7 +140,7 @@ static void ast_print_payload(FILE *out, const AstNode *node) {
             ast_print_string_id(out, "│   binding", node -> as.import_directive.binding);
             ast_print_string_id(out, "│   path", node -> as.import_directive.path);
 
-            fprintf(out, "│   resolved: ModuleId=%u\n", (u32)node -> as.import_directive.resolved);
+            fprintf(out, "│   resolved: FileID=%u\n", (u32)node -> as.import_directive.file_id);
             break;
 
         case AST_INCLUDE_DIRECTIVE:

@@ -114,9 +114,9 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             path_token.start  -= 1;
             path_token.length += 2;
 
-            node -> as.import_directive.path     = path_string_id;
-            node -> as.import_directive.binding  = name_id;
-            node -> as.import_directive.resolved = MODULE_ID_NONE;
+            node -> as.import_directive.path    = path_string_id;
+            node -> as.import_directive.binding = name_id;
+            node -> as.import_directive.file_id = FILE_ID_NONE;
 
             str8 import_path_string = STRING_ID_LOOKUP(path_string_id).str;
 
@@ -170,6 +170,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             File* imported_file = file_lookup_id(imported_file_id);
 
             node = parser_get_node(p, id);
+            node -> as.import_directive.file_id = imported_file_id;
 
             // means it has not yet been imported yet
             if (imported_file -> stage == FILE_ALLOCATED) {
@@ -266,6 +267,9 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             };
 
             FileId included_file_id = file_intern(final_input_path);
+
+            node = parser_get_node(p, id);
+            node -> as.include_directive.file_id = included_file_id;
             
             if (UNLIKELY(included_file_id == FILE_ID_NONE)) {
                 diagnostic_add_token(
@@ -282,8 +286,6 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             }
 
             File* included_file = file_lookup_id(included_file_id);
-
-            node = parser_get_node(p, id);
 
             // means it has not yet been imported yet
             if (included_file -> stage == FILE_ALLOCATED) {

@@ -124,7 +124,7 @@ typedef struct {
     StringId binding;
 
     StringId path;
-    ModuleId resolved;
+    FileId file_id;
 } AstImportDirective;
 
 

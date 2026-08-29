@@ -79,7 +79,17 @@ inline ScopeId symbol_table_alloc_scope(void) {
 
 inline SymbolId symbol_table_alloc_symbol(void) {
     SymbolTable* table = &driver.symbol_table;
-    assert(table -> symbol_count + 1 < table -> symbol_capacity);
+    
+    if (UNLIKELY(table -> symbol_count >= table -> symbol_capacity)) {
+        u64 old_size = sizeof(Symbol) * table -> symbol_capacity;
+        u64 new_size = old_size * 2;
+
+        table -> symbols = arena_realloc(&table -> symbol_array_arena, table -> symbols, old_size, new_size);
+        table -> symbol_capacity *= 2;
+
+        debug_printf("SymbolTable -> symbols realloc from %lu to %lu bytes", old_size, new_size);
+    }
+
     return table -> symbol_count++;
 }
 

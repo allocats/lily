@@ -9,6 +9,7 @@
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "files/types.h"
+#include "symbols/register/register.h"
 #include "symbols/table/table.h"
 #include "token/token.h"
 #include "token/types.h"
@@ -26,6 +27,14 @@ static inline void lex_and_parse_files(void) {
 
     for (u32 i = 0; i < file_count; i++) {
         lex_and_parse(i);
+    }
+}
+
+static inline void register_top_level_symbols(void) {
+    u32 file_count = driver.file_interner.count;
+
+    for (u32 i = 0; i < file_count; i++) {
+        register_top_level_symbols_for_file(i);
     }
 }
 
@@ -68,8 +77,8 @@ i32 main(i32 argc, char** argv) {
 
     symbol_table_init(total_declaration_count);
 
-    // register_top_level_symbols();
-    //
+    register_top_level_symbols();
+
     // resolve_modules();
     //
     // resolve_symbols();
