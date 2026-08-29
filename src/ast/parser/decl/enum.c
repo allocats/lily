@@ -15,10 +15,10 @@
 #include "utils/types.h"
 
 AstNodeId parse_enum_decl(Parser *p, StringId name) {
-    AstNodeId id = parser_create_node(p, AST_ENUM_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_CONSTANT, -2);
+    AstNodeId id = parser_create_node(p, AST_ENUM_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_CONSTANT, -3);
     AstNode* node = parser_get_node(p, id);
 
-    node -> as.function_decl.name = name;
+    node -> as.enum_decl.name = name;
 
     if (parser_check(p, TOK_L_BRACKET)) {
         parser_advance(p); // advance past '['
@@ -67,7 +67,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
 
     parser_advance(p); // advance past '{'
 
-    while (!parser_check(p, TOK_L_BRACE)) {
+    while (!parser_check(p, TOK_R_BRACE)) {
         AstNodeId value_expr_id = AST_NODE_ID_NONE;
         Token variant_name_token = parser_peek(p);
 

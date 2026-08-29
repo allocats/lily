@@ -92,23 +92,50 @@ inline SymbolId symbol_table_alloc_symbol(void) { SymbolTable* table = &driver.s
     return table -> symbol_count++;
 }
 
-SymbolId symbol_table_lookup(ScopeId scope_id, StringId name_id) {
-    SymbolId id = SYMBOL_ID_NONE;
+SymbolId symbol_table_lookup_top_level(ScopeId scope_id, StringId name_id) {
+    SymbolId id = scope_lookup(scope_id, name_id);
+
+    if (id != SYMBOL_ID_NONE) {
+        return id;
+    }
+
+    Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
+    scope_id = scope -> parent;
 
     while (scope_id != SCOPE_ID_NONE) {
-        Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
-
+        scope = SCOPE_ID_LOOKUP_REF(scope_id);
         id = scope_lookup(scope_id, name_id);
 
-        Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+        if (id != SYMBOL_ID_NONE) {
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
 
-        // another guard to ensure import bindings are not exported
-        if (id != SYMBOL_ID_NONE && symbol -> kind != SYMBOL_IMPORT) {
-            break;
+            if (symbol -> kind != SYMBOL_IMPORT) {
+                return id;
+            }
         }
 
         scope_id = scope -> parent;
     }
 
-    return id;
+    return SYMBOL_ID_NONE;
+}
+
+SymbolId symbol_table_lookup(ScopeId scope_id, StringId name_id, FileId file_id) {
+    while (scope_id != SCOPE_ID_NONE) {
+        Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
+        SymbolId id = scope_lookup(scope_id, name_id);
+
+        if (id != SYMBOL_ID_NONE) {
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+            // import bindings are only visible to the file that declared them
+            if (symbol -> kind != SYMBOL_IMPORT || symbol -> file_id == file_id) {
+                return id;
+            }
+        }
+
+        scope_id = scope -> parent;
+    }
+
+    return SYMBOL_ID_NONE;
 }

@@ -11,6 +11,7 @@
 #include "types/builtins/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include <stdio.h>
 #include "symbols/register/register.h"
 
 extern DriverCtx driver;
@@ -18,6 +19,11 @@ extern DriverCtx driver;
 static void register_symbol(Registrar* r, AstNode* node);
 
 static void register_import(Registrar* r, AstNode* node);
+static void register_function(Registrar* r, AstNode* node);
+static void register_struct(Registrar* r, AstNode* node);
+static void register_union(Registrar* r, AstNode* node);
+static void register_enum(Registrar* r, AstNode* node);
+static void register_variable(Registrar* r, AstNode* node);
 
 static inline SymbolId register_builtin_type(TypeId id, TypeBuiltin* type) {
     SymbolId symbol_id = scope_intern(COMPILER_SCOPE_ID, type -> name_id, SYMBOL_TYPE);
@@ -85,26 +91,30 @@ static void register_symbol(Registrar* r, AstNode* node) {
             break;
 
         case AST_FUNCTION_DECL:
-            // register_function();
+            register_function(r, node);
             break;
 
         case AST_STRUCT_DECL:
-            // register_struct();
+            register_struct(r, node);
             break;
 
         case AST_UNION_DECL:
-            // register_union();
+            register_union(r, node);
             break;
 
         case AST_ENUM_DECL:
-            // register_enum();
+            register_enum(r, node);
             break;
 
         case AST_VARIABLE_DECL:
-            // register_varaible();
+            register_variable(r, node);
+            break;
+
+        case AST_ERROR:
             break;
 
         default:
+            fprintf(stderr, "Found %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
             UNREACHABLE("Found a non top level declaration node in register_symbol()");
     }
 }
@@ -117,13 +127,15 @@ static void register_import(Registrar* r, AstNode* node) {
     if (binding == STRING_ID_NONE) {
         scope_merge(r -> scope_id, scope_id);
     } else {
-        SymbolId symbol_id = symbol_table_lookup(r -> scope_id, binding);
+        SymbolId symbol_id = symbol_table_lookup_top_level(r -> scope_id, binding);
 
         if (symbol_id != SYMBOL_ID_NONE) {
             Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
             if (symbol -> kind == SYMBOL_IMPORT && symbol -> as.import_symbol.scope_id == scope_id) {
-                scope_add_symbol(r -> scope_id, symbol_id);
+                if (scope_add_symbol(r -> scope_id, symbol_id) == SYMBOL_ID_NONE) {
+                    diagnostic_add_symbol_redefined(r -> file -> id, node -> id, symbol_id, binding);
+                }
             } else {
                 diagnostic_add_symbol_redefined(r -> file -> id, node -> id, symbol_id, binding);
             }
@@ -133,5 +145,65 @@ static void register_import(Registrar* r, AstNode* node) {
 
             symbol -> as.import_symbol.scope_id = scope_id;
         }
+    }
+}
+
+static void register_function(Registrar* r, AstNode* node) {
+    StringId name_id = node -> as.function_decl.name;
+
+    SymbolId id = symbol_table_lookup_top_level(r -> scope_id, name_id);
+
+    if (id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
+    } else {
+        id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
+    }
+}
+
+static void register_struct(Registrar* r, AstNode* node) {
+    StringId name_id = node -> as.struct_decl.name;
+
+    SymbolId id = symbol_table_lookup_top_level(r -> scope_id, name_id);
+
+    if (id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
+    } else {
+        id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
+    }
+}
+
+static void register_union(Registrar* r, AstNode* node) {
+    StringId name_id = node -> as.union_decl.name;
+
+    SymbolId id = symbol_table_lookup_top_level(r -> scope_id, name_id);
+
+    if (id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
+    } else {
+        id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
+    }
+}
+
+static void register_enum(Registrar* r, AstNode* node) {
+    StringId name_id = node -> as.enum_decl.name;
+
+    SymbolId id = symbol_table_lookup_top_level(r -> scope_id, name_id);
+
+    if (id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
+    } else {
+        id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
+    }
+}
+
+static void register_variable(Registrar* r, AstNode* node) {
+    StringId name_id = node -> as.variable_decl.name;
+
+    SymbolId id = symbol_table_lookup_top_level(r -> scope_id, name_id);
+
+    if (id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
+    } else {
+        id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
     }
 }

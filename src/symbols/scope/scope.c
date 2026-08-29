@@ -134,7 +134,8 @@ SymbolId scope_add_symbol(ScopeId scope_id, SymbolId symbol_id) {
     while (scope -> entries[index] != SYMBOL_ID_NONE) {
         if (scope -> buckets[index].hash == hash) {
             if (scope -> buckets[index].string_id == symbol -> name_id) {
-                return scope -> entries[index];
+                // TODO: maybe add diagnostic here?
+                return SYMBOL_ID_NONE;
             }
         }
 

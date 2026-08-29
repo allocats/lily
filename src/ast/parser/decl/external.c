@@ -20,13 +20,13 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
             "insert fn for external declaration"
         );
 
-        AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -2);
+        AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -3);
         return parser_error(p, id, RECOVERY_DECL);
     }
 
     parser_advance(p); // advance past 'fn'
 
-    AstNodeId id = parser_create_node(p, AST_FUNCTION_DECL, AST_FLAGS_IS_EXTERNAL, -3);
+    AstNodeId id = parser_create_node(p, AST_FUNCTION_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_EXTERNAL, -4);
     AstNode* node = parser_get_node(p, id);
 
     node -> as.function_decl.name = name;

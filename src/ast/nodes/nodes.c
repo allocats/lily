@@ -37,5 +37,5 @@ inline bool is_node_constant(Ast* ast, AstNodeId id) {
 }
 
 inline void set_node_flag(Ast* ast, AstNodeId id, u16 flag) {
-    ast -> nodes[id].kind |= flag;
+    ast -> nodes[id].flags |= flag;
 }

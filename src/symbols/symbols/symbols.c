@@ -42,7 +42,12 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
 
             u32 parameter_count = node -> as.function_decl.parameters.count;
 
-            symbol -> as.function_symbol.parameters = arena_alloc(arena, sizeof(SymbolId) * parameter_count);
+            if (parameter_count == 0) {
+                symbol -> as.function_symbol.parameters = null;
+            } else {
+                symbol -> as.function_symbol.parameters = arena_alloc(arena, sizeof(SymbolId) * parameter_count);
+            }
+
             symbol -> as.function_symbol.parameter_count = parameter_count;
             symbol -> as.function_symbol.return_type_id = TYPE_ID_NONE;
             break;
@@ -82,7 +87,12 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
 
             u32 struct_field_count = node -> as.struct_decl.fields.count;
 
-            symbol -> as.struct_symbol.fields = arena_alloc(arena, sizeof(SymbolId) * struct_field_count);
+            if (struct_field_count == 0) {
+                symbol -> as.struct_symbol.fields = 0;
+            } else {
+                symbol -> as.struct_symbol.fields = arena_alloc(arena, sizeof(SymbolId) * struct_field_count);
+            }
+
             symbol -> as.struct_symbol.field_count = struct_field_count;
             symbol -> as.struct_symbol.resolved_type_id = TYPE_ID_NONE;
             break;
@@ -93,7 +103,12 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
 
             u32 union_field_count = node -> as.union_decl.fields.count;
 
-            symbol -> as.union_symbol.fields = arena_alloc(arena, sizeof(SymbolId) * union_field_count);
+            if (union_field_count == 0) {
+                symbol -> as.union_symbol.fields = 0;
+            } else {
+                symbol -> as.union_symbol.fields = arena_alloc(arena, sizeof(SymbolId) * union_field_count);
+            }
+
             symbol -> as.union_symbol.field_count = union_field_count;
             symbol -> as.union_symbol.resolved_type_id = TYPE_ID_NONE;
             break;

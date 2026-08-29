@@ -61,6 +61,7 @@ void parse_file(FileId id) {
             switch (op.kind) {
                 case TOK_COLON:
                     node_id = parse_variable_decl(&p);
+                    set_node_flag(&p.current_file -> ast, node_id, AST_FLAGS_IS_TOP_DECL);
                     break;
 
                 case TOK_COLON_COLON:

@@ -15,6 +15,7 @@ void symbol_table_init(u32 count);
 ScopeId  symbol_table_alloc_scope(void);
 SymbolId symbol_table_alloc_symbol(void);
 
-SymbolId symbol_table_lookup(ScopeId id, StringId name);
+SymbolId symbol_table_lookup_top_level(ScopeId id, StringId name);
+SymbolId symbol_table_lookup(ScopeId scope_id, StringId name_id, FileId file_id);
 
 #endif // !LILY_SYMBOLS_TABLE_H
