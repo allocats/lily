@@ -39,7 +39,7 @@ void scope_init(ScopeId id) {
 SymbolId scope_intern(ScopeId scope_id, StringId name_id, SymbolKind kind) {
     Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
 
-    if (UNLIKELY(scope -> count >= scope -> capacity)) {
+    if (UNLIKELY(scope -> count >= scope -> capacity * scope -> resize_threshold_as_u32)) {
         scope_resize(scope_id);
     }
 
@@ -84,7 +84,7 @@ SymbolId scope_intern(ScopeId scope_id, StringId name_id, SymbolKind kind) {
 SymbolId scope_intern_from_node(ScopeId scope_id, FileId file_id, StringId name_id, AstNodeId node_id) {
     Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
 
-    if (UNLIKELY(scope -> count >= scope -> capacity)) {
+    if (UNLIKELY(scope -> count >= scope -> capacity * scope -> resize_threshold_as_u32)) {
         scope_resize(scope_id);
     }
 
@@ -121,7 +121,7 @@ SymbolId scope_intern_from_node(ScopeId scope_id, FileId file_id, StringId name_
 SymbolId scope_add_symbol(ScopeId scope_id, SymbolId symbol_id) {
     Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
 
-    if (UNLIKELY(scope -> count >= scope -> capacity)) {
+    if (UNLIKELY(scope -> count >= scope -> capacity * scope -> resize_threshold_as_u32)) {
         scope_resize(scope_id);
     }
 
@@ -244,6 +244,8 @@ static void scope_resize(ScopeId id) {
     scope -> entries  = new_entries;
     scope -> buckets  = new_buckets;
     scope -> capacity = new_capacity;
+
+    scope -> resize_threshold_as_u32 = (u32)(new_capacity * load_factor);
 
     debug_printf("Scope (%p) resized.", scope);
     debug_printf(

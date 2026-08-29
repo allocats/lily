@@ -1,4 +1,5 @@
 #include "ast/nodes/types.h"
+#include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
@@ -108,7 +109,7 @@ static void register_symbol(Registrar* r, AstNode* node) {
     }
 }
 
-static inline void register_import(Registrar* r, AstNode* node) {
+static void register_import(Registrar* r, AstNode* node) {
     ScopeId scope_id = register_top_level_symbols_for_file(node -> as.import_directive.file_id);
 
     StringId binding = node -> as.import_directive.binding;
@@ -119,12 +120,18 @@ static inline void register_import(Registrar* r, AstNode* node) {
         SymbolId symbol_id = symbol_table_lookup(r -> scope_id, binding);
 
         if (symbol_id != SYMBOL_ID_NONE) {
-            UNREACHABLE("TODO: diagnostics");
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+            if (symbol -> kind == SYMBOL_IMPORT && symbol -> as.import_symbol.scope_id == scope_id) {
+                scope_add_symbol(r -> scope_id, symbol_id);
+            } else {
+                diagnostic_add_symbol_redefined(r -> file -> id, node -> id, symbol_id, binding);
+            }
+        } else {
+            symbol_id = scope_intern_from_node(r -> scope_id, r -> file -> id, binding, node -> id);
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+            symbol -> as.import_symbol.scope_id = scope_id;
         }
-
-        symbol_id = scope_intern_from_node(r -> scope_id, r -> file -> id, binding, node -> id);
-        Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
-
-        symbol -> as.import_symbol.scope_id = scope_id;
     }
 }

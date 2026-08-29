@@ -26,6 +26,8 @@ void diagnostic_add_token_span(
     const char* help
 );
 
+void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId symbol_id, StringId name_id);
+
 bool diagnostics_print();
 
 #endif // !LILY_DIAGNOSTICS_H

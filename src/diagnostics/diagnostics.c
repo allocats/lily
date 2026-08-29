@@ -1,3 +1,4 @@
+#include "ast/tree/tree.h"
 #include "cli/cli.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
@@ -5,6 +6,8 @@
 #include "files/files.h"
 #include "files/types.h"
 #include "ids.h"
+#include "string_interner/interner.h"
+#include "symbols/table/table.h"
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -19,6 +22,8 @@ extern DriverCtx driver;
 
 static constexpr u64 diagnostic_init_arena_size_kb = 2;
 static constexpr u64 diagnostic_default_threshold  = 32;
+
+static constexpr u64 diagnostic_max_length = 256;
 
 static_assert(sizeof(Diagnostic) * diagnostic_default_threshold < ARENA_KB(diagnostic_init_arena_size_kb));
 static_assert(diagnostic_init_arena_size_kb > 0);
@@ -307,6 +312,46 @@ void diagnostic_add_token_span(
     diag -> col = col;
     diag -> len = len;
     diag -> file_id = file_id;
+}
+
+void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId symbol_id, StringId name_id) {
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+    File* defined_file = file_lookup_id(symbol -> file_id);
+    File* redefined_file = file_lookup_id(file_id);
+
+    AstNode* defined_node = ast_get_node(&defined_file -> ast, symbol -> ast_node_id);
+    AstNode* redefined_node = ast_get_node(&redefined_file -> ast, node_id);
+
+    char* defined_msg = arena_alloc(&driver.diagnostic_engine.arena, diagnostic_max_length);
+
+    StringEntry defined_name = STRING_ID_LOOKUP(symbol -> name_id);
+
+    snprintf(defined_msg, diagnostic_max_length, "%.*s is defined here", STR8_FMT(defined_name.str));
+
+    diagnostic_add_token(
+        defined_file -> id,
+        DIAG_NOTE,
+        &defined_file -> tokens.items[defined_node -> tokens.start],
+        DIAG_LOC_WHOLE_TOK,
+        defined_msg,
+        null
+    );
+
+    char* redefined_msg = arena_alloc(&driver.diagnostic_engine.arena, diagnostic_max_length);
+
+    StringEntry redefined_mame = STRING_ID_LOOKUP(name_id);
+
+    snprintf(redefined_msg, diagnostic_max_length, "%.*s is redefined here", STR8_FMT(redefined_mame.str));
+
+    diagnostic_add_token(
+        redefined_file -> id,
+        DIAG_NOTE,
+        &redefined_file -> tokens.items[redefined_node -> tokens.start],
+        DIAG_LOC_WHOLE_TOK,
+        redefined_msg,
+        null
+    );
 }
 
 bool diagnostics_print() {

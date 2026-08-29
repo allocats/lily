@@ -77,8 +77,7 @@ inline ScopeId symbol_table_alloc_scope(void) {
     return table -> scope_count++;
 }
 
-inline SymbolId symbol_table_alloc_symbol(void) {
-    SymbolTable* table = &driver.symbol_table;
+inline SymbolId symbol_table_alloc_symbol(void) { SymbolTable* table = &driver.symbol_table;
     
     if (UNLIKELY(table -> symbol_count >= table -> symbol_capacity)) {
         u64 old_size = sizeof(Symbol) * table -> symbol_capacity;
@@ -101,7 +100,10 @@ SymbolId symbol_table_lookup(ScopeId scope_id, StringId name_id) {
 
         id = scope_lookup(scope_id, name_id);
 
-        if (id != SYMBOL_ID_NONE)  {
+        Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+        // another guard to ensure import bindings are not exported
+        if (id != SYMBOL_ID_NONE && symbol -> kind != SYMBOL_IMPORT) {
             break;
         }
 
