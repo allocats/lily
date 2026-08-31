@@ -13,10 +13,10 @@
 
 #define STR8_FMT(s) (s).len, (s).ptr
 
-#define UNREACHABLE(msg)                \
-    do {                                \
-        fprintf(stderr, "%s\n", msg);   \
-        abort();                        \
+#define UNREACHABLE(msg)                            \
+    do {                                            \
+        fprintf(stderr, "UNREACHABLE: %s\n", msg);  \
+        abort();                                    \
     } while(0);
 
 #define DA_RESIZE(da, arena)                                                        \

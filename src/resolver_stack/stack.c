@@ -13,9 +13,6 @@ static bool resolver_is_eq(ResolveQuery a, ResolveQuery b) {
     switch (a.kind) {
         case QUERY_SYMBOL:
             return a.as.symbol == b.as.symbol;
-
-        case QUERY_TYPE:
-            return a.as.type == b.as.type;
     }
 
     return false;

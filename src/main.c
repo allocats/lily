@@ -13,6 +13,7 @@
 #include "symbols/table/table.h"
 #include "token/token.h"
 #include "token/types.h"
+#include "types/resolve/resolve.h"
 #include "utils/timer.h"
 #include "utils/types.h"
 
@@ -79,8 +80,8 @@ i32 main(i32 argc, char** argv) {
 
     register_top_level_symbols();
 
-    // resolve_modules();
-    //
+    resolve_top_level_types();
+
     // resolve_symbols();
     //
     // type_check_modules();

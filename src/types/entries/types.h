@@ -2,13 +2,14 @@
 #define LILY_TYPES_ENTRIES_TYPES_H
 
 #include "ids.h"
-#include "resolver_stack/types.h"
+
 #include <assert.h>
 #include <stddef.h>
 
 typedef enum {
     TYPE_FAMILY_STRUCUTRAL,
     TYPE_FAMILY_NOMINAL,
+    // TYPE_FAMILY_BASE,
     TYPE_FAMILY_ERROR
 } TypeFamily;
 
@@ -28,8 +29,6 @@ typedef enum {
 typedef struct {
     TypeId id;
     TypeKind kind;
-
-    ResolveState state;
 
     u16 alignment;
     u32 size;
@@ -81,9 +80,9 @@ typedef struct {
             u32 argument_count;
 
             TypeId return_type;
-        } function_type; // TODO: think about this. no binding, this is meant for types only for now
+        } function_type;
 
-        struct {
+        struct { // TODO: think about this
             ScopeId scope_id;
         } module_type;
     } as;

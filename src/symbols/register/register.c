@@ -4,19 +4,18 @@
 #include "files/files.h"
 #include "ids.h"
 #include "resolver_stack/types.h"
+#include "symbols/register/register.h"
 #include "symbols/register/types.h"
 #include "symbols/scope/scope.h"
 #include "symbols/symbols/types.h"
 #include "symbols/table/table.h"
-#include "types/builtins/types.h"
 #include "types/entries/types.h"
 #include "types/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
-#include <stdio.h>
-#include "symbols/register/register.h"
 
 extern DriverCtx driver;
+extern TypeBuiltin BUILTIN_NOMINAL_TYPES[];
 
 static void register_symbol(Registrar* r, AstNode* node);
 
@@ -148,6 +147,12 @@ static void register_import(Registrar* r, AstNode* node) {
             Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
             symbol -> as.import_symbol.scope_id = scope_id;
+            symbol -> as.import_symbol.file_id = node -> as.import_directive.file_id;
+
+            TypeId type_id = type_table_intern_nominal(symbol_id, binding, TYPE_MODULE);
+            TYPE_ID_LOOKUP_REF(type_id) -> as.module_type.scope_id = scope_id;
+            
+            symbol -> as.import_symbol.type_id = type_id;
         }
     }
 }

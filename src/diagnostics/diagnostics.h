@@ -3,6 +3,7 @@
 
 #include "diagnostics/types.h"
 #include "ids.h"
+#include "resolver_stack/types.h"
 #include "utils/types.h"
 
 void diagnostic_engine_init(void);
@@ -27,6 +28,7 @@ void diagnostic_add_token_span(
 );
 
 void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId symbol_id, StringId name_id);
+void diagnostic_add_symbol_cycle(ResolveQuery query);
 
 bool diagnostics_print();
 

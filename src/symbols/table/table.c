@@ -7,7 +7,6 @@
 #include "symbols/table/types.h"
 #include "symbols/symbols/types.h"
 #include "token/types.h"
-#include "types/builtins/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -69,7 +68,7 @@ inline ScopeId symbol_table_alloc_scope(void) {
         table -> scopes = arena_realloc(&table -> scope_array_arena, table -> scopes, old_size, new_size);
         table -> scope_capacity *= 2;
 
-        for (u32 i = table -> scope_count + 1; i < table -> scope_capacity; i++) {
+        for (u32 i = table -> scope_count; i < table -> scope_capacity; i++) {
             scope_init(i);
         }
     }
@@ -77,7 +76,8 @@ inline ScopeId symbol_table_alloc_scope(void) {
     return table -> scope_count++;
 }
 
-inline SymbolId symbol_table_alloc_symbol(void) { SymbolTable* table = &driver.symbol_table;
+inline SymbolId symbol_table_alloc_symbol(void) { 
+    SymbolTable* table = &driver.symbol_table;
     
     if (UNLIKELY(table -> symbol_count >= table -> symbol_capacity)) {
         u64 old_size = sizeof(Symbol) * table -> symbol_capacity;

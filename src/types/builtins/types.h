@@ -23,21 +23,6 @@ typedef struct {
     #undef X
 } TypeBuiltinIds;
 
-static TypeBuiltin BUILTIN_NOMINAL_TYPES[] = {
-#define X(id, str, sz, al)              \
-    {                                   \
-        .name = {                       \
-            .ptr = str,                 \
-            .len = sizeof(str) - 1,     \
-        },                              \
-        .size = sz,                     \
-        .align = al,                    \
-    },
-
-    BUILTIN_TYPES(X)
-#undef X
-};
-
 static constexpr u32 BUILTIN_NOMINAL_TYPES_COUNT = 17;
 
 #endif // !LILY_TYPES_BUILTINS_TYPES_H

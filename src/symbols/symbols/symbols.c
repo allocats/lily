@@ -119,3 +119,27 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
 
     return id;
 }
+
+TypeId get_type_from_symbol(SymbolId id) {
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+    switch (symbol -> kind) {
+        case SYMBOL_TYPE:
+            return symbol -> as.type_symbol.type_id;
+
+        case SYMBOL_STRUCT:
+            return symbol -> as.struct_symbol.resolved_type_id;
+
+        case SYMBOL_UNION:
+            return symbol -> as.union_symbol.resolved_type_id;
+
+        case SYMBOL_ENUM:
+            return symbol -> as.enum_symbol.resolved_type_id;
+
+        case SYMBOL_IMPORT:
+            return symbol -> as.import_symbol.type_id;
+
+        default:
+            return TYPE_ID_NONE;
+    }
+}

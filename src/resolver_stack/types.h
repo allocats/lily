@@ -14,7 +14,6 @@ typedef enum {
 
 typedef enum {
     QUERY_SYMBOL,
-    QUERY_TYPE,
 } ResolveQueryKind;
 
 typedef struct {
@@ -22,7 +21,6 @@ typedef struct {
 
     union {
         SymbolId symbol;
-        TypeId type;
     } as;
 } ResolveQuery;
 

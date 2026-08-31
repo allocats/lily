@@ -13,6 +13,7 @@
 #include "utils/types.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 static constexpr u8 type_modifier_max = U8_MAX;
 
@@ -148,7 +149,7 @@ AstNodeId parse_type_expr(Parser* p) {
                 .kind = TYPE_MOD_ARRAY,
                 .size_expr = size_expr
             };
-
+            
             continue;
         }
 
@@ -284,13 +285,17 @@ AstNodeId parse_type_expr(Parser* p) {
 
         AstNode* primary_node = parser_get_node(p, primary_id);
 
-        if (primary_node -> kind != AST_IDENTIFIER && primary_node -> kind != AST_FUNCTION_CALL) {
+        if (
+            primary_node -> kind != AST_IDENTIFIER      &&
+            primary_node -> kind != AST_FUNCTION_CALL   &&
+            primary_node -> kind != AST_MEMBER_ACCESS
+        ) {
             diagnostic_add_token_span(
                 p -> current_file -> id,
                 DIAG_ERROR,
                 primary_node -> tokens,
-                "expected type name, function type, or macro call",
-                "type must be an identifier, function type, or function call"
+                "expected type name, member access, function type, or function call",
+                "type must be an identifier, member access, function type, or function call"
             );
 
             AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));

@@ -28,7 +28,7 @@ void scope_init(ScopeId id) {
     scope -> parent = SCOPE_ID_NONE;
     scope -> count = 0;
     scope -> capacity = scope_init_capacity;
-    scope -> resize_threshold_as_u32 = scope_init_capacity * load_factor;
+    scope -> resize_threshold_as_u32 = (u32)(scope_init_capacity * load_factor);
 
     arena_memset(scope -> entries, 0xff, entries_size_as_bytes);
 
@@ -39,7 +39,7 @@ void scope_init(ScopeId id) {
 SymbolId scope_intern(ScopeId scope_id, StringId name_id, SymbolKind kind) {
     Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
 
-    if (UNLIKELY(scope -> count >= scope -> capacity * scope -> resize_threshold_as_u32)) {
+    if (UNLIKELY(scope -> count >= scope -> resize_threshold_as_u32)) {
         scope_resize(scope_id);
     }
 
@@ -65,6 +65,7 @@ SymbolId scope_intern(ScopeId scope_id, StringId name_id, SymbolKind kind) {
     scope -> buckets[index].string_id = name_id;
 
     scope -> entries[index] = id;
+    scope -> count += 1;
 
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
 
@@ -84,7 +85,7 @@ SymbolId scope_intern(ScopeId scope_id, StringId name_id, SymbolKind kind) {
 SymbolId scope_intern_from_node(ScopeId scope_id, FileId file_id, StringId name_id, AstNodeId node_id) {
     Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
 
-    if (UNLIKELY(scope -> count >= scope -> capacity * scope -> resize_threshold_as_u32)) {
+    if (UNLIKELY(scope -> count >= scope -> resize_threshold_as_u32)) {
         scope_resize(scope_id);
     }
 
@@ -110,6 +111,7 @@ SymbolId scope_intern_from_node(ScopeId scope_id, FileId file_id, StringId name_
     scope -> buckets[index].string_id = name_id;
 
     scope -> entries[index] = id;
+    scope -> count += 1;
 
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
 
@@ -121,7 +123,7 @@ SymbolId scope_intern_from_node(ScopeId scope_id, FileId file_id, StringId name_
 SymbolId scope_add_symbol(ScopeId scope_id, SymbolId symbol_id) {
     Scope* scope = SCOPE_ID_LOOKUP_REF(scope_id);
 
-    if (UNLIKELY(scope -> count >= scope -> capacity * scope -> resize_threshold_as_u32)) {
+    if (UNLIKELY(scope -> count >= scope -> resize_threshold_as_u32)) {
         scope_resize(scope_id);
     }
 
@@ -146,6 +148,7 @@ SymbolId scope_add_symbol(ScopeId scope_id, SymbolId symbol_id) {
     scope -> buckets[index].string_id = symbol -> name_id;
 
     scope -> entries[index] = symbol_id;
+    scope -> count += 1;
 
     return symbol_id;
 }

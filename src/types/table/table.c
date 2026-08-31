@@ -1,6 +1,5 @@
 #include "driver/types.h"
 #include "ids.h"
-#include "resolver_stack/types.h"
 #include "string_interner/interner.h"
 #include "string_interner/types.h"
 #include "token/types.h"
@@ -85,7 +84,9 @@ TypeId type_table_intern_nominal(SymbolId symbol_id, StringId name_id, TypeKind 
         TypeBucket bucket = table -> nominal_buckets[index];
 
         if (bucket.hash == hash) {
-            return bucket.id;
+            if (table -> entries[bucket.id].symbol_id == symbol_id) {
+                return bucket.id;
+            }
         }
 
         index = (index + 1) & mask;
@@ -105,7 +106,6 @@ TypeId type_table_intern_nominal(SymbolId symbol_id, StringId name_id, TypeKind 
     entry -> id = id;
     entry -> hash = hash;
     entry -> kind = kind;
-    entry -> state = RESOLVE_UNRESOLVED;
     entry -> symbol_id = symbol_id;
 
     entry -> size = 0;
@@ -149,7 +149,6 @@ TypeId type_table_intern_pointer(TypeId base) {
     entry -> id = id;
     entry -> hash = hash;
     entry -> kind = TYPE_POINTER;
-    entry -> state = RESOLVE_RESOLVED;
     entry -> symbol_id = SYMBOL_ID_NONE;
 
     entry -> size = sizeof(void*);
@@ -195,7 +194,6 @@ TypeId type_table_intern_slice(TypeId base) {
     entry -> id = id;
     entry -> hash = hash;
     entry -> kind = TYPE_SLICE;
-    entry -> state = RESOLVE_RESOLVED;
     entry -> symbol_id = SYMBOL_ID_NONE;
 
     entry -> size = sizeof(void*);
@@ -241,7 +239,6 @@ TypeId type_table_intern_function(TypeId return_type, TypeId* arguments, u32 arg
     entry -> id = id;
     entry -> hash = hash;
     entry -> kind = TYPE_FUNCTION;
-    entry -> state = RESOLVE_RESOLVED;
     entry -> symbol_id = SYMBOL_ID_NONE;
 
     entry -> size = sizeof(void*);
@@ -252,6 +249,32 @@ TypeId type_table_intern_function(TypeId return_type, TypeId* arguments, u32 arg
     entry -> as.function_type.argument_count = argument_count;
 
     return id;
+}
+
+TypeId type_table_lookup_nominal(StringId name_id) {
+    TypeTable* table = &driver.type_table;
+
+    if (UNLIKELY(table -> nominal_count >= table -> nominal_resize_threshold_as_u32)) {
+        nominal_buckets_resize();
+    }
+
+    StringEntry string_entry = STRING_ID_LOOKUP(name_id);
+
+    u32 hash  = string_entry.hash;
+    u32 mask  = table -> nominal_capacity - 1;
+    u32 index = hash & mask; 
+
+    while (table -> nominal_buckets[index].id != SYMBOL_ID_NONE) {
+        TypeBucket bucket = table -> nominal_buckets[index];
+
+        if (bucket.hash == hash) {
+            return bucket.id;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    return TYPE_ID_NONE;
 }
 
 static inline void entries_resize(void) {

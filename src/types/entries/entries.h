@@ -16,4 +16,6 @@ static constexpr TypeFamily type_family_lut[] = {
     [TYPE_ERROR]    = TYPE_FAMILY_ERROR,
 };
 
+bool is_type_void(TypeId id);
+
 #endif // !LILY_TYPES_ENTRIES_H

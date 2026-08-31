@@ -11,6 +11,9 @@ void type_table_init(void);
 
 TypeId type_table_intern_nominal(SymbolId symbol_id, StringId name_id, TypeKind kind);
 TypeId type_table_intern_pointer(TypeId base);
+TypeId type_table_intern_slice(TypeId base);
 TypeId type_table_intern_function(TypeId return_type, TypeId* arguments, u32 argument_count);
+
+TypeId type_table_lookup_nominal(StringId name_id);
 
 #endif // !LILY_TYPES_TABLE_H

@@ -6,6 +6,7 @@
 #include "files/files.h"
 #include "files/types.h"
 #include "ids.h"
+#include "resolver_stack/types.h"
 #include "string_interner/interner.h"
 #include "symbols/table/table.h"
 #include "token/types.h"
@@ -351,6 +352,23 @@ void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId
         DIAG_LOC_WHOLE_TOK,
         redefined_msg,
         null
+    );
+}
+
+void diagnostic_add_symbol_cycle(ResolveQuery query) {
+    SymbolId symbol_id = query.as.symbol;
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+    File* file = file_lookup_id(symbol -> file_id);
+
+    AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
+
+    diagnostic_add_token_span(
+        symbol -> file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        "symbol recursively includes itself",
+        "add indirection if you wish to recursively embed the symbol (e.g. Foo*)"
     );
 }
 

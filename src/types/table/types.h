@@ -3,6 +3,7 @@
 
 #include "ids.h"
 #include "meowrena/meowrena.h"
+#include "types/builtins/types.h"
 #include "types/entries/types.h"
 
 typedef struct {
@@ -29,6 +30,8 @@ typedef struct {
     u32 nominal_resize_threshold_as_u32;
     u32 structural_resize_threshold_as_u32;
     u32 entry_resize_threshold_as_u32;
+
+    TypeBuiltinIds builtins;
 } TypeTable;
 
 #endif // !LILY_TYPES_TABLE_TYPES_H
