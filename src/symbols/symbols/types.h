@@ -72,6 +72,7 @@ typedef struct {
 
         struct {
             TypeId type_id;
+            i64 value;
         } variant_symbol;
 
         struct {

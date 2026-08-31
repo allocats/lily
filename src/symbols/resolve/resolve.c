@@ -14,6 +14,7 @@
 #include "types/resolve/resolve.h"
 #include "types/table/table.h"
 #include "utils/macros.h"
+
 #include <assert.h>
 #include <stdio.h>
 
@@ -22,6 +23,8 @@ extern DriverCtx driver;
 static bool resolve_symbol_body(SymbolId id);
 static bool resolve_struct(Resolver* r, SymbolId id);
 static bool resolve_union(Resolver* r, SymbolId id);
+static bool resolve_enum(Resolver* r, SymbolId id);
+static bool resolve_function(Resolver* r, SymbolId id);
 
 bool resolve_symbol(SymbolId id) {
     assert(id < driver.symbol_table.symbol_count);
@@ -93,10 +96,18 @@ static bool resolve_symbol_body(SymbolId id) {
             result = resolve_union(&r, id);
             break;
 
+        case SYMBOL_ENUM:
+            result = resolve_enum(&r, id);
+            break;
+
+        case SYMBOL_FUNCTION:
+            result = resolve_function(&r, id);
+            break;
+
         // TODO: all the other symbols :p
 
         default:
-            break;
+            UNREACHABLE("resolve_symbol_body()");
     }
 
     return result;
@@ -250,4 +261,72 @@ static bool resolve_union(Resolver* r, SymbolId id) {
     entry -> alignment = align;
 
     return result;
+}
+
+static bool resolve_enum(Resolver* r, SymbolId id) {
+    bool result = true;
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+    File* file = file_lookup_id(symbol -> file_id);
+    AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
+
+    if (node -> as.enum_decl.type_expr != AST_NODE_ID_NONE) {
+        TypeId type_id = resolve_type_expr(file -> id, node -> as.enum_decl.type_expr);
+
+        if (type_id == TYPE_ID_NONE) {
+            // todo: diagnostics
+
+            result = false;
+        }
+
+        symbol -> as.enum_symbol.resolved_type_id = type_id;
+    } else {
+        symbol -> as.enum_symbol.resolved_type_id = driver.type_table.builtins.type_i32;
+    }
+
+    u32 variant_count = node -> as.enum_decl.variants.count;
+
+    scope_enter(r);
+
+    for (u32 i = 0; i < variant_count; i++) {
+        AstNodeId variant_id  = node -> as.enum_decl.variants.ids[i];
+        AstNode* variant_node = &file -> ast.nodes[variant_id];
+
+        StringId variant_name_id = variant_node -> as.variant.name;
+
+        SymbolId variant_symbol_id = scope_lookup(r -> scope_id, variant_name_id);
+        
+        if (variant_symbol_id != SYMBOL_ID_NONE) {
+            diagnostic_add_symbol_redefined(
+                file -> id,
+                variant_id,
+                variant_symbol_id,
+                variant_name_id
+            );
+
+            result = false;
+
+            continue;
+        }
+
+
+        Symbol* variant_symbol = SYMBOL_ID_LOOKUP_REF(variant_symbol_id);
+
+        variant_symbol -> as.variant_symbol.type_id = symbol -> as.enum_symbol.resolved_type_id;
+
+        if (variant_node -> as.variant.value_expr == AST_NODE_ID_NONE) {
+            variant_symbol -> as.variant_symbol.value = i;
+        } else {
+            // TODO: compile time interpreter
+            // variant_symbol -> as.variant_symbol.value = compute_value();
+        }
+    }
+
+    scope_exit(r);
+
+    return result;
+}
+
+
+static bool resolve_function(Resolver* r, SymbolId id) {
 }

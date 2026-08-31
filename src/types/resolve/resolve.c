@@ -14,7 +14,6 @@
 #include "utils/macros.h"
 
 #include <assert.h>
-#include <stdio.h>
 
 extern DriverCtx driver;
 
@@ -69,7 +68,7 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
             if (node -> as.type_array.size_expr == AST_NODE_ID_NONE) {
                 id = type_table_intern_slice(element);
             } else {
-                // TODO: intern array;
+                // TODO: compile time interperter & intern array;
             }
             break;
 
@@ -105,6 +104,7 @@ static TypeId resolve_base_type_expr(File* file, AstNodeId node_id) {
 
         if (id == TYPE_ID_NONE) { 
             // TODO: diagnostics
+            // diagnostic_add_symbol_does_not_exist(file -> id, node -> id, node -> as.identifier.name);
         }
 
         return id;

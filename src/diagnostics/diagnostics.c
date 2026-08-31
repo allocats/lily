@@ -316,6 +316,13 @@ void diagnostic_add_token_span(
 }
 
 void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId symbol_id, StringId name_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
     File* defined_file = file_lookup_id(symbol -> file_id);
@@ -347,7 +354,7 @@ void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId
 
     diagnostic_add_token(
         redefined_file -> id,
-        DIAG_NOTE,
+        DIAG_ERROR,
         &redefined_file -> tokens.items[redefined_node -> tokens.start],
         DIAG_LOC_WHOLE_TOK,
         redefined_msg,
@@ -356,6 +363,13 @@ void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId
 }
 
 void diagnostic_add_symbol_cycle(ResolveQuery query) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
     SymbolId symbol_id = query.as.symbol;
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 

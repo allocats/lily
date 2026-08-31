@@ -65,6 +65,12 @@ i32 main(i32 argc, char** argv) {
     // timer for the frontend (lexing -> IR generation)
     Timer frontend_timer = {0};
 
+    // timer for llvm
+    Timer backend_timer = {0}; 
+
+    // timer for linker (cc)
+    Timer linker_timer = {0}; 
+
     timer_start(&frontend_timer);
 
     lex_and_parse_files();
@@ -92,15 +98,12 @@ i32 main(i32 argc, char** argv) {
         goto lily_done;
     }
 
-    // timer for llvm
-    Timer backend_timer = {0}; 
-
+    // backend
     timer_start(&backend_timer);
     timer_end(&backend_timer);
 
-    // timer for linker (cc)
-    Timer linker_timer = {0}; 
 
+    // linker
     timer_start(&linker_timer);
     timer_end(&linker_timer);
 
