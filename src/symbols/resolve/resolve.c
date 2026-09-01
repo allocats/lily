@@ -17,7 +17,6 @@
 #include "utils/macros.h"
 
 #include <assert.h>
-#include <stdio.h>
 
 extern DriverCtx driver;
 
@@ -26,6 +25,9 @@ static bool resolve_struct(Resolver* r, SymbolId id);
 static bool resolve_union(Resolver* r, SymbolId id);
 static bool resolve_enum(Resolver* r, SymbolId id);
 static bool resolve_function(Resolver* r, SymbolId id);
+
+static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId id);
+static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId type_id, u32 index);
 
 bool resolve_symbol(SymbolId id) {
     assert(id < driver.symbol_table.symbol_count);
@@ -105,20 +107,103 @@ static bool resolve_symbol_body(SymbolId id) {
             result = resolve_function(&r, id);
             break;
 
-        // TODO: all the other symbols :p
-        case SYMBOL_FIELD:
-            printf("found field\n");
-            break;
-
-        case SYMBOL_VARIANT:
-            printf("found variant\n");
-            break;
-
         default:
             UNREACHABLE("resolve_symbol_body()");
     }
 
     return result;
+}
+
+static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId id) {
+    AstNode* field_node = &file -> ast.nodes[id]; 
+
+    StringId field_name = field_node -> as.field.name;
+
+    SymbolId field_symbol_id = scope_lookup(r -> scope_id, field_name);
+
+    if (field_symbol_id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_redefined(
+            file -> id,
+            id,
+            field_symbol_id,
+            field_name
+        );
+
+        return SYMBOL_ID_NONE;
+    }
+
+    field_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, field_name, id);
+
+    TypeId field_type_id = resolve_type_expr(file -> id, field_node -> as.field.type_expr);
+
+    if (field_type_id == TYPE_ID_NONE) {
+        diagnostic_add_node_field(
+            file -> id,
+            DIAG_ERROR,
+            owner -> tokens,
+            field_node -> tokens,
+            "field's type makes use of an undefined identifier",
+            null
+        );
+
+        return SYMBOL_ID_NONE;
+    }
+ 
+    if (is_type_void(field_type_id)) {
+        diagnostic_add_node_field(
+            file -> id,
+            DIAG_ERROR,
+            owner -> tokens,
+            field_node -> tokens,
+            "field cannot be of type 'void'",
+            "did you mean *void?"
+        );
+
+        return SYMBOL_ID_NONE;
+    }
+
+    Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
+
+    field_symbol -> as.field_symbol.type_id = field_type_id;
+    field_symbol -> state = RESOLVE_RESOLVED;
+
+    return field_symbol_id;
+}
+
+static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId type_id, u32 index) {
+    AstNode* variant_node = &file -> ast.nodes[id];
+
+    StringId variant_name_id = variant_node -> as.variant.name;
+
+    SymbolId variant_symbol_id = scope_lookup(r -> scope_id, variant_name_id);
+
+    if (variant_symbol_id != SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_redefined(
+            file -> id,
+            id,
+            variant_symbol_id,
+            variant_name_id
+        );
+
+        return SYMBOL_ID_NONE;
+    }
+ 
+    variant_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, variant_name_id, id);
+ 
+    Symbol* variant_symbol = SYMBOL_ID_LOOKUP_REF(variant_symbol_id);
+ 
+    variant_symbol -> as.variant_symbol.type_id = type_id;
+ 
+    if (variant_node -> as.variant.value_expr == AST_NODE_ID_NONE) {
+        variant_symbol -> as.variant_symbol.value = index;
+    } else {
+        // TODO: compile time interpreter
+        // variant_symbol -> as.variant_symbol.value = compute_value();
+    }
+
+    variant_symbol -> state = RESOLVE_RESOLVED;
+ 
+    return variant_symbol_id;
 }
 
 static bool resolve_struct(Resolver* r, SymbolId id) {
@@ -137,53 +222,12 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
 
     for (u32 i = 0; i < field_count; i++) {
         AstNodeId field_id  = node -> as.struct_decl.fields.ids[i];
-        AstNode* field_node = &file -> ast.nodes[field_id];
 
-        StringId field_name_id = field_node -> as.field.name;
+        SymbolId field_symbol_id = resolve_field(r, file, node, field_id);
 
-        SymbolId field_symbol_id = scope_lookup(r -> scope_id, field_name_id);
-        
-        if (field_symbol_id != SYMBOL_ID_NONE) {
-            diagnostic_add_symbol_redefined(
-                file -> id,
-                field_id,
-                field_symbol_id,
-                field_name_id
-            );
+        symbol -> as.struct_symbol.fields[i] = field_symbol_id;
 
-            result = false;
-
-            continue;
-        }
-
-        field_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, field_name_id, field_id);
-
-        TypeId field_type_id = resolve_type_expr(file -> id, field_node -> as.field.type_expr);
-
-        if (field_type_id == TYPE_ID_NONE) {
-            diagnostic_add_node_field(
-                file -> id,
-                DIAG_ERROR,
-                node -> tokens,
-                field_node -> tokens,
-                "field's type makes use of an undefined identifier",
-                null
-            );
-
-            result = false;
-
-            continue;
-        }
-
-        if (is_type_void(field_type_id)) {
-            diagnostic_add_node_field(
-                file -> id,
-                DIAG_ERROR,
-                node -> tokens,
-                field_node -> tokens,
-                "struct field cannot be void",
-                "did you mean *void?"
-            );
+        if (field_symbol_id == SYMBOL_ID_NONE) {
 
             result = false;
 
@@ -191,10 +235,7 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
         }
 
         Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
-
-        field_symbol -> as.field_symbol.type_id = field_type_id;
-
-        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_type_id);
+        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_symbol -> as.field_symbol.type_id);
 
         size += field_type_entry -> size;
         align = MAX(align, field_type_entry -> alignment);
@@ -226,53 +267,12 @@ static bool resolve_union(Resolver* r, SymbolId id) {
 
     for (u32 i = 0; i < field_count; i++) {
         AstNodeId field_id  = node -> as.union_decl.fields.ids[i];
-        AstNode* field_node = &file -> ast.nodes[field_id];
 
-        StringId field_name_id = field_node -> as.field.name;
+        SymbolId field_symbol_id = resolve_field(r, file, node, field_id);
 
-        SymbolId field_symbol_id = scope_lookup(r -> scope_id, field_name_id);
-        
-        if (field_symbol_id != SYMBOL_ID_NONE) {
-            diagnostic_add_symbol_redefined(
-                file -> id,
-                field_id,
-                field_symbol_id,
-                field_name_id
-            );
+        symbol -> as.union_symbol.fields[i] = field_symbol_id;
 
-            result = false;
-
-            continue;
-        }
-
-        field_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, field_name_id, field_id);
-
-        TypeId field_type_id = resolve_type_expr(file -> id, field_node -> as.field.type_expr);
-
-        if (field_type_id == TYPE_ID_NONE) {
-            diagnostic_add_node_field(
-                file -> id,
-                DIAG_ERROR,
-                node -> tokens,
-                field_node -> tokens,
-                "field's type makes use of an undefined identifier",
-                null
-            );
-
-            result = false;
-
-            continue;
-        }
-
-        if (is_type_void(field_type_id)) {
-            diagnostic_add_node_field(
-                file -> id,
-                DIAG_ERROR,
-                node -> tokens,
-                field_node -> tokens,
-                "union field cannot be void",
-                "did you mean *void?"
-            );
+        if (field_symbol_id == SYMBOL_ID_NONE) {
 
             result = false;
 
@@ -280,10 +280,7 @@ static bool resolve_union(Resolver* r, SymbolId id) {
         }
 
         Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
-
-        field_symbol -> as.field_symbol.type_id = field_type_id;
-
-        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_type_id);
+        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_symbol -> as.field_symbol.type_id);
 
         size  = MAX(size, field_type_entry -> size);
         align = MAX(align, field_type_entry -> alignment);
@@ -320,43 +317,22 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
         symbol -> as.enum_symbol.resolved_type_id = driver.type_table.builtins.type_i32;
     }
 
+    TypeId resolved_type_id = symbol -> as.enum_symbol.resolved_type_id;
+
     u32 variant_count = node -> as.enum_decl.variants.count;
 
     scope_enter(r);
 
     for (u32 i = 0; i < variant_count; i++) {
         AstNodeId variant_id  = node -> as.enum_decl.variants.ids[i];
-        AstNode* variant_node = &file -> ast.nodes[variant_id];
 
-        StringId variant_name_id = variant_node -> as.variant.name;
+        SymbolId variant_symbol_id = resolve_variant(r, file, variant_id, resolved_type_id, i);
 
-        SymbolId variant_symbol_id = scope_lookup(r -> scope_id, variant_name_id);
-        
-        if (variant_symbol_id != SYMBOL_ID_NONE) {
-            diagnostic_add_symbol_redefined(
-                file -> id,
-                variant_id,
-                variant_symbol_id,
-                variant_name_id
-            );
-
+        if (variant_symbol_id == SYMBOL_ID_NONE) {
             result = false;
-
-            continue;
         }
 
-        variant_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, variant_name_id, variant_id);
-
-        Symbol* variant_symbol = SYMBOL_ID_LOOKUP_REF(variant_symbol_id);
-
-        variant_symbol -> as.variant_symbol.type_id = symbol -> as.enum_symbol.resolved_type_id;
-
-        if (variant_node -> as.variant.value_expr == AST_NODE_ID_NONE) {
-            variant_symbol -> as.variant_symbol.value = i;
-        } else {
-            // TODO: compile time interpreter
-            // variant_symbol -> as.variant_symbol.value = compute_value();
-        }
+        symbol -> as.enum_symbol.variants[i] = variant_symbol_id;
     }
 
     scope_exit(r);
@@ -426,3 +402,4 @@ static bool resolve_function(Resolver* r, SymbolId id) {
 
     return result;
 }
+
