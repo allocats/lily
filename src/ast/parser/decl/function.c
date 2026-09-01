@@ -18,6 +18,7 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
     AstNode* node = parser_get_node(p, id);
 
     node -> as.function_decl.name = name;
+    node -> as.function_decl.return_type_expr = AST_NODE_ID_NONE;
 
     if (!parser_check(p, TOK_L_PAREN)) {
         Token token = parser_peek_previous(p);

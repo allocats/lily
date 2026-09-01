@@ -64,9 +64,20 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
 
             u32 variant_count = node -> as.enum_decl.variants.count;
 
-            symbol -> as.enum_symbol.variants = arena_alloc(arena, sizeof(SymbolId) * variant_count);
+            if (variant_count == 0) {
+                symbol -> as.enum_symbol.variants = 0;
+            } else {
+                symbol -> as.enum_symbol.variants = arena_alloc(arena, sizeof(SymbolId) * variant_count);
+            }
+
             symbol -> as.enum_symbol.variant_count = variant_count;
             symbol -> as.enum_symbol.resolved_type_id = TYPE_ID_NONE;
+            break;
+
+        case AST_VARIANT:
+            symbol -> kind = SYMBOL_VARIANT;
+            symbol -> name_id = node -> as.field.name;
+            symbol -> as.variable_symbol.type_id = TYPE_ID_NONE;
             break;
 
         case AST_VARIABLE_DECL:

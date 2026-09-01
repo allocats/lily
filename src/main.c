@@ -10,6 +10,7 @@
 #include "driver/types.h"
 #include "files/types.h"
 #include "symbols/register/register.h"
+#include "symbols/resolve/resolve.h"
 #include "symbols/table/table.h"
 #include "token/token.h"
 #include "token/types.h"
@@ -36,6 +37,14 @@ static inline void register_top_level_symbols(void) {
 
     for (u32 i = 0; i < file_count; i++) {
         register_top_level_symbols_for_file(i);
+    }
+}
+
+static inline void resolve_symbols(void) {
+    u32 symbol_count = driver.symbol_table.symbol_count;
+
+    for (u32 i = 0; i < symbol_count; i++) {
+        resolve_symbol(i);
     }
 }
 
@@ -88,9 +97,7 @@ i32 main(i32 argc, char** argv) {
 
     resolve_top_level_types();
 
-    // resolve_symbols();
-    //
-    // type_check_modules();
+    resolve_symbols();
 
     timer_end(&frontend_timer);
 

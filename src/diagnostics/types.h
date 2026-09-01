@@ -15,12 +15,29 @@ typedef enum {
     DIAG_NOTE
 } DiagKind;
 
+typedef enum {
+    DIAG_PRESENTATION_GENERIC,
+    DIAG_PRESENTATION_SINGLE,
+    DIAG_PRESENTATION_MULTILINE
+} DiagPresentation;
+
+typedef struct {
+    u32 outer_start_line;
+    u32 outer_end_line;
+
+    u32 inner_start_line;
+    u32 inner_start_col;
+
+    u32 inner_end_line;
+    u32 inner_end_col;
+} DiagMultilineData;
+
 typedef struct {
     DiagKind kind;
 
     FileId file_id;
 
-    bool is_generic;
+    DiagPresentation presentation;
 
     u32 line;
     u32 col;
@@ -28,6 +45,9 @@ typedef struct {
 
     str8 msg;
     str8 help;
+
+    // only valid when presentation == DIAG_PRESENTATION_MULTILINE.
+    DiagMultilineData multiline;
 } Diagnostic;
 
 typedef struct {

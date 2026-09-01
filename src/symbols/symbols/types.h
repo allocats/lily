@@ -5,7 +5,7 @@
 #include "resolver_stack/types.h"
 
 typedef enum {
-    SYMBOL_ENUM,
+    SYMBOL_ENUM = 0,
     SYMBOL_FIELD,
     SYMBOL_FUNCTION,
     SYMBOL_IMPORT,

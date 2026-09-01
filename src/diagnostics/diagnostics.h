@@ -27,7 +27,17 @@ void diagnostic_add_token_span(
     const char* help
 );
 
+void diagnostic_add_node_field(
+    FileId file_id,
+    DiagKind kind,
+    SpanU32 outer,
+    SpanU32 inner,
+    const char* msg,
+    const char* help
+);
+
 void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId symbol_id, StringId name_id);
+void diagnostic_add_symbol_does_not_exist(FileId file_id, AstNodeId node_id, StringId name_id);
 void diagnostic_add_symbol_cycle(ResolveQuery query);
 
 bool diagnostics_print();

@@ -1,3 +1,4 @@
+#include "ast/nodes/types.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "files/files.h"
@@ -105,6 +106,13 @@ static bool resolve_symbol_body(SymbolId id) {
             break;
 
         // TODO: all the other symbols :p
+        case SYMBOL_FIELD:
+            printf("found field\n");
+            break;
+
+        case SYMBOL_VARIANT:
+            printf("found variant\n");
+            break;
 
         default:
             UNREACHABLE("resolve_symbol_body()");
@@ -153,9 +161,14 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
         TypeId field_type_id = resolve_type_expr(file -> id, field_node -> as.field.type_expr);
 
         if (field_type_id == TYPE_ID_NONE) {
-            // TODO: diagnostics, does not exist
-
-            printf("a\n");
+            diagnostic_add_node_field(
+                file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                field_node -> tokens,
+                "field's type makes use of an undefined identifier",
+                null
+            );
 
             result = false;
 
@@ -163,14 +176,23 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
         }
 
         if (is_type_void(field_type_id)) {
-            // TODO: diagnostics, add indirection
-
-            printf("b\n");
+            diagnostic_add_node_field(
+                file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                field_node -> tokens,
+                "struct field cannot be void",
+                "did you mean *void?"
+            );
 
             result = false;
 
             continue;
         }
+
+        Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
+
+        field_symbol -> as.field_symbol.type_id = field_type_id;
 
         TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_type_id);
 
@@ -228,9 +250,14 @@ static bool resolve_union(Resolver* r, SymbolId id) {
         TypeId field_type_id = resolve_type_expr(file -> id, field_node -> as.field.type_expr);
 
         if (field_type_id == TYPE_ID_NONE) {
-            // TODO: diagnostics, does not exist
-
-            printf("a\n");
+            diagnostic_add_node_field(
+                file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                field_node -> tokens,
+                "field's type makes use of an undefined identifier",
+                null
+            );
 
             result = false;
 
@@ -238,14 +265,23 @@ static bool resolve_union(Resolver* r, SymbolId id) {
         }
 
         if (is_type_void(field_type_id)) {
-            // TODO: diagnostics, add indirection
-
-            printf("b\n");
+            diagnostic_add_node_field(
+                file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                field_node -> tokens,
+                "union field cannot be void",
+                "did you mean *void?"
+            );
 
             result = false;
 
             continue;
         }
+
+        Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
+
+        field_symbol -> as.field_symbol.type_id = field_type_id;
 
         TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_type_id);
 
@@ -309,6 +345,7 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
             continue;
         }
 
+        variant_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, variant_name_id, variant_id);
 
         Symbol* variant_symbol = SYMBOL_ID_LOOKUP_REF(variant_symbol_id);
 
@@ -327,6 +364,65 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
     return result;
 }
 
-
 static bool resolve_function(Resolver* r, SymbolId id) {
+    bool result = true;
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+    File* file = file_lookup_id(symbol -> file_id);
+    AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
+
+    TypeId return_type_id = resolve_type_expr(file -> id, node -> as.function_decl.return_type_expr);
+
+    if (return_type_id == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    symbol -> as.function_symbol.return_type_id = return_type_id;
+
+    scope_enter(r);
+
+    u32 parameter_count = node -> as.function_decl.parameters.count;
+
+    for (u32 i = 0; i < parameter_count; i++) {
+        AstNodeId parameter_node_id = node -> as.function_decl.parameters.ids[i];
+        AstNode* parameter_node = &file -> ast.nodes[parameter_node_id];
+
+        StringId parameter_name = parameter_node -> as.parameter_decl.name;
+
+        SymbolId parameter_symbol_id = symbol_table_lookup(r -> scope_id, parameter_name, file -> id);
+
+        if (parameter_symbol_id != SYMBOL_ID_NONE) {
+            diagnostic_add_symbol_redefined(
+                file -> id,
+                parameter_node_id,
+                parameter_symbol_id,
+                parameter_name
+            );
+
+            result = false;
+
+            continue;
+        }
+
+        parameter_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, parameter_name, parameter_node_id);
+
+        Symbol* parameter_symbol = SYMBOL_ID_LOOKUP_REF(parameter_symbol_id);
+
+        TypeId parameter_type_id = resolve_type_expr(file -> id, parameter_node -> as.parameter_decl.type_expr);
+
+        if (parameter_type_id == TYPE_ID_NONE) {
+            result = false;
+        }
+
+        parameter_symbol -> as.parameter_symbol.type_id = parameter_type_id;
+    }
+
+    // TODO: walk the function body if it has one
+
+    if (!(node -> flags & AST_FLAGS_IS_EXTERNAL)) {
+    } 
+
+    scope_exit(r);
+
+    return result;
 }

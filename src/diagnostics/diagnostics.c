@@ -21,10 +21,12 @@
 
 extern DriverCtx driver;
 
-static constexpr u64 diagnostic_init_arena_size_kb = 2;
+static constexpr u64 diagnostic_init_arena_size_kb = 4;
 static constexpr u64 diagnostic_default_threshold  = 32;
 
 static constexpr u64 diagnostic_max_length = 256;
+
+static constexpr u32 diagnostic_multiline_max_lines = 6;
 
 static_assert(sizeof(Diagnostic) * diagnostic_default_threshold < ARENA_KB(diagnostic_init_arena_size_kb));
 static_assert(diagnostic_init_arena_size_kb > 0);
@@ -75,7 +77,18 @@ static const char* match_level(DiagKind kind) {
     }
 }
 
-static const char* get_line_col_indent(u32 line) {
+static u32 count_digits(u32 n) {
+    u32 digits = 1;
+
+    while (n >= 10) {
+        n /= 10;
+        digits++;
+    }
+
+    return digits;
+}
+
+static const char* spaces_indent(u32 width) {
     static const char* indents[] = {
         "",
         " ",
@@ -90,18 +103,32 @@ static const char* get_line_col_indent(u32 line) {
         "          "
     };
 
-    u32 digits = 1;
-
-    while (line >= 10) {
-        line /= 10;
-        digits++;
-    }
-
-    if (UNLIKELY(digits >= sizeof(indents) / sizeof(indents[0]))) {
+    if (UNLIKELY(width >= sizeof(indents) / sizeof(indents[0]))) {
         return indents[sizeof(indents) / sizeof(indents[0]) - 1];
     }
 
-    return indents[digits];
+    return indents[width];
+}
+
+static const char* get_line_col_indent(u32 line) {
+    return spaces_indent(count_digits(line));
+}
+
+static void buffer_offset_line_col(const char* buffer, u32 offset, u32* out_line, u32* out_col) {
+    u32 line = 1;
+    u32 col = 1;
+
+    for (u32 i = 0; i < offset; i++) {
+        if (buffer[i] == '\n') {
+            line += 1;
+            col = 1;
+        } else {
+            col++;
+        }
+    }
+
+    *out_line = line;
+    *out_col = col;
 }
 
 static str8 get_source_line(const char* buffer, u32 line) {
@@ -180,7 +207,7 @@ void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
     Diagnostic* diag = diagnostic_get_new(engine); 
 
     diag -> kind = kind;
-    diag -> is_generic = true;
+    diag -> presentation = DIAG_PRESENTATION_GENERIC;
     diag -> msg.ptr = buffer;
     diag -> msg.len = n;
 }
@@ -229,7 +256,7 @@ void diagnostic_add_token(
 
     Diagnostic* diag = diagnostic_get_new(engine); 
 
-    diag -> is_generic = false;
+    diag -> presentation = DIAG_PRESENTATION_SINGLE;
 
     diag -> kind = kind;
 
@@ -300,7 +327,7 @@ void diagnostic_add_token_span(
     
     Diagnostic* diag = diagnostic_get_new(engine);
 
-    diag -> is_generic = false;
+    diag -> presentation = DIAG_PRESENTATION_SINGLE;
     diag -> kind = kind;
 
     diag -> msg.ptr = (char*) msg;
@@ -313,6 +340,68 @@ void diagnostic_add_token_span(
     diag -> col = col;
     diag -> len = len;
     diag -> file_id = file_id;
+}
+
+void diagnostic_add_node_field(
+    FileId file_id,
+    DiagKind kind,
+    SpanU32 outer,
+    SpanU32 inner,
+    const char* msg,
+    const char* help
+) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (kind == DIAG_ERROR) engine -> error_count++;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+
+    Token* outer_start_tok = &file -> tokens.items[outer.start];
+    Token* outer_end_tok   = &file -> tokens.items[outer.end];
+    Token* inner_start_tok = &file -> tokens.items[inner.start];
+    Token* inner_end_tok   = &file -> tokens.items[inner.end];
+
+    Diagnostic* diag = diagnostic_get_new(engine);
+
+    diag -> presentation = DIAG_PRESENTATION_MULTILINE;
+    diag -> kind = kind;
+    diag -> file_id = file_id;
+
+    diag -> msg.ptr = (char*) msg;
+    diag -> msg.len = strlen(msg);
+
+    diag -> help.ptr = (char*) help;
+    diag -> help.len = help ? strlen(help) : 0;
+
+    u32 unused_col;
+
+    buffer_offset_line_col(file -> buffer.ptr, outer_start_tok -> start, &diag -> multiline.outer_start_line, &unused_col);
+
+    buffer_offset_line_col(
+        file -> buffer.ptr,
+        outer_end_tok -> start + (outer_end_tok -> length > 0 ? outer_end_tok -> length - 1 : 0),
+        &diag -> multiline.outer_end_line,
+        &unused_col
+    );
+
+    buffer_offset_line_col(
+        file -> buffer.ptr,
+        inner_start_tok -> start,
+        &diag -> multiline.inner_start_line,
+        &diag -> multiline.inner_start_col
+    );
+
+    buffer_offset_line_col(
+        file -> buffer.ptr,
+        inner_end_tok -> start + (inner_end_tok -> length > 0 ? inner_end_tok -> length - 1 : 0),
+        &diag -> multiline.inner_end_line,
+        &diag -> multiline.inner_end_col
+    );
 }
 
 void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId symbol_id, StringId name_id) {
@@ -362,6 +451,32 @@ void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId
     );
 }
 
+void diagnostic_add_symbol_does_not_exist(FileId file_id, AstNodeId node_id, StringId name_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[node_id];
+
+    StringEntry str = STRING_ID_LOOKUP(name_id);
+
+    char* msg = arena_alloc(&engine -> arena, diagnostic_max_length); 
+
+    snprintf(msg, diagnostic_max_length, "\'%.*s\' does not exist", STR8_FMT(str.str));
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        msg,
+        null 
+    );
+}
+
 void diagnostic_add_symbol_cycle(ResolveQuery query) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
@@ -384,6 +499,131 @@ void diagnostic_add_symbol_cycle(ResolveQuery query) {
         "symbol recursively includes itself",
         "add indirection if you wish to recursively embed the symbol (e.g. Foo*)"
     );
+}
+
+static void print_source_row(FILE* fd, File* file, u32 width, u32 line) {
+    str8 source_line = get_source_line(file -> buffer.ptr, line);
+
+    fprintf(
+        fd,
+        "%*u %s|%s %.*s\n",
+        width,
+        line,
+        ANSI_BOLD,
+        ANSI_RESET,
+        (i32) source_line.len,
+        source_line.ptr
+    );
+}
+
+static void print_caret_row(FILE* fd, u32 width, u32 col, u32 caret_len, str8 help) {
+    fprintf(fd, "%s %s|%s ", spaces_indent(width), ANSI_BOLD, ANSI_RESET);
+
+    u32 spaces = col - 1;
+    fprintf(fd, "%*s", spaces, "");
+
+    fprintf(fd, "%s%s", ANSI_GREEN, ANSI_BOLD);
+
+    for (u32 i = 0; i < caret_len; i++) {
+        fprintf(fd, "^");
+    }
+
+    fprintf(fd, "%s", ANSI_RESET);
+
+    if (help.ptr) {
+        fprintf(fd, "%s%s help: %.*s%s", ANSI_BOLD, ANSI_GREEN, (i32) help.len, help.ptr, ANSI_RESET);
+    }
+
+    fprintf(fd, "\n");
+}
+
+static void print_block_line(FILE* fd, File* file, u32 width, u32 line, DiagMultilineData m, str8 help) {
+    print_source_row(fd, file, width, line);
+
+    if (line < m.inner_start_line || line > m.inner_end_line) {
+        return;
+    }
+
+    bool is_first = line == m.inner_start_line;
+    bool is_last  = line == m.inner_end_line;
+
+    u32 col = is_first ? m.inner_start_col : 1;
+    u32 end_col;
+
+    if (is_last) {
+        end_col = m.inner_end_col;
+    } else {
+        str8 source_line = get_source_line(file -> buffer.ptr, line);
+        end_col = source_line.len;
+    }
+
+    u32 caret_len = end_col >= col ? (end_col - col + 1) : 1;
+
+    print_caret_row(fd, width, col, caret_len, is_last ? help : (str8) { .ptr = null, .len = 0 });
+}
+
+static void diagnostics_print_multiline(FILE* fd, Diagnostic diag) {
+    File* file = file_lookup_id(diag.file_id);
+    DiagMultilineData m = diag.multiline;
+
+    const char* level_colour = match_level_colour(diag.kind);
+    const char* level = match_level(diag.kind);
+
+    // header
+    fprintf(
+        fd,
+        "%s%s:%s %s%.*s%s\n",
+        level_colour,
+        level,
+        ANSI_RESET,
+        ANSI_BOLD,
+        (i32) diag.msg.len,
+        diag.msg.ptr,
+        ANSI_RESET
+    );
+
+    // hocation: the actual offending span
+    fprintf(
+        fd,
+        " %s%s-->%s %.*s:%u:%u\n",
+        ANSI_MAGENTA,
+        ANSI_BOLD,
+        ANSI_RESET,
+        (int) file -> path.len,
+        file -> path.ptr,
+        m.inner_start_line,
+        m.inner_start_col
+    );
+
+    u32 width = count_digits(m.outer_end_line);
+    const char* blank_indent = spaces_indent(width);
+
+    fprintf(fd, "%s %s|%s\n", blank_indent, ANSI_BOLD, ANSI_RESET);
+
+    u32 total_lines = m.outer_end_line - m.outer_start_line + 1;
+
+    if (total_lines <= diagnostic_multiline_max_lines) {
+        for (u32 line = m.outer_start_line; line <= m.outer_end_line; line++) {
+            print_block_line(fd, file, width, line, m, diag.help);
+        }
+    } else {
+        print_source_row(fd, file, width, m.outer_start_line);
+
+        if (m.inner_start_line > m.outer_start_line + 1) {
+            fprintf(fd, "%*s %s|%s\n", width, "...", ANSI_BOLD, ANSI_RESET);
+        }
+
+        for (u32 line = m.inner_start_line; line <= m.inner_end_line; line++) {
+            if (line == m.outer_start_line) {
+                // already printed above (the field lives on the decl's own line).
+                continue;
+            }
+
+            print_block_line(fd, file, width, line, m, diag.help);
+        }
+    }
+
+    fprintf(fd, "%s %s|%s\n\n", blank_indent, ANSI_BOLD, ANSI_RESET);
 }
 
 bool diagnostics_print() {
@@ -414,7 +654,7 @@ bool diagnostics_print() {
         const char* level_colour = match_level_colour(diag.kind); 
         const char* level = match_level(diag.kind); 
 
-        if (diag.is_generic) {
+        if (diag.presentation == DIAG_PRESENTATION_GENERIC) {
             fprintf(
                 fd,
                 "%s%s:%s %s%.*s%s\n\n",
@@ -427,6 +667,11 @@ bool diagnostics_print() {
                 ANSI_RESET
             );
 
+            continue;
+        }
+
+        if (diag.presentation == DIAG_PRESENTATION_MULTILINE) {
+            diagnostics_print_multiline(fd, diag);
             continue;
         }
 

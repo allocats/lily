@@ -44,6 +44,9 @@ void type_table_init(void) {
     arena_init(&table -> entry_arena, entries_arena_init_size, ALIGN_DEFAULT);
     debug_printf("Init TypeTable's entries arena with %lu bytes", entries_arena_init_size);
 
+    arena_init(&table -> gpa, ARENA_KB(2), ALIGN_DEFAULT);
+    debug_printf("Init TypeTable's gpa with 2KB");
+
     table -> nominal_buckets = arena_alloc(&table -> nominal_arena, buckets_array_size); 
     table -> nominal_count = 0;
     table -> nominal_capacity = init_capacity;

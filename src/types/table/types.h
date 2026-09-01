@@ -32,6 +32,8 @@ typedef struct {
     u32 entry_resize_threshold_as_u32;
 
     TypeBuiltinIds builtins;
+
+    Arena gpa;
 } TypeTable;
 
 #endif // !LILY_TYPES_TABLE_TYPES_H

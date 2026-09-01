@@ -133,6 +133,7 @@ void driver_destroy(DriverCtx* driver) {
     arena_destroy(&driver -> type_table.nominal_arena);
     arena_destroy(&driver -> type_table.structural_arena);
     arena_destroy(&driver -> type_table.entry_arena);
+    arena_destroy(&driver -> type_table.gpa);
 
     arena_destroy(&driver -> file_interner.interner_arena);
     arena_destroy(&driver -> file_interner.buffer_arena);

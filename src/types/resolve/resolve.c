@@ -1,4 +1,5 @@
 #include "ast/nodes/types.h"
+#include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
@@ -63,7 +64,7 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
             break;
 
         case AST_TYPE_ARRAY:
-            TypeId element = resolve_type_expr(file -> id, node -> as.type_array.element);
+            TypeId element = resolve_type_expr(file_id, node -> as.type_array.element);
 
             if (node -> as.type_array.size_expr == AST_NODE_ID_NONE) {
                 id = type_table_intern_slice(element);
@@ -73,7 +74,7 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
             break;
 
         case AST_TYPE_POINTER:
-            TypeId base = resolve_type_expr(file -> id, node -> as.type_pointer.base_type);
+            TypeId base = resolve_type_expr(file_id, node -> as.type_pointer.base_type);
 
             if (base == TYPE_ID_NONE) {
                 break;
@@ -83,6 +84,27 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
             break;
 
         case AST_TYPE_FUNCTION:
+            u32 count = node -> as.type_function.parameters.count;
+
+            TypeId* arguments = arena_alloc(&driver.type_table.gpa, count * sizeof(TypeId));
+
+            for (u32 i = 0; i < count; i++) {
+                TypeId arg_id = resolve_type_expr(file_id, node -> as.type_function.parameters.ids[i]);
+                
+                if (arg_id == TYPE_ID_NONE) {
+                    break;
+                }
+
+                arguments[i] = id; 
+            }
+
+            TypeId return_type_id = resolve_type_expr(file_id, node -> as.type_function.return_type);
+
+            if (return_type_id == TYPE_ID_NONE) {
+                break;
+            }
+
+            id = type_table_intern_function(return_type_id, arguments, count);
             break;
 
         case AST_TYPE_VARIADIC:
@@ -103,8 +125,7 @@ static TypeId resolve_base_type_expr(File* file, AstNodeId node_id) {
         TypeId id = type_table_lookup_nominal(node -> as.identifier.name);
 
         if (id == TYPE_ID_NONE) { 
-            // TODO: diagnostics
-            // diagnostic_add_symbol_does_not_exist(file -> id, node -> id, node -> as.identifier.name);
+            diagnostic_add_symbol_does_not_exist(file -> id, node -> id, node -> as.identifier.name);
         }
 
         return id;
@@ -119,7 +140,7 @@ static TypeId resolve_base_type_expr(File* file, AstNodeId node_id) {
     }
 
     if (symbol_id == SYMBOL_ID_NONE) {
-        // TODO: diagnostics
+        diagnostic_add_symbol_does_not_exist(file -> id, node -> id, node -> as.identifier.name);
         return TYPE_ID_NONE;
     }
 
