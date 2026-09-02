@@ -501,6 +501,48 @@ void diagnostic_add_symbol_cycle(ResolveQuery query) {
     );
 }
 
+void diagnostic_add_cannot_reference_rvalue(FileId file_id, AstNodeId operand_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[operand_id];
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        "cannot take reference of an rvalue",
+        "store this value in a variable and reference that"
+    );
+}
+
+void diagnostic_add_cannot_dereference_non_pointer(FileId file_id, AstNodeId operand_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[operand_id];
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        "cannot dereference a non pointer type",
+        "add indirection and make this a pointer"
+    );
+}
+
+// END OF DIAGNOSTICS
+
 static void print_source_row(FILE* fd, File* file, u32 width, u32 line) {
     str8 source_line = get_source_line(file -> buffer.ptr, line);
 

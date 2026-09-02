@@ -23,6 +23,6 @@ typedef struct {
     #undef X
 } TypeBuiltinIds;
 
-static constexpr u32 BUILTIN_NOMINAL_TYPES_COUNT = 17;
+static constexpr u32 BUILTIN_NOMINAL_TYPES_COUNT = 16;
 
 #endif // !LILY_TYPES_BUILTINS_TYPES_H

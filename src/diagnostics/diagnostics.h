@@ -40,6 +40,9 @@ void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId
 void diagnostic_add_symbol_does_not_exist(FileId file_id, AstNodeId node_id, StringId name_id);
 void diagnostic_add_symbol_cycle(ResolveQuery query);
 
+void diagnostic_add_cannot_reference_rvalue(FileId file_id, AstNodeId operand_id);
+void diagnostic_add_cannot_dereference_non_pointer(FileId file_id, AstNodeId operand_id);
+
 bool diagnostics_print();
 
 #endif // !LILY_DIAGNOSTICS_H

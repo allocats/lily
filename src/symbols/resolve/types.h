@@ -3,6 +3,17 @@
 
 #include "symbols/register/types.h"
 
+typedef enum {
+    BINARY_OP_ERROR = 0,
+    BINARY_OP_ASSIGN,
+    BINARY_OP_ADDITIVE,
+    BINARY_OP_MULTIPLICATIVE,
+    BINARY_OP_BITWISE,
+    BINARY_OP_SHIFT,
+    BINARY_OP_COMPARISON,
+    BINARY_OP_LOGICAL,
+} BinaryOpKind;
+
 typedef Registrar Resolver;
 
 #endif // !LILY_SYMBOBOLS_RESOLVE_TYPES_H

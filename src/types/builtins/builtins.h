@@ -5,7 +5,7 @@
     X(variadic,  "...",     0,               0)                     \
     X(void,      "void",    0,               0)                     \
     X(bool,      "bool",    1,               1)                     \
-    X(char,      "char",    1,               1)                     \
+    /*X(char,      "char",    1,               1)                 */\
                                                                     \
     X(u8,        "u8",      1,               _Alignof(u8))          \
     X(u16,       "u16",     2,               _Alignof(u16))         \

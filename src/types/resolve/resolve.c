@@ -4,9 +4,7 @@
 #include "files/files.h"
 #include "ids.h"
 #include "symbols/resolve/resolve.h"
-#include "symbols/scope/scope.h"
 #include "symbols/symbols/symbols.h"
-#include "symbols/symbols/types.h"
 #include "symbols/table/table.h"
 #include "types/entries/entries.h"
 #include "types/entries/types.h"
@@ -20,8 +18,6 @@ extern DriverCtx driver;
 
 static TypeId resolve_nominal_type_entry(TypeId id);
 static TypeId resolve_base_type_expr(File* file, AstNodeId node_id);
-
-static SymbolId resolve_name_expr(File* file, AstNodeId node_id);
 
 void resolve_top_level_types(void) {
     TypeTable* table = &driver.type_table;
@@ -145,38 +141,4 @@ static TypeId resolve_base_type_expr(File* file, AstNodeId node_id) {
     }
 
     return get_type_from_symbol(symbol_id);
-}
-
-static SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
-    AstNode* node = &file -> ast.nodes[node_id];
-
-    switch (node -> kind) {
-        case AST_IDENTIFIER:
-            return scope_lookup(file -> scope_id, node -> as.identifier.name);
-
-        case AST_MEMBER_ACCESS: {
-            SymbolId object_id = resolve_name_expr(file, node -> as.member_access.object);
-
-            if (object_id == SYMBOL_ID_NONE) {
-                return SYMBOL_ID_NONE;
-            }
-
-            Symbol* object = SYMBOL_ID_LOOKUP_REF(object_id);
-
-            AstNode* member_node = &file -> ast.nodes[node -> as.member_access.member];
-            assert(member_node -> kind == AST_IDENTIFIER);
-
-            StringId member_name = member_node -> as.identifier.name;
-
-            if (object -> kind == SYMBOL_IMPORT) {
-                File* imported_file = file_lookup_id(object -> as.import_symbol.file_id);
-                return scope_lookup(imported_file -> scope_id, member_name);
-            }
-
-            return SYMBOL_ID_NONE;
-        }
-
-        default:
-            UNREACHABLE("resolve_name_expr()");
-    }
 }
