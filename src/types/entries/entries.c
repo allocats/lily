@@ -85,7 +85,7 @@ bool are_types_compatible(TypeId l, TypeId r) {
 }
 
 // Types must be passed in the correct order
-bool can_types_explicitly_cast(TypeId to, TypeId from) {
+bool can_type_cast_to(TypeId to, TypeId from) {
     if (to == TYPE_ID_NONE || from == TYPE_ID_NONE) {
         return false;
     }

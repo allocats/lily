@@ -1,5 +1,6 @@
 #include "ast/nodes/types.h"
 #include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
@@ -20,6 +21,7 @@
 #include "utils/types.h"
 
 #include <assert.h>
+#include <stdint.h>
 
 extern DriverCtx driver;
 
@@ -32,7 +34,7 @@ static bool resolve_function(Resolver* r, SymbolId id);
 
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
 static TypeId resolve_literal(AstNode* node, TypeId expected_type);
-static TypeId resolve_identfier(ScopeId scope_id, StringId name_id, FileId file_id);
+static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id);
 static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 
@@ -43,6 +45,12 @@ static BinaryOpKind binary_op_kind(TokenKind kind);
 static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_id);
 
 static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, AstNode* r, TokenKind op);
+static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
+static TypeId resolve_multiplicative(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
+static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
+static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
+static TypeId resolve_comparison(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
+static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 
 bool resolve_symbol(SymbolId id) {
     assert(id < driver.symbol_table.symbol_count);
@@ -506,7 +514,7 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
             break;
 
         case AST_IDENTIFIER:
-            id = resolve_identfier(scope_id, node -> as.identifier.name, file_id);
+            id = resolve_identifier(scope_id, node, file_id);
             break;
 
         case AST_UNARY_OP:
@@ -586,12 +594,15 @@ static TypeId resolve_literal(AstNode* node, TypeId expected_type) {
     return id;
 }
 
-static TypeId resolve_identfier(ScopeId scope_id, StringId name_id, FileId file_id) {
+static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id) {
+    StringId name_id = node -> as.identifier.name; 
+
     SymbolId symbol = symbol_table_lookup(scope_id, name_id, file_id);
 
     TypeId id = TYPE_ID_NONE;
 
-    if (symbol == TYPE_ID_NONE) {
+    if (symbol == SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_does_not_exist(file_id, node -> id, name_id);
         id = TYPE_ID_NONE;
     } else {
         id = get_type_from_symbol(symbol);
@@ -606,31 +617,105 @@ static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, 
     AstNodeId operand_id  = node -> as.unary_op.operand;
     AstNode* operand_node = &file -> ast.nodes[operand_id];
 
-    TypeId id = resolve_expression(scope_id, file_id, operand_id, expected_type);
+    TokenKind op = node -> as.unary_op.op;
+
+    TypeId operand_expected_type = expected_type;
+
+    if (op == TOK_AMP) {
+        if (is_type(expected_type, TYPE_POINTER)) {
+            operand_expected_type = driver.type_table.entries[expected_type].as.pointer_type.base;
+        } else {
+            operand_expected_type = TYPE_ID_NONE;
+        }
+    } else if (op == TOK_STAR) {
+        if (expected_type != TYPE_ID_NONE) {
+            operand_expected_type = type_table_intern_pointer(expected_type);
+        } else {
+            operand_expected_type = TYPE_ID_NONE;
+        }
+    }
+
+    TypeId id = resolve_expression(scope_id, file_id, operand_id, operand_expected_type);
 
     if (id == TYPE_ID_NONE) {
-        return id;
+        return TYPE_ID_NONE;
     }
 
-    if (node -> as.unary_op.op == TOK_AMP) {
-        if (
-            operand_node -> kind != AST_IDENTIFIER && 
-            operand_node -> kind != AST_MEMBER_ACCESS && 
-            operand_node -> kind != AST_INDEX
-        ) {
-            diagnostic_add_cannot_reference_rvalue(file_id, operand_id);
-        } else {
-            id = type_table_intern_pointer(id);
-        }
-    } else if (node -> as.unary_op.op == TOK_STAR) {
-        if (is_type(id, TYPE_POINTER)) {
-            id = driver.type_table.entries[id].as.pointer_type.base;
-        } else {
-            diagnostic_add_cannot_dereference_non_pointer(file_id, operand_id);
-        }
-    }
+    switch (op) {
+        case TOK_AMP: {
+            if (
+                operand_node -> kind != AST_IDENTIFIER &&
+                operand_node -> kind != AST_MEMBER_ACCESS &&
+                operand_node -> kind != AST_INDEX
+            ) {
+                diagnostic_add_cannot_reference_rvalue(file_id, operand_id);
+                return TYPE_ID_NONE;
+            }
 
-    return id;
+            return type_table_intern_pointer(id);
+        }
+
+        case TOK_STAR: {
+            if (!is_type(id, TYPE_POINTER)) {
+                diagnostic_add_cannot_dereference_non_pointer(file_id, operand_id);
+                return TYPE_ID_NONE;
+            }
+
+            return driver.type_table.entries[id].as.pointer_type.base;
+        }
+
+        case TOK_MINUS:
+        case TOK_PLUS: {
+            if (!is_type_int(id) && !is_type_float(id)) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    operand_node -> tokens,
+                    "invalid operand for unary +/-",
+                    "expects a numeric expression i.e. i32"
+                );
+
+                return TYPE_ID_NONE;
+            }
+
+            return id;
+        }
+
+        case TOK_BANG: {
+            if (id != driver.type_table.builtins.type_bool) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    operand_node -> tokens,
+                    "invalid operand type for '!'",
+                    "expects an expression of type bool"
+                );
+
+                return TYPE_ID_NONE;
+            }
+
+            return id;
+        }
+
+        case TOK_TILDE: {
+            if (!is_type_int(id)) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    operand_node -> tokens,
+                    "invalid operand type for '~'",
+                    "negation requires an integer"
+                );
+
+                return TYPE_ID_NONE;
+            }
+
+            return id;
+        }
+
+        default:
+            UNREACHABLE("resolve_unary_op()");
+    }
 }
 
 static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
@@ -652,27 +737,27 @@ static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id,
             break;
 
         case BINARY_OP_ADDITIVE:
-            // id = resolve_additive();
+            id = resolve_additive(scope_id, file_id, lhs, rhs, expected_type);
             break;
 
         case BINARY_OP_MULTIPLICATIVE:
-            // id = resolve_multiplicative();
+            id = resolve_multiplicative(scope_id, file_id, lhs, rhs, expected_type);
             break;
 
         case BINARY_OP_BITWISE:
-            // id = resolve_bitwise();
+            id = resolve_bitwise(scope_id, file_id, lhs, rhs, expected_type);
             break;
 
         case BINARY_OP_SHIFT:
-            // id = resolve_bitshift();
+            id = resolve_bitshift(scope_id, file_id, lhs, rhs, expected_type);
             break;
 
         case BINARY_OP_COMPARISON:
-            // id = resolve_comparison();
+            id = resolve_comparison(scope_id, file_id, lhs, rhs, expected_type);
             break;
 
         case BINARY_OP_LOGICAL:
-            // id = resolve_logical();
+            id = resolve_logical(scope_id, file_id, lhs, rhs, expected_type);
             break;
 
         case BINARY_OP_ERROR:
@@ -710,7 +795,6 @@ static BinaryOpKind binary_op_kind(TokenKind kind) {
         [TOK_AMP]           = BINARY_OP_BITWISE,
         [TOK_PIPE]          = BINARY_OP_BITWISE,
         [TOK_CARET]         = BINARY_OP_BITWISE,
-        [TOK_TILDE]         = BINARY_OP_BITWISE,
 
         [TOK_SHL]           = BINARY_OP_SHIFT,
         [TOK_SHR]           = BINARY_OP_SHIFT,
@@ -880,4 +964,208 @@ static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, A
         diagnostic_add_mismatched_types(file_id, r -> id, lhs_type, rhs_type);
         return TYPE_ID_NONE;
     }
+}
+
+static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
+    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+    
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (!are_types_compatible(lhs_type, rhs_type)) {
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                rhs -> tokens,
+                "incompatible types",
+                "try casting this expression i.e. cast(type) (expr)"
+            );
+        } else {
+            diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_multiplicative(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
+    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+    
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (!are_types_compatible(lhs_type, rhs_type)) {
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                rhs -> tokens,
+                "incompatible types",
+                "try casting this expression i.e. cast(type) (expr)"
+            );
+        } else {
+            diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
+    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+
+    if (!is_type_int(lhs_type)) {
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            lhs -> tokens,
+            "invalid bitwise target",
+            "bitwise operations can only be performed on integers"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, TYPE_ID_NONE);
+    
+    if (!is_type_int(rhs_type)) {
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                rhs -> tokens,
+                "invalid bitwise value",
+                "try casting this expression to an integer i.e. cast(i32) (expr)"
+            );
+        } else {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                rhs -> tokens,
+                "invalid bitwise value",
+                "bitwise operations requires an integer"
+            );
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
+    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+
+    if (!is_type_int(lhs_type)) {
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            lhs -> tokens,
+            "invalid bitshift target",
+            "shifting operations can only be performed on integers"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, TYPE_ID_NONE);
+    
+    if (!is_type_int(rhs_type)) {
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                rhs -> tokens,
+                "invalid bitwise value",
+                "try casting this expression to an integer i.e. cast(i32) (expr)"
+            );
+        } else {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                rhs -> tokens,
+                "invalid bitwise value",
+                "bitwise operations requires an integer"
+            );
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_comparison(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
+    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+    
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (are_types_compatible(lhs_type, rhs_type)) {
+        return driver.type_table.builtins.type_bool;
+    }
+
+    diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
+
+    return TYPE_ID_NONE;
+}
+
+static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
+    TypeId bool_id = driver.type_table.builtins.type_bool;
+
+    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+
+    if (lhs_type != bool_id) {
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            lhs -> tokens,
+            "logical expression does not evaluate to a boolean",
+            "this expression must resolve to a bool"    
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+
+    if (rhs_type != bool_id) {
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            rhs -> tokens,
+            "logical expression does not evaluate to a boolean",
+            "this expression must resolve to a bool"    
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    return bool_id;
 }
