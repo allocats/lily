@@ -150,7 +150,10 @@ static void register_import(Registrar* r, AstNode* node) {
             symbol -> as.import_symbol.file_id = node -> as.import_directive.file_id;
 
             TypeId type_id = type_table_intern_nominal(symbol_id, binding, TYPE_MODULE);
-            TYPE_ID_LOOKUP_REF(type_id) -> as.module_type.scope_id = scope_id;
+            TypeEntry* type = TYPE_ID_LOOKUP_REF(type_id);
+
+            type -> as.module_type.scope_id = scope_id;
+            type -> as.module_type.symbol_id = symbol_id;
             
             symbol -> as.import_symbol.type_id = type_id;
         }

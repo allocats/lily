@@ -24,4 +24,8 @@ bool is_type_int(TypeId id);
 bool is_type_signed_int(TypeId id);
 bool is_type_unsigned_int(TypeId id);
 
+// Types must be passed in the correct order, it assumes B is being assigned to A
+bool are_types_compatible(TypeId a, TypeId b);
+bool can_types_explicitly_cast(TypeId to, TypeId from);
+
 #endif // !LILY_TYPES_ENTRIES_H

@@ -84,6 +84,8 @@ typedef struct {
 
         struct { // TODO: think about this
             ScopeId scope_id;
+
+            SymbolId symbol_id;
         } module_type;
     } as;
 } TypeEntry;

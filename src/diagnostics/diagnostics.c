@@ -10,6 +10,7 @@
 #include "string_interner/interner.h"
 #include "symbols/table/table.h"
 #include "token/types.h"
+#include "types/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
@@ -155,6 +156,80 @@ static str8 get_source_line(const char* buffer, u32 line) {
     return (str8) {
         .ptr = start,
         .len = cursor - start
+    };
+}
+
+static u32 type_to_buf(TypeId type_id, char* buf, u32 buf_size, u32 offset) {
+    TypeEntry* type = TYPE_ID_LOOKUP_REF(type_id);
+ 
+    switch (type -> kind) {
+        case TYPE_POINTER: {
+            offset += snprintf(buf + offset, buf_size - offset, "*");
+            offset = type_to_buf(type -> as.pointer_type.base, buf, buf_size, offset);
+        } break;
+
+        case TYPE_SLICE: {
+            offset += snprintf(buf + offset, buf_size - offset, "[]");
+            offset = type_to_buf(type -> as.slice_type.element, buf, buf_size, offset);
+        } break;
+
+        case TYPE_ARRAY: {
+            offset += snprintf(buf + offset, buf_size - offset, "[%u]", type -> as.array_type.size);
+            offset = type_to_buf(type -> as.array_type.element, buf, buf_size, offset);
+        } break;
+
+        case TYPE_BASE: {
+            StringEntry name = STRING_ID_LOOKUP(type -> as.base_type.name);
+
+            offset += snprintf(buf + offset, buf_size - offset, "%.*s", STR8_FMT(name.str));
+        } break;
+
+        case TYPE_STRUCT:
+        case TYPE_UNION:
+        case TYPE_ENUM:
+        case TYPE_MODULE: {
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(type -> symbol_id);
+            StringEntry name = STRING_ID_LOOKUP(symbol -> name_id);
+
+            offset += snprintf(buf + offset, buf_size - offset, "%.*s", STR8_FMT(name.str));
+        } break;
+
+        case TYPE_FUNCTION: {
+            offset += snprintf(buf + offset, buf_size - offset, "fn(");
+
+            for (u32 i = 0; i < type -> as.function_type.argument_count; i++) {
+                if (i > 0) {
+                    offset += snprintf(buf + offset, buf_size - offset, ", ");
+                }
+
+                offset = type_to_buf(type -> as.function_type.arguments[i], buf, buf_size, offset);
+            }
+
+            offset += snprintf(buf + offset, buf_size - offset, ") ");
+            offset = type_to_buf(type -> as.function_type.return_type, buf, buf_size, offset);
+        } break;
+
+        case TYPE_ERROR: {
+            offset += snprintf(buf + offset, buf_size - offset, "<error-type>");
+        } break;
+    }
+
+    return offset;
+}
+ 
+str8 diagnostic_type_to_str8(TypeId type_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+ 
+    char stack_buf[diagnostic_max_length];
+ 
+    u32 len = type_to_buf(type_id, stack_buf, sizeof(stack_buf), 0);
+ 
+    char* out = arena_alloc(&engine -> arena, len);
+    memcpy(out, stack_buf, len);
+ 
+    return (str8) {
+        .ptr = out,
+        .len = len
     };
 }
 
@@ -541,6 +616,79 @@ void diagnostic_add_cannot_dereference_non_pointer(FileId file_id, AstNodeId ope
     );
 }
 
+void diagnostic_add_expression_is_not_assignable(FileId file_id, AstNodeId expr_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[expr_id];
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        "expression is not assignable",
+        null
+    );
+}
+
+void diagnostic_add_cannot_reassign_constant(FileId file_id, AstNodeId expr_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[expr_id];
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        "cannot reassign a constant",
+        null
+    );
+}
+
+void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId expected, TypeId found) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[node_id];
+
+    str8 expected_str = diagnostic_type_to_str8(expected);
+    str8 found_str = diagnostic_type_to_str8(found);
+
+    char* msg = arena_alloc(&engine -> arena, diagnostic_max_length);
+
+    snprintf(
+        msg,
+        diagnostic_max_length,
+        "expected '%.*s', but found '%.*s'\n",
+        STR8_FMT(expected_str),
+        STR8_FMT(found_str)
+    );
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        "mismatched types",
+        msg
+    );
+}
+
 // END OF DIAGNOSTICS
 
 static void print_source_row(FILE* fd, File* file, u32 width, u32 line) {
@@ -683,7 +831,8 @@ bool diagnostics_print() {
         fd = fopen((char*) engine -> dump_path, "w+");
 
         if (fd == null) {
-            // TODO: add diag for this
+            diagnostic_add_generic(DIAG_ERROR, "failed to open file '%s' defaulting to stderr", engine -> dump_path);
+
             fd = stderr;
         }
     }

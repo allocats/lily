@@ -12,7 +12,9 @@
 #include "utils/macros.h"
 #include "utils/types.h"
 
+#include <asm-generic/errno-base.h>
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -100,7 +102,7 @@ FileId file_intern(str8 input_path) {
 
     str8 buffer = allocate_buffer(path);
 
-    if (buffer.len == 0 && buffer.ptr == null) {
+    if (buffer.len == 0 || buffer.ptr == null) {
         debug_printf("intern() returned early due to failure");
         return FILE_ID_NONE;
     }
@@ -247,9 +249,19 @@ static str8 allocate_buffer(str8 path) {
         i64 n = (i64) read(fd, buffer.ptr + bytes_read, buffer_size - bytes_read);
 
         if (n == 0) break;
+        if (n == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
 
-        // TODO: add errors
-        assert(n >= 0 && "Read failed");
+            diagnostic_add_generic(DIAG_ERROR, "failed to read file '%.*s'", STR8_FMT(path));
+
+            buffer.ptr = null;
+            buffer.len = 0;
+
+            goto exit_fd_open;
+        }
+
         bytes_read += n;
     }
 

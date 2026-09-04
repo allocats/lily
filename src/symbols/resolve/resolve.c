@@ -17,6 +17,7 @@
 #include "types/resolve/resolve.h"
 #include "types/table/table.h"
 #include "utils/macros.h"
+#include "utils/types.h"
 
 #include <assert.h>
 
@@ -26,6 +27,7 @@ static bool resolve_symbol_body(SymbolId id);
 static bool resolve_struct(Resolver* r, SymbolId id);
 static bool resolve_union(Resolver* r, SymbolId id);
 static bool resolve_enum(Resolver* r, SymbolId id);
+static bool resolve_variable(Resolver* r, SymbolId id);
 static bool resolve_function(Resolver* r, SymbolId id);
 
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
@@ -38,6 +40,7 @@ static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId
 static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId type_id, u32 index);
 
 static BinaryOpKind binary_op_kind(TokenKind kind);
+static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_id);
 
 static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, AstNode* r, TokenKind op);
 
@@ -147,6 +150,10 @@ static bool resolve_symbol_body(SymbolId id) {
 
         case SYMBOL_ENUM:
             result = resolve_enum(&r, id);
+            break;
+
+        case SYMBOL_VARIABLE:
+            result = resolve_variable(&r, id);
             break;
 
         case SYMBOL_FUNCTION:
@@ -362,8 +369,6 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
         TypeId type_id = resolve_type_expr(file -> id, node -> as.enum_decl.type_expr);
 
         if (type_id == TYPE_ID_NONE) {
-            // todo: diagnostics
-
             result = false;
         }
 
@@ -391,6 +396,36 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
     }
 
     scope_exit(r);
+
+    return result;
+}
+
+static bool resolve_variable(Resolver* r, SymbolId id) {
+    bool result = true;
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+    File* file = file_lookup_id(symbol -> file_id);
+    AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
+
+    TypeId type = resolve_type_expr(file -> id, node -> as.variable_decl.type_expr);
+
+    if (type == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    if (node -> as.variable_decl.value_expr != AST_NODE_ID_NONE) {
+        TypeId expr_type = resolve_expression(r -> scope_id, file -> id, node -> as.variable_decl.value_expr, type);
+
+        if (expr_type == TYPE_ID_NONE || expr_type != type) {
+            diagnostic_add_mismatched_types(file -> id, node -> id, type, expr_type);
+
+            result = false;
+        }
+    }
+
+    symbol -> as.variable_symbol.type_id = type;
+
+    node -> resolved_type = type;
 
     return result;
 }
@@ -578,7 +613,11 @@ static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, 
     }
 
     if (node -> as.unary_op.op == TOK_AMP) {
-        if (operand_node -> kind != AST_IDENTIFIER && operand_node -> kind != AST_MEMBER_ACCESS) {
+        if (
+            operand_node -> kind != AST_IDENTIFIER && 
+            operand_node -> kind != AST_MEMBER_ACCESS && 
+            operand_node -> kind != AST_INDEX
+        ) {
             diagnostic_add_cannot_reference_rvalue(file_id, operand_id);
         } else {
             id = type_table_intern_pointer(id);
@@ -613,27 +652,27 @@ static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id,
             break;
 
         case BINARY_OP_ADDITIVE:
-            id = resolve_additive();
+            // id = resolve_additive();
             break;
 
         case BINARY_OP_MULTIPLICATIVE:
-            id = resolve_multiplicative();
+            // id = resolve_multiplicative();
             break;
 
         case BINARY_OP_BITWISE:
-            id = resolve_bitwise();
+            // id = resolve_bitwise();
             break;
 
         case BINARY_OP_SHIFT:
-            id = resolve_bitshift();
+            // id = resolve_bitshift();
             break;
 
         case BINARY_OP_COMPARISON:
-            id = resolve_comparison();
+            // id = resolve_comparison();
             break;
 
         case BINARY_OP_LOGICAL:
-            id = resolve_logical();
+            // id = resolve_logical();
             break;
 
         case BINARY_OP_ERROR:
@@ -691,6 +730,154 @@ static BinaryOpKind binary_op_kind(TokenKind kind) {
     return binary_op_kind_lut[kind];
 }
 
+static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_id) {
+    File* file = file_lookup_id(file_id);
+    AstNode* expr = &file -> ast.nodes[expr_id];
+
+    switch (expr -> kind) {
+        case AST_IDENTIFIER: {
+            SymbolId id = symbol_table_lookup(scope_id, expr -> as.identifier.name, file_id);
+
+            if (id == SYMBOL_ID_NONE) {
+                diagnostic_add_symbol_does_not_exist(file_id, expr_id, expr -> as.identifier.name);
+                return false;
+            }
+
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+            switch (symbol -> kind) {
+                case SYMBOL_PARAMETER: 
+                case SYMBOL_VARIABLE: 
+                case SYMBOL_FIELD: 
+                    break;
+
+                default:
+                    diagnostic_add_expression_is_not_assignable(file_id, expr_id);
+                    return false;
+            }
+
+            if (expr -> flags & AST_FLAGS_IS_CONSTANT) {
+                diagnostic_add_cannot_reassign_constant(file_id, expr_id);
+                return false;
+            }
+
+            return true;
+        }
+
+        case AST_MEMBER_ACCESS: {
+            // TODO: resolve member
+
+            if (!is_expr_assignable(scope_id, file_id, expr -> as.member_access.object)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        case AST_UNARY_OP: {
+            if (expr -> as.unary_op.op != TOK_STAR) {
+                diagnostic_add_expression_is_not_assignable(file_id, expr_id);
+                return false;
+            }
+
+            AstNodeId operand_id = expr -> as.unary_op.operand;
+            TypeId id = resolve_expression(scope_id, file_id, operand_id, TYPE_ID_NONE);
+
+            if (id == TYPE_ID_NONE || !is_type(id, TYPE_POINTER)) {
+                diagnostic_add_cannot_dereference_non_pointer(file_id, operand_id);
+                return false;
+            }
+
+            return true;
+        }
+
+        case AST_INDEX: {
+            if (expr -> flags & AST_FLAGS_IS_CONSTANT) {
+                diagnostic_add_cannot_reassign_constant(file_id, expr_id);
+                return false;
+            }
+
+            if (!is_expr_assignable(scope_id, file_id, expr -> as.index.object)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        default: {
+            diagnostic_add_expression_is_not_assignable(file_id, expr_id);
+            return false;
+        }
+    }
+}
+
 static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, AstNode* r, TokenKind op) {
-    
+    if (!is_expr_assignable(scope_id, file_id, l -> id)) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId lhs_type = resolve_expression(scope_id, file_id, l -> id, TYPE_ID_NONE);
+
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId expected = lhs_type;
+
+    if (is_type(lhs_type, TYPE_POINTER)) {
+        if (op != TOK_PLUS_EQ && op != TOK_MINUS_EQ && op != TOK_EQ) {
+            SpanU32 span = { .start = l -> tokens.start, .end = r -> tokens.end }; 
+
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                span,
+                "invalid assignment operator usage on pointer",
+                "only '+=', '-=' and '=' are valid assignment operators for pointers"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        if (op == TOK_EQ) {
+            // redundant assignment, but clearly shows state behaviour SSA will remove this probably anyways
+            expected = lhs_type;
+        } else {
+            expected = driver.type_table.builtins.type_usize;
+        }
+    }
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, r -> id, expected);
+
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (is_type(lhs_type, TYPE_POINTER)) {
+        if (op == TOK_MINUS_EQ || op == TOK_PLUS_EQ) {
+            if (is_type_unsigned_int(rhs_type)) {
+                return lhs_type;
+            }
+
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                r -> tokens,
+                "expression doesn't evaluate to an unsigned integer",
+                "pointer arithmetic requires the arithmetic expression to evaluate to an unsigned integer"
+            );
+
+            return TYPE_ID_NONE;
+        } else if (are_types_compatible(lhs_type, rhs_type)) {
+            return lhs_type;
+        } else {
+            diagnostic_add_mismatched_types(file_id, r -> id, lhs_type, rhs_type);
+            return TYPE_ID_NONE;
+        }
+    } else if (are_types_compatible(lhs_type, rhs_type)) {
+        return lhs_type;
+    } else {
+        diagnostic_add_mismatched_types(file_id, r -> id, lhs_type, rhs_type);
+        return TYPE_ID_NONE;
+    }
 }

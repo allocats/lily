@@ -190,7 +190,6 @@ StringId string_intern_cstr(const char* str) {
 
     debug_printf("Added cstring '%.*s' hash = 0x%x id: %d", len, str, hash, id);
 
-    // TODO: Profile this assert, potentially turn it into debug_assert()
     debug_assert(id == string_lookup_cstr(str) && "id in string_intern() does not match lookup");
 
     return id;
