@@ -555,10 +555,8 @@ static void ast_print_payload(FILE *out, const AstNode *node) {
 
             fprintf(
                 out,
-                "│   used_pointer_access: %s\n"
                 "│   object:              AstNodeId=%u\n"
                 "│   member:              AstNodeId=%u\n",
-                node -> as.member_access.used_pointer_access ? "true" : "false",
                 (u32)node -> as.member_access.object,
                 (u32)node -> as.member_access.member
             );

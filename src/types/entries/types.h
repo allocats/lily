@@ -2,6 +2,7 @@
 #define LILY_TYPES_ENTRIES_TYPES_H
 
 #include "ids.h"
+#include "utils/types.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -13,18 +14,27 @@ typedef enum {
     TYPE_FAMILY_ERROR
 } TypeFamily;
 
+#define TYPES(X)        \
+    X(TYPE_ARRAY)       \
+    X(TYPE_BASE)        \
+    X(TYPE_ENUM)        \
+    X(TYPE_FUNCTION)    \
+    X(TYPE_MODULE)      \
+    X(TYPE_POINTER)     \
+    X(TYPE_SLICE)       \
+    X(TYPE_STRUCT)      \
+    X(TYPE_UNION)       \
+    X(TYPE_ERROR)
+
 typedef enum {
-    TYPE_ARRAY,
-    TYPE_BASE,
-    TYPE_ENUM,
-    TYPE_FUNCTION,
-    TYPE_MODULE,
-    TYPE_POINTER,
-    TYPE_SLICE,
-    TYPE_STRUCT,
-    TYPE_UNION,
-    TYPE_ERROR,
+    TYPES(GENERATE_ENUM)
 } __attribute__((packed)) TypeKind;
+
+static const char* TYPE_KIND_STRINGS[] = {
+    TYPES(GENERATE_STRING)
+};
+
+#undef TYPES
 
 typedef struct {
     TypeId id;

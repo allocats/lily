@@ -150,6 +150,9 @@ TypeId get_type_from_symbol(SymbolId id) {
         case SYMBOL_IMPORT:
             return symbol -> as.import_symbol.type_id;
 
+        case SYMBOL_PARAMETER:
+            return symbol -> as.parameter_symbol.type_id;
+
         default:
             return TYPE_ID_NONE;
     }

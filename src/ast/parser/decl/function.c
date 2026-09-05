@@ -126,14 +126,14 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
                     "add a ')' here"
                 );
 
-                ast_id_list_append(
-                    &node -> as.function_decl.parameters,
-                    &p -> current_file -> ast,
-                    param_node_id
-                );
-
                 return parser_error(p, id, RECOVERY_DECL);
             }
+
+            ast_id_list_append(
+                &node -> as.function_decl.parameters,
+                &p -> current_file -> ast,
+                param_node_id
+            );
 
             parser_advance(p);
             break;

@@ -15,6 +15,7 @@
 #include "token/token.h"
 #include "token/types.h"
 #include "types/resolve/resolve.h"
+#include "types/table/table.h"
 #include "utils/timer.h"
 #include "utils/types.h"
 
@@ -114,6 +115,7 @@ i32 main(i32 argc, char** argv) {
     timer_start(&linker_timer);
     timer_end(&linker_timer);
 
+lily_done:
     if (driver.flags & DRIVER_FLAGS_DUMP_TOKENS) {
         for (u32 i = 0; i < driver.file_interner.count; i++) {
             tokens_print(i);
@@ -128,7 +130,10 @@ i32 main(i32 argc, char** argv) {
         }
     }
 
-lily_done:
+    if (driver.flags & DRIVER_FLAGS_DUMP_TYPES) {
+        print_type_table(&driver.type_table);
+    }
+
     bool has_errors = diagnostics_print();
 
     cli_print_compiler_stats(&frontend_timer, &backend_timer, &linker_timer);

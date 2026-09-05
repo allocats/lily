@@ -48,6 +48,9 @@ void diagnostic_add_cannot_reassign_constant(FileId file_id, AstNodeId expr_id);
 
 void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId expected, TypeId found);
 
+void diagnostic_add_undefined_function_call(FileId file_id, AstNodeId node_id);
+void diagnostic_add_incorrect_call_arity(FileId file_id, SpanU32 span, u32 arg_count, u32 param_count);
+
 bool diagnostics_print();
 
 #endif // !LILY_DIAGNOSTICS_H

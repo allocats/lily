@@ -7,6 +7,7 @@
 #include "resolver_stack/stack.h"
 #include "resolver_stack/types.h"
 #include "symbols/resolve/resolve.h"
+#include "symbols/register/register.h"
 #include "symbols/resolve/types.h"
 #include "symbols/scope/scope.h"
 #include "symbols/symbols/symbols.h"
@@ -21,7 +22,7 @@
 #include "utils/types.h"
 
 #include <assert.h>
-#include <stdint.h>
+#include <stdio.h>
 
 extern DriverCtx driver;
 
@@ -32,11 +33,16 @@ static bool resolve_enum(Resolver* r, SymbolId id);
 static bool resolve_variable(Resolver* r, SymbolId id);
 static bool resolve_function(Resolver* r, SymbolId id);
 
+static bool resolve_block(Resolver* r, AstNodeId id);
+static bool resolve_variable_declaration(Resolver* r, AstNode* node);
+
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
 static TypeId resolve_literal(AstNode* node, TypeId expected_type);
 static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id);
 static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
+static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
+static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type);
 
 static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId id);
 static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId type_id, u32 index);
@@ -51,6 +57,8 @@ static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, As
 static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 static TypeId resolve_comparison(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
+
+static u32 get_arg_count(u32 params, u32 args, bool is_variadic);
 
 bool resolve_symbol(SymbolId id) {
     assert(id < driver.symbol_table.symbol_count);
@@ -129,6 +137,7 @@ SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
         }
 
         default:
+            printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
             UNREACHABLE("resolve_name_expr()");
     }
 }
@@ -169,6 +178,7 @@ static bool resolve_symbol_body(SymbolId id) {
             break;
 
         default:
+            printf("Found = %u\n", symbol -> kind);
             UNREACHABLE("resolve_symbol_body()");
     }
 
@@ -424,10 +434,14 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
     if (node -> as.variable_decl.value_expr != AST_NODE_ID_NONE) {
         TypeId expr_type = resolve_expression(r -> scope_id, file -> id, node -> as.variable_decl.value_expr, type);
 
-        if (expr_type == TYPE_ID_NONE || expr_type != type) {
-            diagnostic_add_mismatched_types(file -> id, node -> id, type, expr_type);
-
+        if (expr_type == TYPE_ID_NONE) {
             result = false;
+        } else {
+            if (expr_type != type) {
+                diagnostic_add_mismatched_types(file -> id, node -> id, type, expr_type);
+
+                result = false;
+            }
         }
     }
 
@@ -475,6 +489,8 @@ static bool resolve_function(Resolver* r, SymbolId id) {
 
             result = false;
 
+            symbol -> as.function_symbol.parameters[i] = SYMBOL_ID_NONE;
+
             continue;
         }
 
@@ -489,16 +505,74 @@ static bool resolve_function(Resolver* r, SymbolId id) {
         }
 
         parameter_symbol -> as.parameter_symbol.type_id = parameter_type_id;
+
+        symbol -> as.function_symbol.parameters[i] = parameter_symbol_id;
     }
 
     // TODO: walk the function body if it has one
 
     if (!(node -> flags & AST_FLAGS_IS_EXTERNAL)) {
+        resolve_block(r, node -> as.function_decl.block);
     } 
 
     scope_exit(r);
 
     return result;
+}
+
+static bool resolve_block(Resolver* r, AstNodeId id) {
+    AstNode* node = &r -> file -> ast.nodes[id];
+
+    u32 count = node -> as.block.statements.count;
+
+    bool result = true;
+
+    for (u32 i = 0; i < count; i++) {
+        AstNodeId stmt_id = node -> as.block.statements.ids[i];
+        AstNode* stmt_node = &r -> file -> ast.nodes[stmt_id];
+
+        switch (stmt_node -> kind) {
+            case AST_DEFER_STMT:
+                break;
+
+            case AST_RETURN_STMT:
+                break;
+
+            case AST_FOR_LOOP:
+                break;
+
+            case AST_WHILE_LOOP:
+                break;
+
+            case AST_IF_STMT:
+                break;
+
+            case AST_SWITCH_STMT:
+                break;
+
+            case AST_VARIABLE_DECL:
+                result = resolve_variable_declaration(r, stmt_node);
+                break;
+
+            default:
+                if (resolve_expression(r -> scope_id, r -> file -> id, stmt_id, TYPE_ID_NONE) == TYPE_ID_NONE) {
+                    result = false;
+                }
+                break;
+        }
+    }
+
+    return result;
+}
+
+static bool resolve_variable_declaration(Resolver* r, AstNode* node) {
+    SymbolId id = register_variable(r, node);
+
+    if (id == SYMBOL_ID_NONE) {
+        return false;
+    }
+
+    return resolve_variable(r, id);
 }
 
 
@@ -526,18 +600,21 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
             break;
 
         case AST_FUNCTION_CALL:
+            id = resolve_function_call(scope_id, node, file_id, expected_type);
             break;
 
         case AST_INDEX:
             break;
         
         case AST_MEMBER_ACCESS:
+            id = resolve_member_access(node, file_id, expected_type);
             break;
 
         case AST_STRUCT_LITERAL:
             break;
 
         default:
+            printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
             UNREACHABLE("resolve_expression()");
     }
 
@@ -767,6 +844,258 @@ static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id,
     node -> resolved_type = id;
 
     return id;
+}
+
+static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
+    File* file = file_lookup_id(file_id);
+
+    SymbolId symbol_id = resolve_name_expr(file, node -> as.function_call.identifier);
+
+    if (symbol_id == SYMBOL_ID_NONE) {
+        diagnostic_add_undefined_function_call(file_id, node -> id);
+
+        return TYPE_ID_NONE;
+    }
+
+    // TODO: Figure this out, need recursion, but this will cause a crash
+    // if (!resolve_symbol(symbol_id)) {
+    //     return TYPE_ID_NONE;
+    // }
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+    bool is_variadic = symbol -> flags & AST_FLAGS_IS_VARIADIC;
+
+    u32 arg_count = node -> as.function_call.arguments.count;
+    u32 param_count = symbol -> as.function_symbol.parameter_count;
+    u32 fixed_count = is_variadic ? param_count - 1 : param_count;
+
+    u32 count = get_arg_count(param_count, arg_count, is_variadic);
+
+    if (count == U32_MAX) {
+        diagnostic_add_incorrect_call_arity(file_id, node -> tokens, arg_count, param_count);
+        return TYPE_ID_NONE;
+    }
+
+    bool failed = false;
+
+    for (u32 i = 0; i < fixed_count; i++) {
+        SymbolId param_symbol_id = symbol -> as.function_symbol.parameters[i];
+        Symbol* param_symbol = SYMBOL_ID_LOOKUP_REF(param_symbol_id);
+
+        assert(param_symbol -> kind == SYMBOL_PARAMETER);
+
+        TypeId param_type = param_symbol -> as.parameter_symbol.type_id;
+
+        if (param_type == TYPE_ID_NONE) {
+            failed = true;
+            continue;
+        }
+
+        AstNodeId arg_expr_id = node -> as.function_call.arguments.ids[i];
+        AstNode* arg_expr = &file -> ast.nodes[arg_expr_id];
+        
+        TypeId arg_type = resolve_expression(scope_id, file_id, arg_expr_id, param_type);
+
+        if (arg_type == TYPE_ID_NONE) {
+            failed = true;
+            continue;
+        }
+
+        // are_types_compatible() checks for TYPE_ID_NONE 
+        if (!are_types_compatible(param_type, arg_type)) {
+            if (can_type_cast_to(param_type, arg_type)) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    arg_expr -> tokens,
+                    "incompatible types",
+                    "try casting this expression i.e. cast(type) (expr)"
+                );
+            } else {
+                diagnostic_add_mismatched_types(file_id, arg_expr_id, param_type, arg_type);
+            }
+
+            failed = true;
+            continue;
+        }
+
+        arg_expr -> resolved_type = arg_type;
+    }
+
+    if (is_variadic) {
+        for (u32 i = fixed_count; i < count; i++) {
+            AstNodeId arg_expr_id = node -> as.function_call.arguments.ids[i];
+            AstNode* arg_expr = &file -> ast.nodes[arg_expr_id];
+            
+            TypeId arg_type = resolve_expression(scope_id, file_id, arg_expr_id, TYPE_ID_NONE);
+
+            if (arg_type == TYPE_ID_NONE) {
+                failed = true;
+                continue;
+            }
+
+            arg_expr -> resolved_type = arg_type;
+        }
+    }
+
+    if (failed) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId return_type = symbol -> as.function_symbol.return_type_id;
+
+    if (return_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (expected_type != TYPE_ID_NONE && !are_types_compatible(expected_type, return_type)) {
+        if (can_type_cast_to(expected_type, return_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                node -> tokens,
+                "incompatible types",
+                "try casting this expression i.e. cast(type) (expr)"
+            );
+        } else {
+            diagnostic_add_mismatched_types(file_id, node -> id, expected_type, return_type);
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    return return_type;
+}
+
+static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type) {
+    File* file = file_lookup_id(file_id);
+
+    SymbolId object_symbol_id = resolve_name_expr(file, node -> as.member_access.object);
+
+    if (object_symbol_id == SYMBOL_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    Symbol* object_symbol = SYMBOL_ID_LOOKUP_REF(object_symbol_id);
+
+    if (object_symbol -> kind == SYMBOL_FUNCTION) {
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            node -> tokens,
+            "invalid member access",
+            "cannot use member access on functions"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    AstNode* member_node = &file -> ast.nodes[node -> as.member_access.member];
+    assert(member_node -> kind == AST_IDENTIFIER);
+
+    StringId member_name = member_node -> as.identifier.name;
+
+    SymbolId member_symbol_id = SYMBOL_ID_NONE;
+
+    if (object_symbol -> kind == SYMBOL_IMPORT) {
+        File* imported_file = file_lookup_id(object_symbol -> as.import_symbol.file_id);
+
+        member_symbol_id = scope_lookup(imported_file -> scope_id, member_name);
+    } else {
+        TypeId object_type_id = get_type_from_symbol(object_symbol_id);
+
+        if (object_type_id == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        // auto-deref
+        if (is_type(object_type_id, TYPE_POINTER)) {
+            object_type_id = driver.type_table.entries[object_type_id].as.pointer_type.base;
+        }
+
+        TypeEntry* object_type = TYPE_ID_LOOKUP_REF(object_type_id);
+
+        SymbolId* member_symbols = null;
+        u32 member_count = 0;
+
+        switch (object_type -> kind) {
+            case TYPE_STRUCT: {
+                Symbol* struct_symbol = SYMBOL_ID_LOOKUP_REF(object_type -> symbol_id);
+                member_symbols = struct_symbol -> as.struct_symbol.fields;
+                member_count = struct_symbol -> as.struct_symbol.field_count;
+                break;
+            }
+
+            case TYPE_UNION: {
+                Symbol* union_symbol = SYMBOL_ID_LOOKUP_REF(object_type -> symbol_id);
+                member_symbols = union_symbol -> as.union_symbol.fields;
+                member_count = union_symbol -> as.union_symbol.field_count;
+                break;
+            }
+
+            case TYPE_ENUM: {
+                Symbol* enum_symbol = SYMBOL_ID_LOOKUP_REF(object_type -> symbol_id);
+                member_symbols = enum_symbol -> as.enum_symbol.variants;
+                member_count = enum_symbol -> as.enum_symbol.variant_count;
+                break;
+            }
+
+            default: {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    node -> tokens,
+                    "invalid member access",
+                    "member access requires a struct, union, or enum type"
+                );
+
+                return TYPE_ID_NONE;
+            }
+        }
+
+        for (u32 i = 0; i < member_count; i++) {
+            if (member_symbols[i] == SYMBOL_ID_NONE) {
+                continue;
+            }
+
+            Symbol* entry = SYMBOL_ID_LOOKUP_REF(member_symbols[i]);
+
+            if (entry -> name_id == member_name) {
+                member_symbol_id = member_symbols[i];
+                break;
+            }
+        }
+    }
+
+    if (member_symbol_id == SYMBOL_ID_NONE) {
+        diagnostic_add_symbol_does_not_exist(file_id, node -> as.member_access.member, member_name);
+        return TYPE_ID_NONE;
+    }
+
+    TypeId member_type = get_type_from_symbol(member_symbol_id);
+
+    if (member_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (expected_type != TYPE_ID_NONE && !are_types_compatible(expected_type, member_type)) {
+        if (can_type_cast_to(expected_type, member_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                node -> tokens,
+                "incompatible types",
+                "try casting this expression i.e. cast(type) (expr)"
+            );
+        } else {
+            diagnostic_add_mismatched_types(file_id, node -> id, expected_type, member_type);
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    return member_type;
 }
 
 static BinaryOpKind binary_op_kind(TokenKind kind) {
@@ -1033,6 +1362,10 @@ static TypeId resolve_multiplicative(ScopeId scope_id, FileId file_id, AstNode* 
 static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
     TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
 
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
     if (!is_type_int(lhs_type)) {
         diagnostic_add_token_span(
             file_id,
@@ -1046,6 +1379,10 @@ static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, As
     }
 
     TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, TYPE_ID_NONE);
+
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
     
     if (!is_type_int(rhs_type)) {
         if (can_type_cast_to(lhs_type, rhs_type)) {
@@ -1075,6 +1412,10 @@ static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, As
 static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
     TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
 
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
     if (!is_type_int(lhs_type)) {
         diagnostic_add_token_span(
             file_id,
@@ -1088,6 +1429,10 @@ static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, A
     }
 
     TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, TYPE_ID_NONE);
+
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
     
     if (!is_type_int(rhs_type)) {
         if (can_type_cast_to(lhs_type, rhs_type)) {
@@ -1141,6 +1486,10 @@ static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, As
 
     TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
 
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
     if (lhs_type != bool_id) {
         diagnostic_add_token_span(
             file_id,
@@ -1155,6 +1504,10 @@ static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, As
 
     TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
 
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
     if (rhs_type != bool_id) {
         diagnostic_add_token_span(
             file_id,
@@ -1168,4 +1521,12 @@ static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, As
     }
 
     return bool_id;
+}
+
+static u32 get_arg_count(u32 params, u32 args, bool is_variadic) {
+    if (is_variadic) {
+        return args >= params - 1 ? args : U32_MAX;
+    }
+
+    return args == params ? params : U32_MAX;
 }

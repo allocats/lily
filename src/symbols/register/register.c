@@ -24,7 +24,6 @@ static void register_function(Registrar* r, AstNode* node);
 static void register_struct(Registrar* r, AstNode* node);
 static void register_union(Registrar* r, AstNode* node);
 static void register_enum(Registrar* r, AstNode* node);
-static void register_variable(Registrar* r, AstNode* node);
 
 static inline SymbolId register_builtin_type(TypeId id, TypeBuiltin* type) {
     SymbolId symbol_id = scope_intern(COMPILER_SCOPE_ID, type -> name_id, SYMBOL_TYPE);
@@ -156,6 +155,7 @@ static void register_import(Registrar* r, AstNode* node) {
             type -> as.module_type.symbol_id = symbol_id;
             
             symbol -> as.import_symbol.type_id = type_id;
+            symbol -> state = RESOLVE_RESOLVED;
         }
     }
 }
@@ -217,14 +217,17 @@ static void register_enum(Registrar* r, AstNode* node) {
     }
 }
 
-static void register_variable(Registrar* r, AstNode* node) {
+SymbolId register_variable(Registrar* r, AstNode* node) {
     StringId name_id = node -> as.variable_decl.name;
 
     SymbolId id = symbol_table_lookup_top_level(r -> scope_id, name_id);
 
     if (id != SYMBOL_ID_NONE) {
         diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);
+        id = SYMBOL_ID_NONE;
     } else {
         id = scope_intern_from_node(r -> scope_id, r -> file -> id, name_id, node -> id);
     }
+
+    return id;
 }

@@ -34,6 +34,7 @@ void types_register_builtins(void) {
 
         TypeEntry* entry = TYPE_ID_LOOKUP_REF(id);
 
+        entry -> as.base_type.name = type -> name_id;
         entry -> size = type -> size;
         entry -> alignment = type -> align;
 

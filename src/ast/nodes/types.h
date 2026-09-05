@@ -304,7 +304,7 @@ typedef struct {
 
 
 typedef struct {
-    bool used_pointer_access;
+    // bool used_pointer_access;
 
     AstNodeId object;
     AstNodeId member;

@@ -160,8 +160,10 @@ static str8 get_source_line(const char* buffer, u32 line) {
 }
 
 static u32 type_to_buf(TypeId type_id, char* buf, u32 buf_size, u32 offset) {
+    assert(type_id != TYPE_ID_NONE);
+
     TypeEntry* type = TYPE_ID_LOOKUP_REF(type_id);
- 
+
     switch (type -> kind) {
         case TYPE_POINTER: {
             offset += snprintf(buf + offset, buf_size - offset, "*");
@@ -231,6 +233,30 @@ str8 diagnostic_type_to_str8(TypeId type_id) {
         .ptr = out,
         .len = len
     };
+}
+
+static str8 diagnostic_get_identifier(File* file, AstNode* node) {
+    switch (node -> kind) {
+        case AST_IDENTIFIER: {
+            StringEntry entry = STRING_ID_LOOKUP(node -> as.identifier.name);
+            return entry.str;
+        } break;
+
+        case AST_MEMBER_ACCESS: {
+            AstNode* member = ast_get_node(&file -> ast, node -> as.member_access.member);
+            return diagnostic_get_identifier(file, member);
+        } break;
+
+        case AST_FUNCTION_CALL:
+        case AST_MACRO_CALL: {
+            AstNode* callee = ast_get_node(&file -> ast, node -> as.function_call.identifier);
+            return diagnostic_get_identifier(file, callee);
+        } break;
+
+        default: {
+            return (str8) { .ptr = null, .len = 0 };
+        } break;
+    }
 }
 
 static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
@@ -675,7 +701,7 @@ void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId e
     snprintf(
         msg,
         diagnostic_max_length,
-        "expected '%.*s', but found '%.*s'\n",
+        "expected '%.*s', but found '%.*s'",
         STR8_FMT(expected_str),
         STR8_FMT(found_str)
     );
@@ -687,6 +713,68 @@ void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId e
         "mismatched types",
         msg
     );
+}
+
+void diagnostic_add_undefined_function_call(FileId file_id, AstNodeId node_id) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[node_id];
+
+    str8 name = diagnostic_get_identifier(file, node);
+
+    char* msg = arena_alloc(&engine -> arena, diagnostic_max_length);
+
+    snprintf(
+        msg,
+        diagnostic_max_length,
+        "call to undefined function '%.*s'",
+        STR8_FMT(name)
+    );
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        msg,
+        null
+    );
+}
+
+void diagnostic_add_incorrect_call_arity(FileId file_id, SpanU32 span, u32 arg_count, u32 param_count) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    char* help = arena_alloc(&engine -> arena, diagnostic_max_length);
+
+    if (arg_count <= param_count) {
+        snprintf(
+            help,
+            diagnostic_max_length,
+            "too few arguments for call, expected %u, but found %u",
+            param_count,
+            arg_count
+        );
+    } else {
+        snprintf(
+            help,
+            diagnostic_max_length,
+            "too many arguments for call, expected %u, but found %u",
+            param_count,
+            arg_count
+        );
+    }
+
+    diagnostic_add_token_span(file_id, DIAG_ERROR, span, "incorrect function call argument count", help);
 }
 
 // END OF DIAGNOSTICS

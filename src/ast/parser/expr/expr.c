@@ -113,7 +113,7 @@ AstNodeId parse_expression(Parser* p, u32 min_bp) {
 static AstNodeId nud(Parser* p, Token token) {
     switch (token.kind) {
         case TOK_INTEGER_LIT: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, 0);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             node -> as.literal.kind = LITERAL_INTEGER;
@@ -123,7 +123,7 @@ static AstNodeId nud(Parser* p, Token token) {
         }
 
         case TOK_FLOAT_LIT: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, 0);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             node -> as.literal.kind = LITERAL_FLOAT;
@@ -133,7 +133,7 @@ static AstNodeId nud(Parser* p, Token token) {
         }
 
         case TOK_STRING_LIT: {
-            AstNodeId id = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, 0);
+            AstNodeId id = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             token.length -= 2;
@@ -149,7 +149,7 @@ static AstNodeId nud(Parser* p, Token token) {
         }
 
         case TOK_CHAR_LIT: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, 0);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             node -> as.literal.kind = LITERAL_CHAR;
@@ -160,7 +160,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
         case TOK_KW_TRUE:
         case TOK_KW_FALSE: {
-            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, 0);
+            AstNodeId id  = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             node -> as.literal.kind = LITERAL_BOOL;
@@ -170,7 +170,7 @@ static AstNodeId nud(Parser* p, Token token) {
         }
 
         case TOK_KW_NULL: {
-            AstNodeId id = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, 0);
+            AstNodeId id = parser_create_node(p, AST_LITERAL, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             node -> as.literal.kind = LITERAL_NULL;
@@ -179,7 +179,7 @@ static AstNodeId nud(Parser* p, Token token) {
         }
 
         case TOK_IDENT: {
-            AstNodeId id  = parser_create_node(p, AST_IDENTIFIER, AST_FLAGS_NONE, 0);
+            AstNodeId id  = parser_create_node(p, AST_IDENTIFIER, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             node -> as.identifier.name = string_intern_token(p -> current_file -> id, token);
@@ -215,7 +215,7 @@ static AstNodeId nud(Parser* p, Token token) {
         case TOK_BANG:
         case TOK_TILDE:
         case TOK_AMP: {
-            AstNodeId id  = parser_create_node(p, AST_UNARY_OP, AST_FLAGS_NONE, 0);
+            AstNodeId id  = parser_create_node(p, AST_UNARY_OP, AST_FLAGS_NONE, -1);
             AstNode* node = parser_get_node(p, id);
 
             node -> as.unary_op.op = token.kind;
@@ -298,7 +298,7 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
             return id;
         }
 
-        case TOK_ARROW:
+        // case TOK_ARROW:
         case TOK_DOT: {
             if (parser_check(p, TOK_L_BRACE)) {
                 AstNodeId id = parser_create_node(p, AST_STRUCT_LITERAL, AST_FLAGS_NONE, -1);
@@ -375,7 +375,7 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
             AstNodeId id = parser_create_node(p, AST_MEMBER_ACCESS, AST_FLAGS_NONE, 0);
             AstNode* node = parser_get_node(p, id);
 
-            node -> as.member_access.used_pointer_access = (token.kind == TOK_ARROW);
+            // node -> as.member_access.used_pointer_access = (token.kind == TOK_ARROW);
             node -> as.member_access.object = left;
             node -> as.member_access.member = member_node_id;
 
