@@ -26,7 +26,6 @@ void ast_init(Ast* ast) {
     arena_init(&ast -> nodes_arena, ARENA_KB(nodes_arena_init_size_kb), ALIGN_DEFAULT);
     debug_printf("ast(%p) -> nodes_arena init arena with %luKB", ast, nodes_arena_init_size_kb);
 
-    // TODO: test if need zeroed memory
     ast -> nodes = arena_alloc(&ast -> nodes_arena, nodes_array_init_alloc_size);
     ast -> count = 0;
     ast -> capacity = ast_init_capacity;
@@ -52,9 +51,6 @@ AstNodeId ast_alloc_node(Ast* ast) {
         ast -> nodes = arena_realloc(&ast -> nodes_arena, ast -> nodes, old_size, new_size);
         ast -> capacity *= 2;
 
-        // TODO: test if need zeroed memory
-        // arena_memset(ast -> nodes + old_capacity, 0, (new_capacity - old_capacity) * sizeof(AstNode));
-
         debug_printf("ast -> nodes realloc from %lu to %lu bytes", old_size, new_size);
     }
 
@@ -62,7 +58,6 @@ AstNodeId ast_alloc_node(Ast* ast) {
 }
 
 inline AstNode* ast_get_node(Ast* ast, AstNodeId id) {
-    // TODO: Profile these asserts
     debug_assert(id < ast -> count);
     debug_assert(id >= 0);
 

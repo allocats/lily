@@ -728,6 +728,7 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
             break;
 
         case AST_STRUCT_LITERAL:
+            // TODO
             break;
 
         default:

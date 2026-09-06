@@ -33,9 +33,6 @@ void tokens_array_init(TokenArray* arr) {
 }
 
 Token* tokens_get_new_token(TokenArray* arr) {
-    // TODO: Profile these asserts to find out whether or not to make them debug asserts,
-    // but keep as is, IN CASE we run into memory errors during development and can easily
-    // catch scuffed/broken allocations
     debug_assert(arr != null);
     debug_assert(arr -> items != null);
     debug_assert(arr -> capacity > 0);
