@@ -153,6 +153,15 @@ TypeId get_type_from_symbol(SymbolId id) {
         case SYMBOL_PARAMETER:
             return symbol -> as.parameter_symbol.type_id;
 
+        case SYMBOL_VARIABLE:
+            return symbol -> as.variable_symbol.type_id;
+
+        case SYMBOL_VARIANT:
+            return symbol -> as.variant_symbol.type_id;
+
+        case SYMBOL_FIELD:
+            return symbol -> as.field_symbol.type_id;
+
         default:
             return TYPE_ID_NONE;
     }

@@ -431,21 +431,21 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
         result = false;
     }
 
+    symbol -> as.variable_symbol.type_id = type;
+
     if (node -> as.variable_decl.value_expr != AST_NODE_ID_NONE) {
         TypeId expr_type = resolve_expression(r -> scope_id, file -> id, node -> as.variable_decl.value_expr, type);
 
         if (expr_type == TYPE_ID_NONE) {
             result = false;
         } else {
-            if (expr_type != type) {
+            if (!are_types_compatible(type, expr_type)) {
                 diagnostic_add_mismatched_types(file -> id, node -> id, type, expr_type);
 
                 result = false;
             }
         }
     }
-
-    symbol -> as.variable_symbol.type_id = type;
 
     node -> resolved_type = type;
 
@@ -1196,7 +1196,11 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
             AstNodeId operand_id = expr -> as.unary_op.operand;
             TypeId id = resolve_expression(scope_id, file_id, operand_id, TYPE_ID_NONE);
 
-            if (id == TYPE_ID_NONE || !is_type(id, TYPE_POINTER)) {
+            if (id == TYPE_ID_NONE) {
+                return false;
+            }
+
+            if (!is_type(id, TYPE_POINTER)) {
                 diagnostic_add_cannot_dereference_non_pointer(file_id, operand_id);
                 return false;
             }
