@@ -15,6 +15,17 @@ AstNodeId parse_return_statement(Parser* p) {
 
     parser_advance(p); // advance past "return"
 
+    if (parser_check(p, TOK_SEMI)) { 
+        AstNode* node = parser_get_node(p, id);
+
+        node -> as.return_stmt.expr = AST_NODE_ID_NONE;
+        node -> tokens.end = p -> cursor;
+
+        parser_advance(p); // advance past the terminating ';'
+
+        return id;
+    }
+
     AstNodeId return_expr = parse_expression(p, 0);
 
     if (IS_NODE_ERROR(p, return_expr)) {

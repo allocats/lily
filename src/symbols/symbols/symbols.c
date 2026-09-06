@@ -162,7 +162,8 @@ TypeId get_type_from_symbol(SymbolId id) {
         case SYMBOL_FIELD:
             return symbol -> as.field_symbol.type_id;
 
-        // TODO: Functions
+        case SYMBOL_FUNCTION:
+            return symbol -> as.function_symbol.return_type_id;
 
         default:
             return TYPE_ID_NONE;

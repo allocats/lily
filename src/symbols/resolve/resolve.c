@@ -36,6 +36,8 @@ static bool resolve_enum(Resolver* r, SymbolId id);
 static bool resolve_variable(Resolver* r, SymbolId id);
 
 static bool resolve_block(Resolver* r, AstNodeId id);
+static bool resolve_defer_stmt(Resolver* r, AstNode* node);
+static bool resolve_return_stmt(Resolver* r, AstNode* node);
 static bool resolve_variable_declaration(Resolver* r, AstNode* node);
 
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
@@ -156,7 +158,8 @@ static bool resolve_symbol_body(SymbolId id) {
 
     Resolver r = {
         .file = file,
-        .scope_id = file -> scope_id
+        .scope_id = file -> scope_id,
+        .current_symbol = id
     };
 
     switch (symbol -> kind) {
@@ -576,9 +579,11 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
 
         switch (stmt_node -> kind) {
             case AST_DEFER_STMT:
+                result = resolve_defer_stmt(r, stmt_node);
                 break;
 
             case AST_RETURN_STMT:
+                result = resolve_return_stmt(r, stmt_node);
                 break;
 
             case AST_FOR_LOOP:
@@ -606,6 +611,66 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
     }
 
     return result;
+}
+
+static inline bool resolve_defer_stmt(Resolver* r, AstNode* node) {
+    TypeId type = resolve_expression(r -> scope_id, r -> file -> id, node -> as.defer_stmt.stmt, TYPE_ID_NONE);
+
+    if (type == TYPE_ID_NONE) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool resolve_return_stmt(Resolver* r, AstNode* node) {
+    TypeId ret_type = get_type_from_symbol(r -> current_symbol);
+
+    if (ret_type == TYPE_ID_NONE) {
+        return false;
+    }
+
+    AstNodeId expr_id = node -> as.return_stmt.expr;
+
+    if (expr_id == AST_NODE_ID_NONE) {
+        if (ret_type != driver.type_table.builtins.type_void) {
+            diagnostic_add_token_span(
+                r -> file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                "non-void function expects to return a value",
+                "add an expression to this return statement"
+            );
+
+            return false;
+        }
+        
+        return true;
+    }
+
+    TypeId type = resolve_expression(r -> scope_id, r -> file -> id, expr_id, ret_type);
+
+    if (type == TYPE_ID_NONE) {
+        return false;
+    }
+
+    if (!are_types_compatible(ret_type, type)) {
+        if (can_type_cast_to(ret_type, type)) {
+            diagnostic_add_token_span(
+                r -> file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                "incompatible types",
+                "try casting this expression i.e. cast(type) (expr)"
+            );
+        } else {
+            diagnostic_add_mismatched_types(r -> file -> id, node -> id, ret_type, type);
+        }
+
+        return false;
+    }
+
+    return true;
 }
 
 static bool resolve_variable_declaration(Resolver* r, AstNode* node) {
@@ -1128,7 +1193,7 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
             UNREACHABLE("resolve_index()");
     }
 
-    if (!are_types_compatible(expected_type, element_type)) {
+    if (expected_type != TYPE_ID_NONE && !are_types_compatible(expected_type, element_type)) {
         if (can_type_cast_to(expected_type, element_type)) {
             diagnostic_add_token_span(
                 file_id,
@@ -1348,7 +1413,7 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
                     return false;
             }
 
-            if (expr -> flags & AST_FLAGS_IS_CONSTANT) {
+            if (symbol -> flags & AST_FLAGS_IS_CONSTANT) {
                 diagnostic_add_cannot_reassign_constant(file_id, expr_id);
                 return false;
             }
@@ -1379,6 +1444,14 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
                 return false;
             }
 
+            SymbolId symbol_id = resolve_name_expr(file, operand_id);
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+            if (symbol -> flags & AST_FLAGS_IS_CONSTANT) {
+                diagnostic_add_cannot_reassign_constant(file_id, expr_id);
+                return false;
+            }
+
             if (!is_type(id, TYPE_POINTER)) {
                 diagnostic_add_cannot_dereference_non_pointer(file_id, operand_id);
                 return false;
@@ -1388,10 +1461,10 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
         }
 
         case AST_INDEX: {
-            if (expr -> flags & AST_FLAGS_IS_CONSTANT) {
-                diagnostic_add_cannot_reassign_constant(file_id, expr_id);
-                return false;
-            }
+            // if (expr -> flags & AST_FLAGS_IS_CONSTANT) {
+            //     diagnostic_add_cannot_reassign_constant(file_id, expr_id);
+            //     return false;
+            // }
 
             if (!is_expr_assignable(scope_id, file_id, expr -> as.index.object)) {
                 return false;

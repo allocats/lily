@@ -7,6 +7,9 @@
 typedef struct {
     File* file;
     ScopeId scope_id;
+
+    // Used in resolving for functions
+    SymbolId current_symbol;
 } Registrar;
 
 #endif // !LILY_SYMBOLS_REGISTER_TYPES_H
