@@ -44,6 +44,7 @@ static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id
 static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
+static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type);
 
 static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId id);
@@ -654,6 +655,7 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
             break;
 
         case AST_INDEX:
+            id = resolve_index(scope_id, node, file_id, expected_type);
             break;
         
         case AST_MEMBER_ACCESS:
@@ -1050,6 +1052,99 @@ static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file
     }
 
     return return_type;
+}
+
+// TODO/NOTE: need to finish ARRAYS in the TypeTable for this to function correctly
+static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
+    File* file = file_lookup_id(file_id);
+
+    TypeId type = resolve_expression(scope_id, file_id, node -> as.index.object, TYPE_ID_NONE);
+
+    if (type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId index_type = resolve_expression(
+        scope_id,
+        file_id,
+        node -> as.index.index_expr,
+        driver.type_table.builtins.type_usize
+    );
+
+    if (index_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (!is_type(type, TYPE_ARRAY) && !is_type(type, TYPE_SLICE)) {
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            node -> tokens,
+            "indexed object is not an array or slice",
+            "can only index slices and arrays"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    if (!is_type_unsigned_int(index_type)) {
+        AstNode* index_expr = &file -> ast.nodes[node -> as.index.index_expr];
+
+        if (can_type_cast_to(driver.type_table.builtins.type_usize, index_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                index_expr -> tokens,
+                "indexes can only be performed with unsigned integers",
+                "try casting this expression to an unsigned integer: cast(usize) (expr)"
+            );
+        } else {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                index_expr -> tokens,
+                "indexes can only be performed with unsigned integers",
+                "make this expression an unsigned integer"
+            );
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    TypeEntry* object_type = TYPE_ID_LOOKUP_REF(type); 
+
+    TypeId element_type = TYPE_ID_NONE;
+
+    switch (object_type -> kind) {
+        case TYPE_ARRAY:
+            element_type = object_type -> as.array_type.element;
+            break;
+
+        case TYPE_SLICE:
+            element_type = object_type -> as.slice_type.element;
+            break;
+
+        default:
+            UNREACHABLE("resolve_index()");
+    }
+
+    if (!are_types_compatible(expected_type, element_type)) {
+        if (can_type_cast_to(expected_type, element_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                node -> tokens,
+                "incompatible types",
+                "try casting this expression i.e. cast(type) (expr)"
+            );
+        } else {
+            diagnostic_add_mismatched_types(file_id, node -> id, expected_type, element_type);
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    return element_type;
 }
 
 static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type) {
