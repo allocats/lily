@@ -77,7 +77,7 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
         case AST_VARIANT:
             symbol -> kind = SYMBOL_VARIANT;
             symbol -> name_id = node -> as.field.name;
-            symbol -> as.variable_symbol.type_id = TYPE_ID_NONE;
+            symbol -> as.variant_symbol.type_id = TYPE_ID_NONE;
             break;
 
         case AST_VARIABLE_DECL:
@@ -161,6 +161,8 @@ TypeId get_type_from_symbol(SymbolId id) {
 
         case SYMBOL_FIELD:
             return symbol -> as.field_symbol.type_id;
+
+        // TODO: Functions
 
         default:
             return TYPE_ID_NONE;

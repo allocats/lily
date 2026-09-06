@@ -27,11 +27,13 @@
 extern DriverCtx driver;
 
 static bool resolve_symbol_body(SymbolId id);
+
+static bool resolve_function_signature(SymbolId id);
+static bool resolve_function(Resolver* r, SymbolId id);
 static bool resolve_struct(Resolver* r, SymbolId id);
 static bool resolve_union(Resolver* r, SymbolId id);
 static bool resolve_enum(Resolver* r, SymbolId id);
 static bool resolve_variable(Resolver* r, SymbolId id);
-static bool resolve_function(Resolver* r, SymbolId id);
 
 static bool resolve_block(Resolver* r, AstNodeId id);
 static bool resolve_variable_declaration(Resolver* r, AstNode* node);
@@ -431,8 +433,6 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
         result = false;
     }
 
-    symbol -> as.variable_symbol.type_id = type;
-
     if (node -> as.variable_decl.value_expr != AST_NODE_ID_NONE) {
         TypeId expr_type = resolve_expression(r -> scope_id, file -> id, node -> as.variable_decl.value_expr, type);
 
@@ -447,17 +447,38 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
         }
     }
 
+    symbol -> as.variable_symbol.type_id = type;
+
     node -> resolved_type = type;
 
     return result;
 }
 
-static bool resolve_function(Resolver* r, SymbolId id) {
+static bool resolve_function_signature(SymbolId id) {
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+    if (symbol -> as.function_symbol.signature_state == RESOLVE_RESOLVED) return true;
+    if (symbol -> as.function_symbol.signature_state == RESOLVE_ERROR)    return false;
+
+    if (symbol -> as.function_symbol.signature_state == RESOLVE_RESOLVING) {
+        diagnostic_add_generic(DIAG_ERROR, "cyclic function signature");
+
+        symbol -> as.function_symbol.signature_state = RESOLVE_ERROR;
+
+        return false;
+    }
+
+    symbol -> as.function_symbol.signature_state = RESOLVE_RESOLVING;
+
     bool result = true;
 
-    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
     File* file = file_lookup_id(symbol -> file_id);
     AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
+
+    Resolver r = {
+        .file = file,
+        .scope_id = file -> scope_id,
+    };
 
     TypeId return_type_id = resolve_type_expr(file -> id, node -> as.function_decl.return_type_expr);
 
@@ -467,7 +488,9 @@ static bool resolve_function(Resolver* r, SymbolId id) {
 
     symbol -> as.function_symbol.return_type_id = return_type_id;
 
-    scope_enter(r);
+    ScopeId signature_scope_id = scope_enter(&r);
+
+    symbol -> as.function_symbol.scope_id = signature_scope_id;
 
     u32 parameter_count = node -> as.function_decl.parameters.count;
 
@@ -477,7 +500,7 @@ static bool resolve_function(Resolver* r, SymbolId id) {
 
         StringId parameter_name = parameter_node -> as.parameter_decl.name;
 
-        SymbolId parameter_symbol_id = symbol_table_lookup(r -> scope_id, parameter_name, file -> id);
+        SymbolId parameter_symbol_id = symbol_table_lookup(signature_scope_id, parameter_name, file -> id);
 
         if (parameter_symbol_id != SYMBOL_ID_NONE) {
             diagnostic_add_symbol_redefined(
@@ -487,17 +510,21 @@ static bool resolve_function(Resolver* r, SymbolId id) {
                 parameter_name
             );
 
-            result = false;
-
             symbol -> as.function_symbol.parameters[i] = SYMBOL_ID_NONE;
+
+            result = false;
 
             continue;
         }
 
-        parameter_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, parameter_name, parameter_node_id);
+        parameter_symbol_id = scope_intern_from_node(
+            signature_scope_id,
+            file -> id,
+            parameter_name,
+            parameter_node_id
+        );
 
         Symbol* parameter_symbol = SYMBOL_ID_LOOKUP_REF(parameter_symbol_id);
-
         TypeId parameter_type_id = resolve_type_expr(file -> id, parameter_node -> as.parameter_decl.type_expr);
 
         if (parameter_type_id == TYPE_ID_NONE) {
@@ -505,17 +532,32 @@ static bool resolve_function(Resolver* r, SymbolId id) {
         }
 
         parameter_symbol -> as.parameter_symbol.type_id = parameter_type_id;
+        parameter_symbol -> state = RESOLVE_RESOLVED;
 
         symbol -> as.function_symbol.parameters[i] = parameter_symbol_id;
     }
 
-    // TODO: walk the function body if it has one
+    symbol -> as.function_symbol.signature_state = result ? RESOLVE_RESOLVED : RESOLVE_ERROR;
+
+    return result;
+}
+
+static bool resolve_function(Resolver* r, SymbolId id) {
+    bool result = resolve_function_signature(id);
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+    File* file = file_lookup_id(symbol -> file_id);
+    AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
+
+    ScopeId caller_scope_id = r -> scope_id;
+
+    r -> scope_id = symbol -> as.function_symbol.scope_id;
 
     if (!(node -> flags & AST_FLAGS_IS_EXTERNAL)) {
         resolve_block(r, node -> as.function_decl.block);
     } 
 
-    scope_exit(r);
+    r -> scope_id = caller_scope_id;
 
     return result;
 }
@@ -572,7 +614,15 @@ static bool resolve_variable_declaration(Resolver* r, AstNode* node) {
         return false;
     }
 
-    return resolve_variable(r, id);
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
+
+    symbol -> state = RESOLVE_RESOLVING;
+
+    bool result = resolve_variable(r, id);
+
+    symbol -> state = result ? RESOLVE_RESOLVED : RESOLVE_ERROR;
+
+    return result;
 }
 
 
@@ -672,20 +722,55 @@ static TypeId resolve_literal(AstNode* node, TypeId expected_type) {
 }
 
 static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id) {
-    StringId name_id = node -> as.identifier.name; 
+    StringId name_id = node -> as.identifier.name;
 
-    SymbolId symbol = symbol_table_lookup(scope_id, name_id, file_id);
+    SymbolId symbol_id = symbol_table_lookup(scope_id, name_id, file_id);
 
-    TypeId id = TYPE_ID_NONE;
-
-    if (symbol == SYMBOL_ID_NONE) {
+    if (symbol_id == SYMBOL_ID_NONE) {
         diagnostic_add_symbol_does_not_exist(file_id, node -> id, name_id);
-        id = TYPE_ID_NONE;
-    } else {
-        id = get_type_from_symbol(symbol);
+        return TYPE_ID_NONE;
     }
 
-    return id;
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+    switch (symbol -> kind) {
+        case SYMBOL_FUNCTION:
+            if (!resolve_function_signature(symbol_id)) {
+                return TYPE_ID_NONE;
+            }
+            break;
+
+        case SYMBOL_VARIABLE:
+            if (symbol -> state == RESOLVE_RESOLVING) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    node -> tokens,
+                    "variable used in its own initializer",
+                    "variables cannot be used in their own initializer"
+                );
+
+                symbol -> state = RESOLVE_ERROR;
+
+                return TYPE_ID_NONE;
+            }
+
+            if (symbol -> state == RESOLVE_ERROR) {
+                return TYPE_ID_NONE;
+            }
+
+            if (symbol -> state == RESOLVE_UNRESOLVED) {
+                if (!resolve_symbol(symbol_id)) {
+                    return TYPE_ID_NONE;
+                }
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    return get_type_from_symbol(symbol_id);
 }
 
 static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
@@ -857,10 +942,9 @@ static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file
         return TYPE_ID_NONE;
     }
 
-    // TODO: Figure this out, need recursion, but this will cause a crash
-    // if (!resolve_symbol(symbol_id)) {
-    //     return TYPE_ID_NONE;
-    // }
+    if (!resolve_function_signature(symbol_id)) {
+        return TYPE_ID_NONE;
+    }
 
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 

@@ -57,6 +57,9 @@ typedef struct {
             u32 parameter_count;
 
             TypeId return_type_id;
+
+            ResolveState signature_state;
+            ScopeId scope_id;
         } function_symbol;
 
         struct {
