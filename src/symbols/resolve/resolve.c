@@ -802,15 +802,55 @@ static bool resolve_for_loop(Resolver* r, AstNode* node) {
         result = false;
     }
 
-    resolve_block(r, node -> as.for_loop.block);
+    bool block_result = resolve_block(r, node -> as.for_loop.block);
 
     scope_exit(r);
+
+    if (block_result == false || result == false) {
+        result = false;
+    }
 
     return result;
 }
 
 static bool resolve_while_loop(Resolver* r, AstNode* node) {
+    TypeId bool_type = driver.type_table.builtins.type_bool;
 
+    File* file = r -> file;
+
+    bool result = false;
+
+    TypeId condition_type_id = resolve_expression(r -> scope_id, file -> id, node -> as.while_loop.cond, bool_type);
+
+    if (condition_type_id == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    if (condition_type_id != TYPE_ID_NONE && condition_type_id != bool_type) {
+        AstNode* condition = &file -> ast.nodes[node -> as.for_loop.cond];
+
+        diagnostic_add_token_span(
+            file -> id,
+            DIAG_ERROR,
+            condition -> tokens,
+            "expression does not evaluate to a bool",
+            "condition must evaluate to a boolean"
+        );
+        
+        result = false;
+    }
+
+    scope_enter(r);
+    
+    bool block_result = resolve_block(r, node -> as.while_loop.block);
+
+    scope_exit(r);
+
+    if (block_result == false || result == false) {
+        result = false;
+    }
+
+    return result;
 }
 
 static bool resolve_variable_declaration(Resolver* r, AstNode* node) {
