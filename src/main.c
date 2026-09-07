@@ -1,3 +1,4 @@
+#include "codegen/codegen.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef  MEOWRENA_IMPL
@@ -100,6 +101,9 @@ i32 main(i32 argc, char** argv) {
 
     // backend
     timer_start(&backend_timer);
+
+    codegen();
+
     timer_end(&backend_timer);
 
 
