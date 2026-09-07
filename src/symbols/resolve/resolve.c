@@ -41,6 +41,7 @@ static bool resolve_return_stmt(Resolver* r, AstNode* node);
 static bool resolve_for_loop(Resolver* r, AstNode* node);
 static bool resolve_while_loop(Resolver* r, AstNode* node);
 static bool resolve_if_stmt(Resolver* r, AstNode* node);
+static bool resolve_switch_stmt(Resolver* r, AstNode* node);
 static bool resolve_variable_declaration(Resolver* r, AstNode* node);
 
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
@@ -197,7 +198,8 @@ static bool resolve_symbol_body(SymbolId id) {
     Resolver r = {
         .file = file,
         .scope_id = file -> scope_id,
-        .current_symbol = id
+        .current_symbol = id,
+        .in_loop_ctx = false
     };
 
     switch (symbol -> kind) {
@@ -658,19 +660,24 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 break;
 
             case AST_FOR_LOOP:
+                r -> in_loop_ctx = true;
                 result = resolve_for_loop(r, stmt_node);
+                r -> in_loop_ctx = false;
                 break;
 
             case AST_WHILE_LOOP:
+                r -> in_loop_ctx = true;
                 result = resolve_while_loop(r, stmt_node);
+                r -> in_loop_ctx = false;
                 break;
 
             case AST_IF_STMT:
                 result = resolve_if_stmt(r, stmt_node);
                 break;
 
+            // TODO: improve this function, check comments at definition 
             case AST_SWITCH_STMT:
-                // result = resolve_switch_stmt(r, stmt_node);
+                result = resolve_switch_stmt(r, stmt_node);
                 break;
 
             case AST_VARIABLE_DECL:
@@ -681,6 +688,38 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 scope_enter(r);
                 result = resolve_block(r, stmt_id);
                 scope_exit(r);
+                break;
+
+            case AST_BREAK_STMT:
+                if (r -> in_loop_ctx) {
+                    result = true;
+                } else {
+                    result = false;
+
+                    diagnostic_add_token_span(
+                        r -> file -> id,
+                        DIAG_ERROR,
+                        stmt_node -> tokens,
+                        "'break' not inside of a loop",
+                        "'break' has to placed inside of a loop"
+                    );
+                }
+                break;
+
+            case AST_CONTINUE_STMT:
+                if (r -> in_loop_ctx) {
+                    result = true;
+                } else {
+                    result = false;
+
+                    diagnostic_add_token_span(
+                        r -> file -> id,
+                        DIAG_ERROR,
+                        stmt_node -> tokens,
+                        "'continue' not inside of a loop",
+                        "'continue' has to placed inside of a loop"
+                    );
+                }
                 break;
 
             case AST_ERROR:
@@ -924,6 +963,86 @@ static bool resolve_if_stmt(Resolver* r, AstNode* node) {
         if (block_result == false || result == false) {
             result = false;
         }
+    }
+
+    return result;
+}
+
+// TODO: Improve the switch statement lacking checking that all 
+// cases are covered and cannot check for duplicates
+static bool resolve_switch_stmt(Resolver* r, AstNode* node) {
+    File* file = r -> file;
+
+    TypeId type_id = resolve_expression(r -> scope_id, file -> id, node -> as.switch_stmt.value, TYPE_ID_NONE);
+
+    bool result = true;
+
+    if (type_id == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    u32 case_count = node -> as.switch_stmt.cases.count;
+
+    for (u32 i = 0; i < case_count; i++) {
+        AstNodeId case_id  = node -> as.switch_stmt.cases.ids[i];
+        AstNode* case_node = &file -> ast.nodes[case_id];
+
+        if (case_node -> kind == AST_ERROR) {
+            result = false;
+        } else {
+            assert(case_node -> kind == AST_SWITCH_CASE);
+
+            u32 pattern_count = case_node -> as.switch_case.patterns.count;
+
+            for (u32 n = 0; n < pattern_count; n++) {
+                AstNodeId pattern_id  = case_node -> as.switch_case.patterns.ids[n];
+                AstNode* pattern_node = &file -> ast.nodes[pattern_id]; 
+
+                TypeId pattern_type_id = resolve_expression(r -> scope_id, file -> id, pattern_id, type_id);
+
+                if (pattern_type_id == TYPE_ID_NONE) {
+                    result = false;
+                }
+
+                if (pattern_type_id != TYPE_ID_NONE && !are_types_compatible(type_id, pattern_type_id)) {
+                    if (can_type_cast_to(type_id, pattern_type_id)) {
+                        diagnostic_add_token_span(
+                            file -> id,
+                            DIAG_ERROR,
+                            pattern_node -> tokens,
+                            "incompatible types",
+                            "try casting this expression i.e. cast(type) (expr)"
+                        );
+                    } else {
+                        diagnostic_add_mismatched_types(file -> id, pattern_id, type_id, pattern_type_id);
+                    }
+
+                    result = false;
+                }
+            }
+        }
+
+        scope_enter(r);
+
+        bool block_result = resolve_block(r, case_node -> as.switch_case.block);
+
+        if (block_result == false) {
+            result = false;
+        }
+
+        scope_exit(r);
+    }
+
+    if (node -> as.switch_stmt.default_case != AST_NODE_ID_NONE) {
+        scope_enter(r);
+
+        bool block_result = resolve_block(r, node -> as.switch_stmt.default_case);
+
+        if (block_result == false) {
+            result = false;
+        }
+
+        scope_exit(r);
     }
 
     return result;

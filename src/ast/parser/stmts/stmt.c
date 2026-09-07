@@ -66,6 +66,12 @@ AstNodeId parse_statement(Parser* p) {
         case TOK_KW_RETURN:
             return parse_return_statement(p);
 
+        case TOK_KW_BREAK:
+            return parse_break_statement(p);
+
+        case TOK_KW_CONTINUE:
+            return parse_continue_statement(p);
+
         case TOK_L_BRACE:
             return parse_block(p);
 

@@ -10,6 +10,7 @@ typedef struct {
 
     // Used in resolving for functions
     SymbolId current_symbol;
+    bool in_loop_ctx;
 } Registrar;
 
 #endif // !LILY_SYMBOLS_REGISTER_TYPES_H

@@ -18,4 +18,7 @@ AstNodeId parse_switch_statement(Parser* p);
 AstNodeId parse_for_loop(Parser* p);
 AstNodeId parse_while_loop(Parser* p);
 
+AstNodeId parse_break_statement(Parser* p);
+AstNodeId parse_continue_statement(Parser* p);
+
 #endif // !LILY_AST_PARSER_STMTS_H

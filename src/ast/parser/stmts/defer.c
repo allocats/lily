@@ -8,7 +8,7 @@
 #include "ids.h"
 
 AstNodeId parse_defer_statement(Parser* p) {
-    AstNodeId id  = parser_create_node(p, AST_DEFER_STMT, AST_FLAGS_NONE, 0);
+    AstNodeId id = parser_create_node(p, AST_DEFER_STMT, AST_FLAGS_NONE, 0);
 
     parser_advance(p); // advance past "defer"
 
