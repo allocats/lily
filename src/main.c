@@ -1,4 +1,3 @@
-#include "codegen/codegen.h"
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef  MEOWRENA_IMPL
@@ -6,6 +5,7 @@
 #include "ast/nodes/types.h"
 #include "ast/tree/tree.h"
 #include "cli/cli.h"
+#include "codegen/codegen.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
 #include "driver/types.h"
