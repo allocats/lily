@@ -38,6 +38,7 @@ static bool resolve_variable(Resolver* r, SymbolId id);
 static bool resolve_block(Resolver* r, AstNodeId id);
 static bool resolve_defer_stmt(Resolver* r, AstNode* node);
 static bool resolve_return_stmt(Resolver* r, AstNode* node);
+static bool resolve_for_loop(Resolver* r, AstNode* node);
 static bool resolve_variable_declaration(Resolver* r, AstNode* node);
 
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
@@ -644,7 +645,7 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 break;
 
             case AST_FOR_LOOP:
-                // result = resolve_for_loop(r, stmt_node);
+                result = resolve_for_loop(r, stmt_node);
                 break;
 
             case AST_WHILE_LOOP:
@@ -661,6 +662,12 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
 
             case AST_VARIABLE_DECL:
                 result = resolve_variable_declaration(r, stmt_node);
+                break;
+            
+            case AST_BLOCK:
+                scope_enter(r);
+                result = resolve_block(r, stmt_id);
+                scope_exit(r);
                 break;
 
             case AST_ERROR:
@@ -736,6 +743,73 @@ static bool resolve_return_stmt(Resolver* r, AstNode* node) {
     }
 
     return true;
+}
+
+static bool resolve_for_loop(Resolver* r, AstNode* node) {
+    TypeId bool_type = driver.type_table.builtins.type_bool;
+
+    scope_enter(r);
+
+    bool result = true;
+
+    File* file = r -> file;
+
+    AstNodeId init_id  = node -> as.for_loop.init;
+    AstNode* init_node = &file -> ast.nodes[init_id]; 
+
+    if (!resolve_variable_declaration(r, init_node)) {
+        result = false;
+    }
+
+    StringId name_id = init_node -> as.variable_decl.name;
+
+    SymbolId init_symbol_id = scope_lookup(r -> scope_id, name_id);
+
+    TypeId init_type_id = TYPE_ID_NONE;
+
+    if (init_symbol_id != SYMBOL_ID_NONE) {
+        init_type_id = get_type_from_symbol(init_symbol_id);
+    }
+
+    if (init_type_id == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    TypeId condition_type_id = resolve_expression(r -> scope_id, file -> id, node -> as.for_loop.cond, bool_type);
+
+    if (condition_type_id == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    if (condition_type_id != TYPE_ID_NONE && condition_type_id != bool_type) {
+        AstNode* condition = &file -> ast.nodes[node -> as.for_loop.cond];
+
+        diagnostic_add_token_span(
+            file -> id,
+            DIAG_ERROR,
+            condition -> tokens,
+            "expression does not evaluate to a bool",
+            "condition must evaluate to a boolean"
+        );
+        
+        result = false;
+    }
+
+    TypeId step_type_id = resolve_expression(r -> scope_id, file -> id, node -> as.for_loop.step, TYPE_ID_NONE);
+
+    if (step_type_id == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    scope_enter(r);
+
+    resolve_block(r, node -> as.for_loop.block);
+
+    scope_exit(r);
+
+    scope_exit(r);
+
+    return result;
 }
 
 static bool resolve_variable_declaration(Resolver* r, AstNode* node) {

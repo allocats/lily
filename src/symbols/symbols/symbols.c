@@ -7,6 +7,7 @@
 #include "symbols/symbols/types.h"
 #include "symbols/table/table.h"
 #include "utils/macros.h"
+#include <assert.h>
 
 extern DriverCtx driver;
 
@@ -132,6 +133,8 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
 }
 
 TypeId get_type_from_symbol(SymbolId id) {
+    assert(id != SYMBOL_ID_NONE);
+
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
 
     switch (symbol -> kind) {
