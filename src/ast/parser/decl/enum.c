@@ -19,6 +19,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
     AstNode* node = parser_get_node(p, id);
 
     node -> as.enum_decl.name = name;
+    node -> as.enum_decl.type_expr = AST_NODE_ID_NONE;
 
     if (parser_check(p, TOK_L_BRACKET)) {
         parser_advance(p); // advance past '['

@@ -441,19 +441,19 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
     File* file = file_lookup_id(symbol -> file_id);
     AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
 
-    if (node -> as.enum_decl.type_expr != AST_NODE_ID_NONE) {
-        TypeId type_id = resolve_type_expr(file -> id, node -> as.enum_decl.type_expr);
+    TypeId enum_type_id = symbol -> as.enum_symbol.resolved_type_id;
 
-        if (type_id == TYPE_ID_NONE) {
+    TypeId underlying_type_id = TYPE_ID_NONE;
+
+    if (node -> as.enum_decl.type_expr != AST_NODE_ID_NONE) {
+        underlying_type_id = resolve_type_expr(file -> id, node -> as.enum_decl.type_expr);
+
+        if (underlying_type_id == TYPE_ID_NONE) {
             result = false;
         }
-
-        symbol -> as.enum_symbol.resolved_type_id = type_id;
     } else {
-        symbol -> as.enum_symbol.resolved_type_id = driver.type_table.builtins.type_i32;
+        underlying_type_id = driver.type_table.builtins.type_i32;
     }
-
-    TypeId resolved_type_id = symbol -> as.enum_symbol.resolved_type_id;
 
     u32 variant_count = node -> as.enum_decl.variants.count;
 
@@ -462,7 +462,7 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
     for (u32 i = 0; i < variant_count; i++) {
         AstNodeId variant_id  = node -> as.enum_decl.variants.ids[i];
 
-        SymbolId variant_symbol_id = resolve_variant(r, file, variant_id, resolved_type_id, i);
+        SymbolId variant_symbol_id = resolve_variant(r, file, variant_id, enum_type_id, i);
 
         if (variant_symbol_id == SYMBOL_ID_NONE) {
             result = false;
@@ -473,9 +473,14 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
 
     scope_exit(r);
 
-    TypeEntry* entry = TYPE_ID_LOOKUP_REF(resolved_type_id);
+    TypeEntry* entry = TYPE_ID_LOOKUP_REF(enum_type_id);
+    TypeEntry* underlying_type = TYPE_ID_LOOKUP_REF(underlying_type_id); 
 
     entry -> as.enum_type.symbol_id = id;
+    entry -> as.enum_type.underlying_type = underlying_type_id;
+
+    entry -> size = underlying_type -> size;
+    entry -> alignment = underlying_type -> alignment;
 
     node -> resolved_type = symbol -> as.enum_symbol.resolved_type_id;
 
