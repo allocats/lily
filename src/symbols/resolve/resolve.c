@@ -39,6 +39,7 @@ static bool resolve_block(Resolver* r, AstNodeId id);
 static bool resolve_defer_stmt(Resolver* r, AstNode* node);
 static bool resolve_return_stmt(Resolver* r, AstNode* node);
 static bool resolve_for_loop(Resolver* r, AstNode* node);
+static bool resolve_while_loop(Resolver* r, AstNode* node);
 static bool resolve_variable_declaration(Resolver* r, AstNode* node);
 
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
@@ -649,7 +650,7 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 break;
 
             case AST_WHILE_LOOP:
-                // result = resolve_while_loop(r, stmt_node);
+                result = resolve_while_loop(r, stmt_node);
                 break;
 
             case AST_IF_STMT:
@@ -801,15 +802,15 @@ static bool resolve_for_loop(Resolver* r, AstNode* node) {
         result = false;
     }
 
-    scope_enter(r);
-
     resolve_block(r, node -> as.for_loop.block);
 
     scope_exit(r);
 
-    scope_exit(r);
-
     return result;
+}
+
+static bool resolve_while_loop(Resolver* r, AstNode* node) {
+
 }
 
 static bool resolve_variable_declaration(Resolver* r, AstNode* node) {
