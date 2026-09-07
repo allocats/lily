@@ -715,6 +715,47 @@ void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId e
     );
 }
 
+void diagnostic_add_try_cast_to(FileId file_id, AstNodeId node_id, TypeId to, TypeId from) {
+    DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    if (engine -> count >= engine -> threshold_value) {
+        engine -> count++;
+        return;
+    }
+
+    File* file = file_lookup_id(file_id);
+    AstNode* node = &file -> ast.nodes[node_id];
+
+    str8 expected_str = diagnostic_type_to_str8(to);
+    str8 found_str = diagnostic_type_to_str8(from);
+
+    char* msg = arena_alloc(&engine -> arena, diagnostic_max_length);
+    char* help = arena_alloc(&engine -> arena, diagnostic_max_length);
+
+    snprintf(
+        help,
+        diagnostic_max_length,
+        "try casting this expression: cast(%.*s) (expr)",
+        STR8_FMT(expected_str)
+    );
+
+    snprintf(
+        msg,
+        diagnostic_max_length,
+        "expected '%.*s', but found '%.*s'",
+        STR8_FMT(expected_str),
+        STR8_FMT(found_str)
+    );
+
+    diagnostic_add_token_span(
+        file_id,
+        DIAG_ERROR,
+        node -> tokens,
+        msg,
+        help
+    );
+}
+
 void diagnostic_add_undefined_function_call(FileId file_id, AstNodeId node_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 

@@ -509,7 +509,11 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
             result = false;
         } else {
             if (!are_types_compatible(type, expr_type)) {
-                diagnostic_add_mismatched_types(file -> id, node -> id, type, expr_type);
+                if (can_type_cast_to(type, expr_type)) {
+                    diagnostic_add_try_cast_to(file -> id, node -> as.variable_decl.value_expr, type, expr_type);
+                } else {
+                    diagnostic_add_mismatched_types(file -> id, node -> id, type, expr_type);
+                }
 
                 result = false;
             }
@@ -780,13 +784,7 @@ static bool resolve_return_stmt(Resolver* r, AstNode* node) {
 
     if (!are_types_compatible(ret_type, type)) {
         if (can_type_cast_to(ret_type, type)) {
-            diagnostic_add_token_span(
-                r -> file -> id,
-                DIAG_ERROR,
-                node -> tokens,
-                "incompatible types",
-                "try casting this expression i.e. cast(type) (expr)"
-            );
+            diagnostic_add_try_cast_to(r -> file -> id, node -> id, ret_type, type);
         } else {
             diagnostic_add_mismatched_types(r -> file -> id, node -> id, ret_type, type);
         }
@@ -1006,13 +1004,7 @@ static bool resolve_switch_stmt(Resolver* r, AstNode* node) {
 
                 if (pattern_type_id != TYPE_ID_NONE && !are_types_compatible(type_id, pattern_type_id)) {
                     if (can_type_cast_to(type_id, pattern_type_id)) {
-                        diagnostic_add_token_span(
-                            file -> id,
-                            DIAG_ERROR,
-                            pattern_node -> tokens,
-                            "incompatible types",
-                            "try casting this expression i.e. cast(type) (expr)"
-                        );
+                        diagnostic_add_try_cast_to(file -> id, pattern_id, type_id, pattern_type_id);
                     } else {
                         diagnostic_add_mismatched_types(file -> id, pattern_id, type_id, pattern_type_id);
                     }
@@ -1436,13 +1428,7 @@ static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file
         // are_types_compatible() checks for TYPE_ID_NONE 
         if (!are_types_compatible(param_type, arg_type)) {
             if (can_type_cast_to(param_type, arg_type)) {
-                diagnostic_add_token_span(
-                    file_id,
-                    DIAG_ERROR,
-                    arg_expr -> tokens,
-                    "incompatible types",
-                    "try casting this expression i.e. cast(type) (expr)"
-                );
+                diagnostic_add_try_cast_to(file_id, arg_expr_id, param_type, arg_type);
             } else {
                 diagnostic_add_mismatched_types(file_id, arg_expr_id, param_type, arg_type);
             }
@@ -1482,13 +1468,7 @@ static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file
 
     if (expected_type != TYPE_ID_NONE && !are_types_compatible(expected_type, return_type)) {
         if (can_type_cast_to(expected_type, return_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                node -> tokens,
-                "incompatible types",
-                "try casting this expression i.e. cast(type) (expr)"
-            );
+            diagnostic_add_try_cast_to(file_id, node -> id, expected_type, return_type);
         } else {
             diagnostic_add_mismatched_types(file_id, node -> id, expected_type, return_type);
         }
@@ -1538,13 +1518,7 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
         AstNode* index_expr = &file -> ast.nodes[node -> as.index.index_expr];
 
         if (can_type_cast_to(driver.type_table.builtins.type_usize, index_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                index_expr -> tokens,
-                "indexes can only be performed with unsigned integers",
-                "try casting this expression to an unsigned integer: cast(usize) (expr)"
-            );
+            diagnostic_add_try_cast_to(file_id, index_expr -> id, driver.type_table.builtins.type_usize, index_type);
         } else {
             diagnostic_add_token_span(
                 file_id,
@@ -1581,13 +1555,7 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
 
     if (expected_type != TYPE_ID_NONE && !are_types_compatible(expected_type, element_type)) {
         if (can_type_cast_to(expected_type, element_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                node -> tokens,
-                "incompatible types",
-                "try casting this expression i.e. cast(type) (expr)"
-            );
+            diagnostic_add_try_cast_to(file_id, node -> id, expected_type, element_type);
         } else {
             diagnostic_add_mismatched_types(file_id, node -> id, expected_type, element_type);
         }
@@ -1711,13 +1679,7 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
 
     if (expected_type != TYPE_ID_NONE && !are_types_compatible(expected_type, member_type)) {
         if (can_type_cast_to(expected_type, member_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                node -> tokens,
-                "incompatible types",
-                "try casting this expression i.e. cast(type) (expr)"
-            );
+            diagnostic_add_try_cast_to(file_id, node -> id, expected_type, member_type);
         } else {
             diagnostic_add_mismatched_types(file_id, node -> id, expected_type, member_type);
         }
@@ -1839,13 +1801,7 @@ static TypeId resolve_struct_literal(ScopeId scope_id, AstNode* node, FileId fil
 
         if (!are_types_compatible(field_type, value_type)) {
             if (can_type_cast_to(field_type, value_type)) {
-                diagnostic_add_token_span(
-                    file_id,
-                    DIAG_ERROR,
-                    init_node -> tokens,
-                    "incompatible types",
-                    "try casting this expression i.e. cast(type) (expr)"
-                );
+                diagnostic_add_try_cast_to(file_id, init_id, field_type, value_type);
             } else {
                 diagnostic_add_mismatched_types(file_id, init_id, field_type, value_type);
             }
@@ -2069,13 +2025,23 @@ static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, A
         } else if (are_types_compatible(lhs_type, rhs_type)) {
             return lhs_type;
         } else {
-            diagnostic_add_mismatched_types(file_id, r -> id, lhs_type, rhs_type);
+            if (can_type_cast_to(lhs_type, rhs_type)) {
+                diagnostic_add_try_cast_to(file_id, r -> id, lhs_type, rhs_type);
+            } else {
+                diagnostic_add_mismatched_types(file_id, r -> id, lhs_type, rhs_type);
+            }
+
             return TYPE_ID_NONE;
         }
     } else if (are_types_compatible(lhs_type, rhs_type)) {
         return lhs_type;
     } else {
-        diagnostic_add_mismatched_types(file_id, r -> id, lhs_type, rhs_type);
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_try_cast_to(file_id, r -> id, lhs_type, rhs_type);
+        } else {
+            diagnostic_add_mismatched_types(file_id, r -> id, lhs_type, rhs_type);
+        }
+
         return TYPE_ID_NONE;
     }
 }
@@ -2095,13 +2061,7 @@ static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, A
 
     if (!are_types_compatible(lhs_type, rhs_type)) {
         if (can_type_cast_to(lhs_type, rhs_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                rhs -> tokens,
-                "incompatible types",
-                "try casting this expression i.e. cast(type) (expr)"
-            );
+            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
         } else {
             diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
         }
@@ -2127,13 +2087,7 @@ static TypeId resolve_multiplicative(ScopeId scope_id, FileId file_id, AstNode* 
 
     if (!are_types_compatible(lhs_type, rhs_type)) {
         if (can_type_cast_to(lhs_type, rhs_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                rhs -> tokens,
-                "incompatible types",
-                "try casting this expression i.e. cast(type) (expr)"
-            );
+            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
         } else {
             diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
         }
@@ -2171,13 +2125,8 @@ static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, As
     
     if (!is_type_int(rhs_type)) {
         if (can_type_cast_to(lhs_type, rhs_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                rhs -> tokens,
-                "invalid bitwise value",
-                "try casting this expression to an integer i.e. cast(i32) (expr)"
-            );
+            // check this
+            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
         } else {
             diagnostic_add_token_span(
                 file_id,
@@ -2221,13 +2170,8 @@ static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, A
     
     if (!is_type_int(rhs_type)) {
         if (can_type_cast_to(lhs_type, rhs_type)) {
-            diagnostic_add_token_span(
-                file_id,
-                DIAG_ERROR,
-                rhs -> tokens,
-                "invalid bitwise value",
-                "try casting this expression to an integer i.e. cast(i32) (expr)"
-            );
+            // check this
+            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
         } else {
             diagnostic_add_token_span(
                 file_id,

@@ -47,6 +47,7 @@ void diagnostic_add_expression_is_not_assignable(FileId file_id, AstNodeId expr_
 void diagnostic_add_cannot_reassign_constant(FileId file_id, AstNodeId expr_id);
 
 void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId expected, TypeId found);
+void diagnostic_add_try_cast_to(FileId file_id, AstNodeId node_id, TypeId to, TypeId from);
 
 void diagnostic_add_undefined_function_call(FileId file_id, AstNodeId node_id);
 void diagnostic_add_incorrect_call_arity(FileId file_id, SpanU32 span, u32 arg_count, u32 param_count);
