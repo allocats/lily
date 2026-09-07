@@ -40,6 +40,7 @@ static bool resolve_defer_stmt(Resolver* r, AstNode* node);
 static bool resolve_return_stmt(Resolver* r, AstNode* node);
 static bool resolve_for_loop(Resolver* r, AstNode* node);
 static bool resolve_while_loop(Resolver* r, AstNode* node);
+static bool resolve_if_stmt(Resolver* r, AstNode* node);
 static bool resolve_variable_declaration(Resolver* r, AstNode* node);
 
 static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId expr_id, TypeId expected_type);
@@ -636,6 +637,12 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
         AstNodeId stmt_id = node -> as.block.statements.ids[i];
         AstNode* stmt_node = &r -> file -> ast.nodes[stmt_id];
 
+        /*
+         *
+         *  TODO: Add return checker? ensure that all possible CFGs return
+         *
+         */
+
         switch (stmt_node -> kind) {
             case AST_DEFER_STMT:
                 result = resolve_defer_stmt(r, stmt_node);
@@ -654,7 +661,7 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 break;
 
             case AST_IF_STMT:
-                // result = resolve_if_stmt(r, stmt_node);
+                result = resolve_if_stmt(r, stmt_node);
                 break;
 
             case AST_SWITCH_STMT:
@@ -818,7 +825,7 @@ static bool resolve_while_loop(Resolver* r, AstNode* node) {
 
     File* file = r -> file;
 
-    bool result = false;
+    bool result = true;
 
     TypeId condition_type_id = resolve_expression(r -> scope_id, file -> id, node -> as.while_loop.cond, bool_type);
 
@@ -848,6 +855,70 @@ static bool resolve_while_loop(Resolver* r, AstNode* node) {
 
     if (block_result == false || result == false) {
         result = false;
+    }
+
+    return result;
+}
+
+static bool resolve_if_stmt(Resolver* r, AstNode* node) {
+    TypeId bool_type = driver.type_table.builtins.type_bool;
+
+    File* file = r -> file;
+
+    bool result = true;
+
+    u32 branch_count = node -> as.if_stmt.branches.count;
+
+    for (u32 i = 0; i < branch_count; i++) {
+        AstNodeId branch_id  = node -> as.if_stmt.branches.ids[i];
+        AstNode* branch_node = &file -> ast.nodes[branch_id];
+
+        AstNodeId condition_id  = branch_node -> as.branch.condition;
+        AstNode* condition_node = &file -> ast.nodes[condition_id];
+
+        TypeId condition_type_id = resolve_expression(r -> scope_id, file -> id, condition_id, bool_type);
+
+        if (condition_type_id == TYPE_ID_NONE) {
+            result = false;
+        }
+
+        if (condition_type_id != TYPE_ID_NONE && condition_type_id != bool_type) {
+            diagnostic_add_token_span(
+                file -> id,
+                DIAG_ERROR,
+                condition_node -> tokens,
+                "expression does not evaluate to a bool",
+                "condition must evaluate to a boolean"
+            );
+            
+            result = false;
+
+            condition_node -> resolved_type = TYPE_ID_NONE;
+        } else {
+            condition_node -> resolved_type = condition_type_id;
+        }
+
+        scope_enter(r);
+        
+        bool block_result = resolve_block(r, branch_node -> as.branch.block);
+
+        scope_exit(r);
+
+        if (block_result == false || result == false) {
+            result = false;
+        }
+    }
+
+    if (node -> as.if_stmt.else_block != AST_NODE_ID_NONE) {
+        scope_enter(r);
+        
+        bool block_result = resolve_block(r, node -> as.if_stmt.else_block);
+
+        scope_exit(r);
+
+        if (block_result == false || result == false) {
+            result = false;
+        }
     }
 
     return result;

@@ -16,6 +16,8 @@ AstNodeId parse_if_statement(Parser* p) {
     AstNodeId id  = parser_create_node(p, AST_IF_STMT, AST_FLAGS_NONE, 0);
     AstNode* node = parser_get_node(p, id);
 
+    node -> as.if_stmt.else_block = AST_NODE_ID_NONE;
+
     u32 starting_index = p -> cursor;
 
     parser_advance(p); // advance past "if"
