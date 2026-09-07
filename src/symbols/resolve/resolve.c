@@ -153,6 +153,10 @@ SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
             return SYMBOL_ID_NONE;
         }
 
+        case AST_ERROR: {
+            return SYMBOL_ID_NONE;
+        }
+
         default:
             printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
             UNREACHABLE("resolve_name_expr()");
@@ -166,9 +170,11 @@ StringId resolve_name_id(File* file, AstNodeId node_id) {
         case AST_IDENTIFIER:
             return node -> as.identifier.name;
 
-        case AST_MEMBER_ACCESS: {
+        case AST_MEMBER_ACCESS:
             return resolve_name_id(file, node -> as.member_access.member);
-        }
+
+        case AST_ERROR:
+            return STRING_ID_NONE;
 
         default:
             printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
@@ -210,6 +216,10 @@ static bool resolve_symbol_body(SymbolId id) {
 
         case SYMBOL_FUNCTION:
             result = resolve_function(&r, id);
+            break;
+
+        case SYMBOL_ERROR:
+            result = false;
             break;
 
         default:
@@ -637,6 +647,10 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 result = resolve_variable_declaration(r, stmt_node);
                 break;
 
+            case AST_ERROR:
+                result = false;
+                break;
+
             default:
                 if (resolve_expression(r -> scope_id, r -> file -> id, stmt_id, TYPE_ID_NONE) == TYPE_ID_NONE) {
                     result = false;
@@ -764,6 +778,10 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
 
         case AST_STRUCT_LITERAL:
             id = resolve_struct_literal(scope_id, node, file_id, expected_type);
+            break;
+
+        case AST_ERROR:
+            id = TYPE_ID_NONE;
             break;
 
         default:
@@ -1223,6 +1241,10 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
 
         case TYPE_SLICE:
             element_type = object_type -> as.slice_type.element;
+            break;
+
+        case TYPE_ERROR:
+            element_type = TYPE_ID_NONE;
             break;
 
         default:
