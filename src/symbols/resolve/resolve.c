@@ -291,6 +291,8 @@ static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId
     field_symbol -> as.field_symbol.type_id = field_type_id;
     field_symbol -> state = RESOLVE_RESOLVED;
 
+    field_node -> resolved_type = field_type_id;
+
     return field_symbol_id;
 }
 
@@ -327,6 +329,8 @@ static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId ty
     }
 
     variant_symbol -> state = RESOLVE_RESOLVED;
+
+    variant_node -> resolved_type = type_id;
  
     return variant_symbol_id;
 }
@@ -374,6 +378,8 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
     entry -> size = size;
     entry -> alignment = align;
 
+    node -> resolved_type = symbol -> as.struct_symbol.resolved_type_id;
+
     return result;
 }
 
@@ -420,6 +426,8 @@ static bool resolve_union(Resolver* r, SymbolId id) {
     entry -> size = size;
     entry -> alignment = align;
 
+    node -> resolved_type = symbol -> as.union_symbol.resolved_type_id;
+
     return result;
 }
 
@@ -465,6 +473,8 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
     TypeEntry* entry = TYPE_ID_LOOKUP_REF(resolved_type_id);
 
     entry -> as.enum_type.symbol_id = id;
+
+    node -> resolved_type = symbol -> as.enum_symbol.resolved_type_id;
 
     return result;
 }
@@ -583,6 +593,8 @@ static bool resolve_function_signature(SymbolId id) {
         parameter_symbol -> as.parameter_symbol.type_id = parameter_type_id;
         parameter_symbol -> state = RESOLVE_RESOLVED;
 
+        parameter_node -> resolved_type = parameter_type_id;
+
         symbol -> as.function_symbol.parameters[i] = parameter_symbol_id;
     }
 
@@ -632,15 +644,19 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 break;
 
             case AST_FOR_LOOP:
+                // result = resolve_for_loop(r, stmt_node);
                 break;
 
             case AST_WHILE_LOOP:
+                // result = resolve_while_loop(r, stmt_node);
                 break;
 
             case AST_IF_STMT:
+                // result = resolve_if_stmt(r, stmt_node);
                 break;
 
             case AST_SWITCH_STMT:
+                // result = resolve_switch_stmt(r, stmt_node);
                 break;
 
             case AST_VARIABLE_DECL:
@@ -1170,6 +1186,8 @@ static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file
         return TYPE_ID_NONE;
     }
 
+    node -> resolved_type = return_type;
+
     return return_type;
 }
 
@@ -1396,6 +1414,8 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
 
         return TYPE_ID_NONE;
     }
+
+    node -> resolved_type = member_type;
 
     return member_type;
 }
