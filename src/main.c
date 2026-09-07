@@ -10,6 +10,7 @@
 #include "driver/driver.h"
 #include "driver/types.h"
 #include "files/types.h"
+#include "linker/linker.h"
 #include "symbols/register/register.h"
 #include "symbols/resolve/resolve.h"
 #include "symbols/table/table.h"
@@ -109,6 +110,11 @@ i32 main(i32 argc, char** argv) {
 
     // linker
     timer_start(&linker_timer);
+
+    if (link_objects() != 0) {
+        diagnostic_add_generic(DIAG_ERROR, "linker failed");
+    }
+
     timer_end(&linker_timer);
 
 lily_done:

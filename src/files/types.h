@@ -21,6 +21,8 @@ typedef struct {
 } FileBucket;
 
 typedef struct {
+    char object_path[32];
+
     Ast ast;
 
     TokenArray tokens;

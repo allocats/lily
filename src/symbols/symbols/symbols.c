@@ -51,6 +51,8 @@ SymbolId make_symbol_from_ast_node(FileId file_id, AstNodeId node_id) {
 
             symbol -> as.function_symbol.parameter_count = parameter_count;
             symbol -> as.function_symbol.return_type_id = TYPE_ID_NONE;
+
+            symbol -> as.function_symbol.signature_state = RESOLVE_UNRESOLVED;
             break;
 
         case AST_PARAMETER:

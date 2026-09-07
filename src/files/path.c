@@ -1,5 +1,6 @@
 #include "meowrena/meowrena.h"
 #include "utils/debug.h"
+#include "utils/macros.h"
 #include "utils/types.h"
 
 #include <assert.h>
@@ -93,6 +94,8 @@ static str8 normalize_path(str8 path) {
 str8 get_absolute_path(str8 input_path) {
     assert(input_path.ptr != NULL);
     assert(input_path.len != 0);
+
+    debug_printf("Path: normalizing '%.*s'", STR8_FMT(input_path));
 
     if (input_path.ptr[0] == '/') {
         return normalize_path(input_path);

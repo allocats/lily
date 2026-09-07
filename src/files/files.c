@@ -16,6 +16,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -125,6 +126,8 @@ FileId file_intern(str8 input_path) {
     file -> scope_id = SCOPE_ID_NONE;
 
     file -> path_string_id = string_intern_str8(path);
+
+    snprintf(file -> object_path, sizeof(file -> object_path), ".build/file_%u.o", id);
 
     tokens_array_init(&file -> tokens);
 
