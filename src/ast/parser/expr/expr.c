@@ -468,8 +468,10 @@ static AstNodeId parse_field_init(Parser* p) {
     AstNodeId value = parse_expression(p, 0);
  
     AstNode* node = parser_get_node(p, id);
+
     node -> as.field_init.field = field;
     node -> as.field_init.value = value;
+    node -> tokens.end = p -> cursor - 1;
  
     return id;
 }

@@ -41,14 +41,6 @@ static inline void register_top_level_symbols(void) {
     }
 }
 
-static inline void resolve_symbols(void) {
-    u32 symbol_count = driver.symbol_table.symbol_count;
-
-    for (u32 i = 0; i < symbol_count; i++) {
-        resolve_symbol(i);
-    }
-}
-
 i32 main(i32 argc, char** argv) {
     // compile time asserts to ensure that things are as expected 
     static_assert(64 == sizeof(AstNode) && "sizeof(AstNode) != 64 bytes");

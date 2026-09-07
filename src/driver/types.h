@@ -14,6 +14,8 @@ typedef struct {
     DiagnosticEngine diagnostic_engine;
     StringInterner string_interner;
 
+    Arena scratch;
+
     u64 flags;
 
     const char* stdlib_path;

@@ -48,6 +48,7 @@ static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id,
 static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type);
+static TypeId resolve_struct_literal(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 
 static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId id);
 static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId type_id, u32 index);
@@ -64,6 +65,16 @@ static TypeId resolve_comparison(ScopeId scope_id, FileId file_id, AstNode* lhs,
 static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 
 static u32 get_arg_count(u32 params, u32 args, bool is_variadic);
+
+inline void resolve_symbols(void) {
+    arena_reset(&driver.scratch);
+
+    u32 symbol_count = driver.symbol_table.symbol_count;
+
+    for (u32 i = 0; i < symbol_count; i++) {
+        resolve_symbol(i);
+    }
+}
 
 bool resolve_symbol(SymbolId id) {
     assert(id < driver.symbol_table.symbol_count);
@@ -118,6 +129,7 @@ SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
     switch (node -> kind) {
         case AST_IDENTIFIER:
             return scope_lookup(file -> scope_id, node -> as.identifier.name);
+            // return symbol_table_lookup(file -> scope_id, node -> as.identifier.name, file -> id);
 
         case AST_MEMBER_ACCESS: {
             SymbolId object_id = resolve_name_expr(file, node -> as.member_access.object);
@@ -144,6 +156,23 @@ SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
         default:
             printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
             UNREACHABLE("resolve_name_expr()");
+    }
+}
+
+StringId resolve_name_id(File* file, AstNodeId node_id) {
+    AstNode* node = &file -> ast.nodes[node_id];
+
+    switch (node -> kind) {
+        case AST_IDENTIFIER:
+            return node -> as.identifier.name;
+
+        case AST_MEMBER_ACCESS: {
+            return resolve_name_id(file, node -> as.member_access.member);
+        }
+
+        default:
+            printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
+            UNREACHABLE("resolve_name_id()");
     }
 }
 
@@ -331,6 +360,7 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
 
     TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.struct_symbol.resolved_type_id);
 
+    entry -> as.struct_type.symbol_id = id;
     entry -> size = size;
     entry -> alignment = align;
 
@@ -376,6 +406,7 @@ static bool resolve_union(Resolver* r, SymbolId id) {
 
     TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.union_symbol.resolved_type_id);
 
+    entry -> as.union_type.symbol_id = id;
     entry -> size = size;
     entry -> alignment = align;
 
@@ -420,6 +451,10 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
     }
 
     scope_exit(r);
+
+    TypeEntry* entry = TYPE_ID_LOOKUP_REF(resolved_type_id);
+
+    entry -> as.enum_type.symbol_id = id;
 
     return result;
 }
@@ -728,7 +763,7 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
             break;
 
         case AST_STRUCT_LITERAL:
-            // TODO
+            id = resolve_struct_literal(scope_id, node, file_id, expected_type);
             break;
 
         default:
@@ -1343,6 +1378,143 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
     return member_type;
 }
 
+static TypeId resolve_struct_literal(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
+    File* file = file_lookup_id(file_id);
+
+    TypeId type_id = resolve_expression(scope_id, file_id, node -> as.struct_literal.struct_type, expected_type);
+
+    if (type_id == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (!is_type(type_id, TYPE_UNION) && !is_type(type_id, TYPE_STRUCT)) {
+        AstNode* type_node = &file -> ast.nodes[node -> as.struct_literal.struct_type];
+
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            type_node -> tokens,
+            "invalid type for struct literal",
+            "expected union or struct type"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    TypeEntry* entry = TYPE_ID_LOOKUP_REF(type_id);
+
+    // struct and union are same struct
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(entry -> as.struct_type.symbol_id);
+
+    u32 count = node -> as.struct_literal.inits.count;
+
+    bool is_ok = true;
+
+    SymbolId* checked_fields = arena_alloc(&driver.scratch, count * sizeof(SymbolId));
+    u32 checked_count = 0;
+
+    for (u32 i = 0; i < count; i++) {
+        bool result = false;
+
+        AstNodeId init_id  = node -> as.struct_literal.inits.ids[i];
+        AstNode* init_node = &file -> ast.nodes[init_id];
+
+        assert(init_node -> kind == AST_FIELD_INIT);
+
+        AstNodeId field_id  = init_node -> as.field_init.field;
+        AstNode* field_node = &file -> ast.nodes[field_id];
+
+        StringId field_name_id = resolve_name_id(file, field_id);
+
+        if (field_name_id == STRING_ID_NONE) {
+            result = false;
+        }
+
+        AstNodeId value_id = init_node -> as.field_init.value;
+
+        SymbolId field_symbol_id = SYMBOL_ID_NONE;
+
+        for (u32 n = 0; n < symbol -> as.struct_symbol.field_count; n++) {
+            SymbolId candidate_id = symbol -> as.struct_symbol.fields[n];
+            Symbol* candidate = SYMBOL_ID_LOOKUP_REF(candidate_id);
+
+            if (candidate -> name_id == field_name_id) {
+                field_symbol_id = candidate_id;
+                result = true;
+                break;
+            }
+        }
+
+        if (!result) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                field_node -> tokens,
+                "field does not exist",
+                null
+            );
+
+            is_ok = false;
+            continue;
+        }
+
+        for (u32 n = 0; n < checked_count; n++) {
+            if (checked_fields[n] == field_symbol_id) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    field_node -> tokens,
+                    "field is specified more than once",
+                    null
+                );
+
+                is_ok = false;
+                continue;
+            }
+        }
+
+        checked_fields[checked_count++] = field_symbol_id;
+
+        Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
+
+        TypeId field_type = field_symbol -> as.field_symbol.type_id;
+        TypeId value_type = resolve_expression(scope_id, file_id, value_id, field_type);
+
+        if (value_type == TYPE_ID_NONE) {
+            is_ok = false;
+            continue;
+        }
+
+        if (!are_types_compatible(field_type, value_type)) {
+            if (can_type_cast_to(field_type, value_type)) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    init_node -> tokens,
+                    "incompatible types",
+                    "try casting this expression i.e. cast(type) (expr)"
+                );
+            } else {
+                diagnostic_add_mismatched_types(file_id, init_id, field_type, value_type);
+            }
+
+            is_ok = false;
+            continue;
+        }
+
+        init_node -> resolved_type = field_type;
+    }
+
+    arena_reset(&driver.scratch);
+
+    if (!is_ok) {
+        return TYPE_ID_NONE;
+    }
+
+    return type_id;
+}
+
+
 static BinaryOpKind binary_op_kind(TokenKind kind) {
     static BinaryOpKind binary_op_kind_lut[TOKEN_KIND_COUNT] = {
         [TOK_EQ]            = BINARY_OP_ASSIGN,
@@ -1423,9 +1595,13 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
         }
 
         case AST_MEMBER_ACCESS: {
-            // TODO: resolve member
-
+            // checking that the object not only exists but isnt const
             if (!is_expr_assignable(scope_id, file_id, expr -> as.member_access.object)) {
+                return false;
+            }
+
+            // checking the field for existence and constness
+            if (!is_expr_assignable(scope_id, file_id, expr -> as.member_access.member)) {
                 return false;
             }
 

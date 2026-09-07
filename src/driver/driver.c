@@ -27,10 +27,9 @@
 
 static str8 path_join(Arena* arena, str8 dir, const char* name);
 static void create_build_dir(void);
-static void destroy_build_dir(void);
-static StdlibFiles get_stdlib_files(str8 path);
+static void destroy_build_dir(Arena* scratch);
+static StdlibFiles get_stdlib_files(Arena* scratch, str8 path);
 
-static Arena scratch = {0};
 static Arena stdlib_arena = {0};
 
 static char stdlib_path[PATH_MAX] = {0};
@@ -43,7 +42,7 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
     assert(argc > 0);
     assert(argv != null);
 
-    arena_init(&scratch, ARENA_KB(1), ALIGN_DEFAULT);
+    arena_init(&driver -> scratch, ARENA_KB(1), ALIGN_DEFAULT);
     debug_printf("Init Driver's static scratch arena with 1KB");
 
     arena_init(&stdlib_arena, ARENA_KB(2), ALIGN_DEFAULT);
@@ -60,7 +59,7 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
     type_table_init();
 
     i32 n = snprintf(stdlib_path, sizeof(stdlib_path), "%s/%s", home_dir, stdlib_dir);
-    StdlibFiles stdlib_files = get_stdlib_files((str8) { .ptr = stdlib_path, .len = n });
+    StdlibFiles stdlib_files = get_stdlib_files(&driver -> scratch, (str8) { .ptr = stdlib_path, .len = n });
 
     driver -> stdlib_path = stdlib_path;
 
@@ -114,7 +113,7 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
 }
 
 void driver_destroy(DriverCtx* driver) {
-    destroy_build_dir();
+    destroy_build_dir(&driver -> scratch);
 
     arena_destroy(&driver -> diagnostic_engine.arena);
     arena_destroy(&driver -> string_interner.arena);
@@ -140,7 +139,7 @@ void driver_destroy(DriverCtx* driver) {
     arena_destroy(&driver -> file_interner.interner_arena);
     arena_destroy(&driver -> file_interner.buffer_arena);
 
-    arena_destroy(&scratch);
+    arena_destroy(&driver -> scratch);
     arena_destroy(&stdlib_arena);
 
     path_normalizer_destroy();
@@ -157,7 +156,7 @@ static void create_build_dir(void) {
     mkdir("./.build/", 0700);
 }
 
-static void destroy_build_dir(void) {
+static void destroy_build_dir(Arena* scratch) {
     struct dirent* entry;
     DIR* dir = opendir("./.build/");
 
@@ -169,14 +168,14 @@ static void destroy_build_dir(void) {
         char* file_name = entry -> d_name;
 
         str8 path = path_join(
-            &scratch,
+            scratch,
             (str8) { .ptr = (char*) build_path, .len = sizeof(build_path) - 1 },
             file_name
         );
 
         remove(path.ptr);
 
-        arena_reset(&scratch);
+        arena_reset(scratch);
     }
 
     closedir(dir);
@@ -197,7 +196,7 @@ static void push_stdlib_file(StdlibFiles* files, str8 path) {
     files->count += 1;
 }
 
-static void collect_stdlib_files(StdlibFiles* files, str8 path) {
+static void collect_stdlib_files(Arena* scratch, StdlibFiles* files, str8 path) {
     struct dirent* entry;
     DIR* dir = opendir(path.ptr);
 
@@ -216,10 +215,10 @@ static void collect_stdlib_files(StdlibFiles* files, str8 path) {
 
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
 
-        str8 complete_path = path_join(&scratch, path, name);
+        str8 complete_path = path_join(scratch, path, name);
 
         if (entry -> d_type == DT_DIR) {
-            collect_stdlib_files(files, complete_path);
+            collect_stdlib_files(scratch, files, complete_path);
         } else if (entry -> d_type == DT_REG) {
             push_stdlib_file(files, complete_path);
         }
@@ -228,14 +227,14 @@ static void collect_stdlib_files(StdlibFiles* files, str8 path) {
     closedir(dir);
 }
 
-static StdlibFiles get_stdlib_files(str8 path) {
+static StdlibFiles get_stdlib_files(Arena* scratch, str8 path) {
     StdlibFiles files = {
         .paths = arena_alloc(&stdlib_arena, sizeof(str8) * 16),
         .count = 0,
         .capacity = 16
     };
 
-    collect_stdlib_files(&files, path);
+    collect_stdlib_files(scratch, &files, path);
 
     return files;
 }
