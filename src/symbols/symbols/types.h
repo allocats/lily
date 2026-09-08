@@ -5,7 +5,7 @@
 #include "resolver_stack/types.h"
 
 typedef enum {
-    SYMBOL_ENUM = 0,
+    SYMBOL_ENUM,
     SYMBOL_FIELD,
     SYMBOL_FUNCTION,
     SYMBOL_IMPORT,
@@ -87,6 +87,7 @@ typedef struct {
 
         struct {
             TypeId type_id;
+            u32 offset;
         } field_symbol;
 
         struct {

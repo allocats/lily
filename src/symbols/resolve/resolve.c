@@ -371,8 +371,17 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
         Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
         TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_symbol -> as.field_symbol.type_id);
 
+        u16 field_alignment = field_type_entry -> alignment;
+
+        u32 misalignment = size % field_alignment;
+        u32 padding = misalignment == 0 ? 0 : field_alignment - misalignment;
+
+        size += padding;
+
+        field_symbol -> as.field_symbol.offset = size;
+
         size += field_type_entry -> size;
-        align = MAX(align, field_type_entry -> alignment);
+        align = MAX(align, field_alignment);
     }
 
     scope_exit(r);
@@ -1265,7 +1274,28 @@ static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, 
             return driver.type_table.entries[id].as.pointer_type.base;
         }
 
-        case TOK_MINUS:
+        case TOK_MINUS: {
+            if (!is_type_int(id) && !is_type_float(id)) {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    operand_node -> tokens,
+                    "invalid operand for unary +/-",
+                    "expects a numeric expression i.e. i32"
+                );
+
+                return TYPE_ID_NONE;
+            }
+
+            if (is_type_unsigned_int(id)) {
+                id += 5;
+
+                assert(is_type_signed_int(id));
+            }
+
+            return id;
+        }
+
         case TOK_PLUS: {
             if (!is_type_int(id) && !is_type_float(id)) {
                 diagnostic_add_token_span(

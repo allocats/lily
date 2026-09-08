@@ -211,6 +211,7 @@ static AstNodeId nud(Parser* p, Token token) {
         }
 
         case TOK_STAR:
+        case TOK_PLUS:
         case TOK_MINUS:
         case TOK_BANG:
         case TOK_TILDE:
