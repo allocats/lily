@@ -107,6 +107,9 @@ i32 main(i32 argc, char** argv) {
 
     timer_end(&backend_timer);
 
+    if (driver.diagnostic_engine.error_count > 0) {
+        goto lily_done;
+    }
 
     // linker
     timer_start(&linker_timer);

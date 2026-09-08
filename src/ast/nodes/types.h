@@ -151,6 +151,8 @@ typedef struct {
     AstNodeId return_type_expr;
 
     AstNodeId block;
+
+    SymbolId symbol_id;
 } AstFunctionDecl, AstMacroDecl;
 
 typedef struct {
@@ -199,6 +201,8 @@ typedef struct {
     StringId  name;
     AstNodeId type_expr;
     AstNodeId value_expr;
+
+    SymbolId symbol;
 } AstVariableDecl;
 
 
@@ -285,6 +289,7 @@ typedef struct {
 
 typedef struct {
     StringId name;
+    SymbolId symbol;
 } AstIdentifier;
 
 

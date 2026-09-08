@@ -131,9 +131,13 @@ SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
     AstNode* node = &file -> ast.nodes[node_id];
 
     switch (node -> kind) {
-        case AST_IDENTIFIER:
-            return scope_lookup(file -> scope_id, node -> as.identifier.name);
-            // return symbol_table_lookup(file -> scope_id, node -> as.identifier.name, file -> id);
+        case AST_IDENTIFIER: {
+            SymbolId symbol_id = scope_lookup(file -> scope_id, node -> as.identifier.name);
+
+            node -> as.identifier.symbol = symbol_id;
+
+            return symbol_id;
+        }
 
         case AST_MEMBER_ACCESS: {
             SymbolId object_id = resolve_name_expr(file, node -> as.member_access.object);
@@ -530,7 +534,7 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
     }
 
     symbol -> as.variable_symbol.type_id = type;
-
+    node -> as.variable_decl.symbol = id;
     node -> resolved_type = type;
 
     return result;
@@ -569,6 +573,7 @@ static bool resolve_function_signature(SymbolId id) {
     }
 
     symbol -> as.function_symbol.return_type_id = return_type_id;
+    node -> resolved_type = return_type_id;
 
     ScopeId signature_scope_id = scope_enter(&r);
 
@@ -614,6 +619,9 @@ static bool resolve_function_signature(SymbolId id) {
         }
 
         parameter_symbol -> as.parameter_symbol.type_id = parameter_type_id;
+        parameter_symbol -> as.parameter_symbol.index = i;
+        parameter_symbol -> as.parameter_symbol.function_id = id;
+
         parameter_symbol -> state = RESOLVE_RESOLVED;
 
         parameter_node -> resolved_type = parameter_type_id;
@@ -642,6 +650,8 @@ static bool resolve_function(Resolver* r, SymbolId id) {
     } 
 
     r -> scope_id = caller_scope_id;
+
+    node -> as.function_decl.symbol_id = id;
 
     return result;
 }
@@ -766,6 +776,8 @@ static bool resolve_return_stmt(Resolver* r, AstNode* node) {
     if (ret_type == TYPE_ID_NONE) {
         return false;
     }
+
+    node -> resolved_type = ret_type;
 
     AstNodeId expr_id = node -> as.return_stmt.expr;
 
@@ -1178,6 +1190,8 @@ static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id
         diagnostic_add_symbol_does_not_exist(file_id, node -> id, name_id);
         return TYPE_ID_NONE;
     }
+
+    node -> as.identifier.symbol = symbol_id;
 
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
@@ -1701,6 +1715,8 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
         return TYPE_ID_NONE;
     }
 
+    member_node -> as.identifier.symbol = member_symbol_id;
+
     TypeId member_type = get_type_from_symbol(member_symbol_id);
 
     if (member_type == TYPE_ID_NONE) {
@@ -1910,6 +1926,8 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
                 diagnostic_add_symbol_does_not_exist(file_id, expr_id, expr -> as.identifier.name);
                 return false;
             }
+
+            expr -> as.identifier.symbol = id;
 
             Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
 

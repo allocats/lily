@@ -7,6 +7,8 @@ compile_commands.json
 ast.txt
 ast_*.txt
 
+a.out
+
 cachegrind.*
 callgrind.*
 heaptrack.*
