@@ -1246,7 +1246,7 @@ static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, 
     TypeId operand_expected_type = expected_type;
 
     if (op == TOK_AMP) {
-        if (is_type(expected_type, TYPE_POINTER)) {
+        if (expected_type != TYPE_ID_NONE && is_type(expected_type, TYPE_POINTER)) {
             operand_expected_type = driver.type_table.entries[expected_type].as.pointer_type.base;
         } else {
             operand_expected_type = TYPE_ID_NONE;

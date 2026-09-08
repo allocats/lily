@@ -7,6 +7,8 @@
 extern DriverCtx driver;
 
 inline bool is_type(TypeId id, TypeKind kind) {
+    assert(id != TYPE_ID_NONE);
+
     TypeEntry* type = TYPE_ID_LOOKUP_REF(id);
 
     if (type -> kind == kind) {

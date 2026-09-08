@@ -104,7 +104,7 @@ static void codegen_file(CodegenCtx* cg, FileId id) {
         goto cleanup;
     }
 
-    // DUMP_IR(cg -> module);
+    DUMP_IR(cg -> module);
 
     char* msg = null;
 
@@ -383,9 +383,10 @@ static bool codegen_return(CodegenCtx* cg, AstNode* stmt) {
 }
 
 static bool codegen_va_start(CodegenCtx* cg, VaListCtx* va_ctx) {
-    LLVMTypeRef va_list_type = type_to_llvm(cg, driver.type_table.builtins.type_va_list);
+    LLVMTypeRef va_list_type = type_to_llvm(cg, driver.type_table.builtins.type_variadic);
 
     va_ctx -> ap = LLVMBuildAlloca(cg -> builder, va_list_type, "ap");
+    LLVMSetAlignment(va_ctx -> ap, 16);
 
     u32 id = LLVMLookupIntrinsicID("llvm.va_start", 13);
 
