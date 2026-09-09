@@ -6,6 +6,7 @@
 #include "ids.h"
 #include "resolver_stack/stack.h"
 #include "resolver_stack/types.h"
+#include "string_interner/interner.h"
 #include "symbols/register/register.h"
 #include "symbols/resolve/resolve.h"
 #include "symbols/resolve/types.h"
@@ -134,7 +135,7 @@ SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
         case AST_IDENTIFIER: {
             SymbolId symbol_id = scope_lookup(file -> scope_id, node -> as.identifier.name);
 
-            node -> as.identifier.symbol = symbol_id;
+            node -> resolved_symbol = symbol_id;
 
             return symbol_id;
         }
@@ -300,6 +301,7 @@ static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId
     field_symbol -> as.field_symbol.type_id = field_type_id;
     field_symbol -> state = RESOLVE_RESOLVED;
 
+    field_node -> resolved_symbol = field_symbol_id;
     field_node -> resolved_type = field_type_id;
 
     return field_symbol_id;
@@ -339,6 +341,7 @@ static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId ty
 
     variant_symbol -> state = RESOLVE_RESOLVED;
 
+    variant_node -> resolved_symbol = variant_symbol_id;
     variant_node -> resolved_type = type_id;
  
     return variant_symbol_id;
@@ -534,7 +537,7 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
     }
 
     symbol -> as.variable_symbol.type_id = type;
-    node -> as.variable_decl.symbol = id;
+    node -> resolved_symbol = id;
     node -> resolved_type = type;
 
     return result;
@@ -619,11 +622,9 @@ static bool resolve_function_signature(SymbolId id) {
         }
 
         parameter_symbol -> as.parameter_symbol.type_id = parameter_type_id;
-        parameter_symbol -> as.parameter_symbol.index = i;
-        parameter_symbol -> as.parameter_symbol.function_id = id;
-
         parameter_symbol -> state = RESOLVE_RESOLVED;
 
+        parameter_node -> resolved_symbol = parameter_symbol_id;
         parameter_node -> resolved_type = parameter_type_id;
 
         symbol -> as.function_symbol.parameters[i] = parameter_symbol_id;
@@ -646,12 +647,32 @@ static bool resolve_function(Resolver* r, SymbolId id) {
     r -> scope_id = symbol -> as.function_symbol.scope_id;
 
     if (!(node -> flags & AST_FLAGS_IS_EXTERNAL)) {
-        resolve_block(r, node -> as.function_decl.block);
+        result = resolve_block(r, node -> as.function_decl.block);
     } 
 
     r -> scope_id = caller_scope_id;
 
-    node -> as.function_decl.symbol_id = id;
+    node -> resolved_symbol = id;
+
+    if (symbol -> name_id == string_intern_cstr("main")) {
+        TypeId type_id = symbol -> as.function_symbol.return_type_id;
+
+        if (!is_type_void(type_id) && !is_type_signed_int(type_id)) {
+            AstNode* ret_expr = &file -> ast.nodes[node -> as.function_decl.return_type_expr];
+
+            diagnostic_add_token_span(
+                file -> id,
+                DIAG_ERROR,
+                ret_expr -> tokens,
+                "main() is only allowed to return 'void' or a signed integer",
+                "make this return void or a signed integer, lily will automatically return 0 if the type is void"
+            );
+
+            result = false;
+        } else {
+            symbol -> as.function_symbol.return_type_id = driver.type_table.builtins.type_i32;
+        }
+    }
 
     return result;
 }
@@ -1191,7 +1212,7 @@ static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id
         return TYPE_ID_NONE;
     }
 
-    node -> as.identifier.symbol = symbol_id;
+    node -> resolved_symbol = symbol_id;
 
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
@@ -1520,6 +1541,7 @@ static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file
         return TYPE_ID_NONE;
     }
 
+    node -> resolved_symbol = symbol_id;
     node -> resolved_type = return_type;
 
     return return_type;
@@ -1715,7 +1737,7 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
         return TYPE_ID_NONE;
     }
 
-    member_node -> as.identifier.symbol = member_symbol_id;
+    member_node -> resolved_symbol = member_symbol_id;
 
     TypeId member_type = get_type_from_symbol(member_symbol_id);
 
@@ -1927,7 +1949,7 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
                 return false;
             }
 
-            expr -> as.identifier.symbol = id;
+            expr -> resolved_symbol = id;
 
             Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
 

@@ -4,6 +4,7 @@ build/
 
 compile_commands.json
 
+*.ll
 ast.txt
 ast_*.txt
 

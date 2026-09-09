@@ -183,7 +183,6 @@ static AstNodeId nud(Parser* p, Token token) {
             AstNode* node = parser_get_node(p, id);
 
             node -> as.identifier.name = string_intern_token(p -> current_file -> id, token);
-            node -> as.identifier.symbol = SYMBOL_ID_NONE;
 
             return id;
         }

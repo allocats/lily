@@ -64,9 +64,6 @@ typedef struct {
 
         struct {
             TypeId type_id;
-            u32 index;
-
-            SymbolId function_id;
         } parameter_symbol;
 
         struct {

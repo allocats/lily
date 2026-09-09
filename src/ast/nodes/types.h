@@ -152,7 +152,7 @@ typedef struct {
 
     AstNodeId block;
 
-    SymbolId symbol_id;
+    // SymbolId symbol_id;
 } AstFunctionDecl, AstMacroDecl;
 
 typedef struct {
@@ -202,7 +202,7 @@ typedef struct {
     AstNodeId type_expr;
     AstNodeId value_expr;
 
-    SymbolId symbol;
+    // SymbolId symbol;
 } AstVariableDecl;
 
 
@@ -289,7 +289,7 @@ typedef struct {
 
 typedef struct {
     StringId name;
-    SymbolId symbol;
+    // SymbolId symbol;
 } AstIdentifier;
 
 
@@ -372,6 +372,8 @@ typedef struct {
     u16 flags;
 
     TypeId resolved_type;
+
+    SymbolId resolved_symbol;
 
     SpanU32 tokens;
 

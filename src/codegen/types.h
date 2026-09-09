@@ -13,10 +13,10 @@ typedef enum {
 } VaListState;
 
 typedef struct {
-    VaListState state;
-
+    LLVMTypeRef va_list_type;
     LLVMValueRef ap;
-    LLVMValueRef va_list_type;
+
+    VaListState state;
 } VaListCtx;
 
 typedef struct {
@@ -31,7 +31,7 @@ typedef struct {
     LLVMValueRef* symbol_values;
     LLVMValueRef* string_values;
 
-    VaListCtx* va_ctx;
+    VaListCtx va_ctx;
 } CodegenCtx;
 
 #endif // !LILY_CODEGEN_TYPES_H

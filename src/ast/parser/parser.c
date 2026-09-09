@@ -14,6 +14,7 @@
 #include "files/files.h"
 #include "files/types.h"
 #include "ids.h"
+#include "symbols/table/table.h"
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/types.h"
@@ -116,6 +117,10 @@ AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, u32 start_o
     node -> id = id;
     node -> kind = kind;
     node -> flags = flags;
+
+    node -> resolved_type = TYPE_ID_NONE;
+    node -> resolved_symbol = SYMBOL_ID_NONE;
+
     node -> tokens.start = p -> cursor + start_offset;
     node -> tokens.end = node -> tokens.start;
 

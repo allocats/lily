@@ -93,6 +93,12 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
                         driver -> flags |= DRIVER_FLAGS_DUMP_TYPES;
                     } 
                 } break;
+
+                case 'e': {
+                    if (FLAG_MATCHES(arg_len, arg, "-emit-llvm-ir")) {
+                        driver -> flags |= DRIVER_FLAGS_EMIT_LLVM_IR;
+                    }
+                } break;
             }
         } else {
             str8 path = {
