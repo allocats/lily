@@ -7,6 +7,7 @@
 #include "utils/types.h"
 
 void diagnostic_engine_init(void);
+void diagnostic_engine_destroy(void);
 
 void diagnostic_add_generic(DiagKind kind, char* fmt, ...);
 

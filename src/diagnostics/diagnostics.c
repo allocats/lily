@@ -44,6 +44,22 @@ void diagnostic_engine_init(void) {
 
     // TODO: Make this configurable through cli
     diag_engine -> threshold_value = diagnostic_default_threshold;
+
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+
+    int rc = pthread_mutex_init(&diag_engine -> mutex, &attr);
+    assert(rc == 0 && "diagnostic_engine_init() pthread_mutex_init failed");
+
+    pthread_mutexattr_destroy(&attr);
+}
+
+void diagnostic_engine_destroy(void) {
+    DiagnosticEngine* diag_engine = &driver.diagnostic_engine;
+
+    arena_destroy(&diag_engine -> arena);
+    pthread_mutex_destroy(&diag_engine -> mutex);
 }
 
 static const char* match_level_colour(DiagKind kind) {
@@ -221,6 +237,8 @@ static u32 type_to_buf(TypeId type_id, char* buf, u32 buf_size, u32 offset) {
  
 str8 diagnostic_type_to_str8(TypeId type_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
+
+    pthread_mutex_lock(&engine -> mutex);
  
     char stack_buf[diagnostic_max_length];
  
@@ -228,11 +246,15 @@ str8 diagnostic_type_to_str8(TypeId type_id) {
  
     char* out = arena_alloc(&engine -> arena, len);
     memcpy(out, stack_buf, len);
- 
-    return (str8) {
+
+    str8 result = (str8) {
         .ptr = out,
         .len = len
     };
+
+    pthread_mutex_unlock(&engine -> mutex);
+
+    return result;
 }
 
 static str8 diagnostic_get_identifier(File* file, AstNode* node) {
@@ -277,10 +299,13 @@ static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
 void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (kind == DIAG_ERROR) engine -> error_count++;
 
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -311,6 +336,8 @@ void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
     diag -> presentation = DIAG_PRESENTATION_GENERIC;
     diag -> msg.ptr = buffer;
     diag -> msg.len = n;
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_token(
@@ -323,10 +350,13 @@ void diagnostic_add_token(
 ) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (kind == DIAG_ERROR) engine -> error_count++;
 
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -383,6 +413,8 @@ void diagnostic_add_token(
     }
 
     diag -> file_id = file_id;
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_token_span(
@@ -394,10 +426,13 @@ void diagnostic_add_token_span(
 ) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (kind == DIAG_ERROR) engine -> error_count++;
 
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -441,6 +476,8 @@ void diagnostic_add_token_span(
     diag -> col = col;
     diag -> len = len;
     diag -> file_id = file_id;
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_node_field(
@@ -453,10 +490,13 @@ void diagnostic_add_node_field(
 ) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (kind == DIAG_ERROR) engine -> error_count++;
 
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -503,13 +543,18 @@ void diagnostic_add_node_field(
         &diag -> multiline.inner_end_line,
         &diag -> multiline.inner_end_col
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId symbol_id, StringId name_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -550,13 +595,18 @@ void diagnostic_add_symbol_redefined(FileId file_id, AstNodeId node_id, SymbolId
         redefined_msg,
         null
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_symbol_does_not_exist(FileId file_id, AstNodeId node_id, StringId name_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -576,13 +626,18 @@ void diagnostic_add_symbol_does_not_exist(FileId file_id, AstNodeId node_id, Str
         msg,
         null 
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_symbol_cycle(ResolveQuery query) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -600,13 +655,18 @@ void diagnostic_add_symbol_cycle(ResolveQuery query) {
         "symbol recursively includes itself",
         "add indirection if you wish to recursively embed the symbol (e.g. Foo*)"
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_cannot_reference_rvalue(FileId file_id, AstNodeId operand_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -620,13 +680,18 @@ void diagnostic_add_cannot_reference_rvalue(FileId file_id, AstNodeId operand_id
         "cannot take reference of an rvalue",
         "store this value in a variable and reference that"
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_cannot_dereference_non_pointer(FileId file_id, AstNodeId operand_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -640,13 +705,18 @@ void diagnostic_add_cannot_dereference_non_pointer(FileId file_id, AstNodeId ope
         "cannot dereference a non pointer type",
         "add indirection and make this a pointer"
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_expression_is_not_assignable(FileId file_id, AstNodeId expr_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -660,13 +730,18 @@ void diagnostic_add_expression_is_not_assignable(FileId file_id, AstNodeId expr_
         "expression is not assignable",
         null
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_cannot_reassign_constant(FileId file_id, AstNodeId expr_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -680,13 +755,18 @@ void diagnostic_add_cannot_reassign_constant(FileId file_id, AstNodeId expr_id) 
         "cannot reassign a constant",
         null
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId expected, TypeId found) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -713,13 +793,18 @@ void diagnostic_add_mismatched_types(FileId file_id, AstNodeId node_id, TypeId e
         "mismatched types",
         msg
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_try_cast_to(FileId file_id, AstNodeId node_id, TypeId to, TypeId from) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -754,13 +839,18 @@ void diagnostic_add_try_cast_to(FileId file_id, AstNodeId node_id, TypeId to, Ty
         msg,
         help
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_undefined_function_call(FileId file_id, AstNodeId node_id) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -785,13 +875,18 @@ void diagnostic_add_undefined_function_call(FileId file_id, AstNodeId node_id) {
         msg,
         null
     );
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 void diagnostic_add_incorrect_call_arity(FileId file_id, SpanU32 span, u32 arg_count, u32 param_count) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
+    pthread_mutex_lock(&engine -> mutex);
+
     if (engine -> count >= engine -> threshold_value) {
         engine -> count++;
+        pthread_mutex_unlock(&engine -> mutex);
         return;
     }
 
@@ -816,6 +911,8 @@ void diagnostic_add_incorrect_call_arity(FileId file_id, SpanU32 span, u32 arg_c
     }
 
     diagnostic_add_token_span(file_id, DIAG_ERROR, span, "incorrect function call argument count", help);
+
+    pthread_mutex_unlock(&engine -> mutex);
 }
 
 // END OF DIAGNOSTICS

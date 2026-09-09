@@ -14,23 +14,18 @@
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
-#include <llvm-c/Types.h>
+#include <llvm-c/Error.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
+#include <llvm-c/Transforms/PassBuilder.h>
+#include <llvm-c/Types.h>
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <threads.h>
 
 extern DriverCtx driver;
-
-#define DUMP_IR(module)                             \
-    do {                                            \
-        char *ir = LLVMPrintModuleToString(module); \
-        puts(ir);                                   \
-        LLVMDisposeMessage(ir);                     \
-    } while(0)
-
 
 static void codegen_file(CodegenCtx* ctx, FileId id);
 static bool codegen_ast(CodegenCtx* ctx);
@@ -49,7 +44,7 @@ static bool         codegen_va_end(CodegenCtx* ctx);
 
 static LLVMTypeRef  type_id_to_llvm(CodegenCtx* ctx, TypeId id);
 
-static LLVMValueRef get_or_insert_string(CodegenCtx* cg, StringId id);
+static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id);
 
 void codegen() {
     CodegenCtx ctx = {0};
@@ -123,6 +118,23 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
         LLVMRelocPIC,
         LLVMCodeModelDefault
     );
+
+    LLVMPassBuilderOptionsRef pb_options = LLVMCreatePassBuilderOptions();
+
+    LLVMErrorRef error = LLVMRunPasses(ctx -> module, "globaldce,dce,adce,default<O2>", target_machine, pb_options);
+
+    if (error != null) {
+        msg = LLVMGetErrorMessage(error);
+
+        diagnostic_add_generic(DIAG_ERROR, "LLVM: %s", msg); 
+
+        LLVMDisposeErrorMessage(msg);
+        LLVMDisposePassBuilderOptions(pb_options);
+
+        goto cleanup;
+    }
+
+    LLVMDisposePassBuilderOptions(pb_options);
 
     if (LLVMTargetMachineEmitToFile(
         target_machine,
@@ -811,27 +823,26 @@ static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
     }
 }
 
-static LLVMValueRef get_or_insert_string(CodegenCtx* cg, StringId id) {
-    if (cg -> string_values[id] != null) {
-        return cg -> string_values[id];
+static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id) {
+    if (ctx -> string_values[id] != null) {
+        return ctx -> string_values[id];
     }
 
     StringEntry entry = STRING_ID_LOOKUP(id);
     str8 str = entry.str;
 
-    char putback = *(str.ptr + str.len);
-
-    *(str.ptr + str.len) = 0;
+    // Make an owning copy for the thread (when we get to multithreaded)
+    char* copy = arena_alloc(&ctx -> arena, str.len + 1);
+    memcpy(copy, str.ptr, str.len);
+    copy[str.len] = 0;
 
     char name[64] = {0};
 
     snprintf(name, sizeof(name), "str_%u", id);
 
-    LLVMValueRef value = LLVMBuildGlobalString(cg -> builder, str.ptr, name);
+    LLVMValueRef value = LLVMBuildGlobalString(ctx -> builder, copy, name);
 
-    *(str.ptr + str.len) = putback;
-
-    cg -> string_values[id] = value;
+    ctx -> string_values[id] = value;
 
     return value;
 }

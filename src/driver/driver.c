@@ -121,7 +121,8 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
 void driver_destroy(DriverCtx* driver) {
     destroy_build_dir(&driver -> scratch);
 
-    arena_destroy(&driver -> diagnostic_engine.arena);
+    diagnostic_engine_destroy();
+
     arena_destroy(&driver -> string_interner.arena);
 
     for (u32 i = 0; i < driver -> file_interner.count; i++) {
