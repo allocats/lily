@@ -181,6 +181,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
 
         FILE* file = fopen(path, "w+");
         if (!file) {
+            diagnostic_add_generic(DIAG_ERROR, "Unable to dump LLVM IR to %s", path);
             return false;
         }
 
@@ -404,7 +405,7 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
         } break;
 
         case AST_UNARY_OP: {
-            if (node -> as.unary_op.op == TOK_AMP) {
+            if (node -> as.unary_op.op == TOK_STAR) {
                 return codegen_expression(ctx, node -> as.unary_op.operand);
             }
         } break;
@@ -413,6 +414,7 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
             break;
     }
 
+    printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
     UNREACHABLE("codegen_lvalue()");
 }
 
@@ -705,6 +707,8 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                 default:
                     UNREACHABLE("binary_op");
             }
+
+            // TODO: Logical, not sure about how this will link into blocks tho
         } break;
 
         default:

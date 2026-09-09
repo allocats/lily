@@ -132,7 +132,7 @@ static TypeId resolve_base_type_expr(File* file, AstNodeId node_id) {
     if (node -> kind == AST_FUNCTION_CALL) {
         symbol_id = symbol_table_lookup(file -> scope_id, node -> as.function_call.identifier, file -> id);
     } else {
-        symbol_id = resolve_name_expr(file, node_id);
+        symbol_id = resolve_name_expr(file -> scope_id, file, node_id);
     }
 
     if (symbol_id == SYMBOL_ID_NONE) {

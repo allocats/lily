@@ -128,12 +128,12 @@ bool resolve_symbol(SymbolId id) {
     return result;
 }
 
-SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
+SymbolId resolve_name_expr(ScopeId scope_id, File* file, AstNodeId node_id) {
     AstNode* node = &file -> ast.nodes[node_id];
 
     switch (node -> kind) {
         case AST_IDENTIFIER: {
-            SymbolId symbol_id = scope_lookup(file -> scope_id, node -> as.identifier.name);
+            SymbolId symbol_id = symbol_table_lookup(scope_id, node -> as.identifier.name, file -> id);
 
             node -> resolved_symbol = symbol_id;
 
@@ -141,7 +141,7 @@ SymbolId resolve_name_expr(File* file, AstNodeId node_id) {
         }
 
         case AST_MEMBER_ACCESS: {
-            SymbolId object_id = resolve_name_expr(file, node -> as.member_access.object);
+            SymbolId object_id = resolve_name_expr(scope_id, file, node -> as.member_access.object);
 
             if (object_id == SYMBOL_ID_NONE) {
                 return SYMBOL_ID_NONE;
@@ -1438,7 +1438,7 @@ static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id,
 static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
     File* file = file_lookup_id(file_id);
 
-    SymbolId symbol_id = resolve_name_expr(file, node -> as.function_call.identifier);
+    SymbolId symbol_id = resolve_name_expr(scope_id, file, node -> as.function_call.identifier);
 
     if (symbol_id == SYMBOL_ID_NONE) {
         diagnostic_add_undefined_function_call(file_id, node -> id);
@@ -1635,7 +1635,7 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
 static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type) {
     File* file = file_lookup_id(file_id);
 
-    SymbolId object_symbol_id = resolve_name_expr(file, node -> as.member_access.object);
+    SymbolId object_symbol_id = resolve_name_expr(file -> scope_id, file, node -> as.member_access.object);
 
     if (object_symbol_id == SYMBOL_ID_NONE) {
         return TYPE_ID_NONE;
@@ -1999,7 +1999,11 @@ static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_
                 return false;
             }
 
-            SymbolId symbol_id = resolve_name_expr(file, operand_id);
+            SymbolId symbol_id = resolve_name_expr(scope_id, file, operand_id);
+            
+            // This is firing for some reason
+            assert(symbol_id != SYMBOL_ID_NONE);
+
             Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
             if (symbol -> flags & AST_FLAGS_IS_CONSTANT) {
