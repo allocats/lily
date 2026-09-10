@@ -20,7 +20,8 @@ typedef struct {
 } VaListCtx;
 
 typedef struct {
-    Arena arena;
+    Arena map_arena;
+    Arena scratch;
 
     File* file;
 

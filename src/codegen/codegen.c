@@ -66,30 +66,36 @@ static TokenKind    get_compound_assignment_base_op(TokenKind op);
 void codegen() {
     CodegenCtx ctx = {0};
 
-    arena_init(&ctx.arena, ARENA_KB(4), ALIGN_DEFAULT);
+    u32 symbol_count = driver.symbol_table.symbol_count;
+    u32 string_count = driver.string_interner.count;
+
+    u32 symbol_size = symbol_count * sizeof(LLVMValueRef);
+    u32 string_size = string_count * sizeof(LLVMValueRef);
+
+    arena_init(&ctx.map_arena, symbol_size + string_size, ALIGN_DEFAULT);
+    arena_init(&ctx.scratch, ARENA_KB(4), ALIGN_DEFAULT);
 
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmParser();
     LLVMInitializeNativeAsmPrinter();
 
-    u32 symbol_count = driver.symbol_table.symbol_count;
-    ctx.symbol_values = arena_calloc(&ctx.arena, symbol_count * sizeof(LLVMValueRef));
-
-    u32 string_count = driver.string_interner.count;
-    ctx.string_values = arena_calloc(&ctx.arena, string_count * sizeof(LLVMValueRef));
+    ctx.symbol_values = arena_calloc(&ctx.map_arena, symbol_size);
+    ctx.string_values = arena_calloc(&ctx.map_arena, string_size);
 
     u32 file_count = driver.file_interner.count;
 
     for (u32 i = 0; i < file_count; i++) {
         codegen_file(&ctx, i);
 
-        arena_reset(&ctx.arena);
+        arena_reset(&ctx.scratch);
 
-        arena_memset(ctx.symbol_values, 0, symbol_count * sizeof(LLVMValueRef));
-        arena_memset(ctx.string_values, 0, string_count * sizeof(LLVMValueRef));
+        // reset to get rid of dangling pointers
+        arena_memset(ctx.symbol_values, 0, symbol_size);
+        arena_memset(ctx.string_values, 0, string_size);
     }
 
-    arena_destroy(&ctx.arena);
+    arena_destroy(&ctx.scratch);
+    arena_destroy(&ctx.map_arena);
 }
 
 static void codegen_file(CodegenCtx* ctx, FileId id) {
@@ -207,6 +213,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
             return false;
         }
 
+        fprintf(stdout, "Emitted LLVM IR to %s (%.*s)\n", path, STR8_FMT(ctx -> file -> path));
         fprintf(file, "%s", ir);
 
         fclose(file);
@@ -226,7 +233,7 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
     u32 param_count = is_variadic ? n - 1 : n;
 
     if (param_count != 0) {
-        param_types = arena_alloc(&ctx -> arena, param_count * sizeof(LLVMTypeRef));
+        param_types = arena_alloc(&ctx -> scratch, param_count * sizeof(LLVMTypeRef));
     }
 
     for (u32 i = 0; i < param_count; i++) {
@@ -379,6 +386,8 @@ static bool codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol
             default: {
             } break;
         }
+
+        arena_reset(&ctx -> scratch);
     }
 
     return true;
@@ -418,6 +427,8 @@ static bool codegen_block(CodegenCtx* ctx, AstNodeId id) {
             default: {
             } break;
         }
+
+        arena_reset(&ctx -> scratch);
     }
 
     return true;
@@ -646,7 +657,7 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
 
             u32 arg_count = node -> as.function_call.arguments.count;
 
-            LLVMValueRef* args = arg_count != 0 ? arena_alloc(&ctx -> arena, sizeof(LLVMValueRef) * arg_count) : null;
+            LLVMValueRef* args = arg_count != 0 ? arena_alloc(&ctx -> scratch, sizeof(LLVMValueRef) * arg_count) : null;
 
             for (u32 i = 0; i < arg_count; i++) {
                 AstNodeId arg_id = node -> as.function_call.arguments.ids[i];
@@ -999,7 +1010,7 @@ static LLVMTypeRef base_to_llvm(CodegenCtx* ctx, TypeId id, TypeEntry* entry) {
 static LLVMTypeRef struct_to_llvm(CodegenCtx* ctx, TypeEntry* entry) {
     u32 field_count = entry -> as.struct_type.field_count;
 
-    LLVMTypeRef* field_types = arena_alloc(&ctx -> arena, field_count * sizeof(LLVMTypeRef));
+    LLVMTypeRef* field_types = arena_alloc(&ctx -> scratch, field_count * sizeof(LLVMTypeRef));
 
     for (u32 i = 0; i < field_count; i++) {
         field_types[i] = type_id_to_llvm(ctx, entry -> as.struct_type.fields[i]);
@@ -1039,7 +1050,7 @@ static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id) {
     str8 str = entry.str;
 
     // Make an owning copy for the thread (when we get to multithreaded)
-    char* copy = arena_alloc(&ctx -> arena, str.len + 1);
+    char* copy = arena_alloc(&ctx -> scratch, str.len + 1);
     memcpy(copy, str.ptr, str.len);
     copy[str.len] = 0;
 
