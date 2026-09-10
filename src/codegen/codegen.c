@@ -248,6 +248,8 @@ static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node) {
         LLVMSetLinkage(var, LLVMExternalLinkage);
     }
 
+    ctx -> symbol_values[node -> resolved_symbol] = var;
+
     return var;
 }
 
