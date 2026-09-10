@@ -202,8 +202,6 @@ cleanup:
 static bool codegen_ast(CodegenCtx* ctx) {
     Ast* ast = &ctx -> file -> ast;
 
-    bool result = true;
-
     for (u32 i = 0; i < ast -> count; i++) {
         AstNode* node = &ast -> nodes[i];
 
@@ -213,7 +211,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
 
         switch (node -> kind) {
             case AST_FUNCTION_DECL:
-                if (!codegen_function_declaration(ctx, node)) result = false;
+                if (!codegen_function_declaration(ctx, node)) return false;
                 break;
 
             case AST_VARIABLE_DECL:
@@ -246,7 +244,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
         fclose(file);
     }
 
-    return result;
+    return true;
 }
 
 static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node) {
