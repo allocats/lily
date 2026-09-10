@@ -35,14 +35,15 @@ static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node);
 
 static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id);
 static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node);
-static bool         codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol, bool* did_fn_return);
 
-static bool         codegen_block(CodegenCtx* ctx, AstNodeId id);
+static CodegenResult codegen_block(CodegenCtx* ctx, AstNodeId id);
+static CodegenResult codegen_statement(CodegenCtx* ctx, AstNode* node);
 
-static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node);
-static bool         codegen_for_loop(CodegenCtx* ctx, AstNode* node);
-static bool         codegen_while_loop(CodegenCtx* ctx, AstNode* node);
-static bool         codegen_return_statement(CodegenCtx* ctx, AstNode* node);
+static LLVMValueRef  codegen_variable_declaration(CodegenCtx* ctx, AstNode* node);
+
+static CodegenResult codegen_for_loop(CodegenCtx* ctx, AstNode* node);
+static CodegenResult codegen_while_loop(CodegenCtx* ctx, AstNode* node);
+static CodegenResult codegen_return_statement(CodegenCtx* ctx, AstNode* node);
 
 static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id);
 static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id);
@@ -56,14 +57,22 @@ static LLVMValueRef codegen_binary_arithmetic(
     TypeId rhs_type
 );
 
-static bool         codegen_va_end(CodegenCtx* ctx);
+static bool codegen_va_end(CodegenCtx* ctx);
 
-static LLVMTypeRef  type_id_to_llvm(CodegenCtx* ctx, TypeId id);
+static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id);
 
 static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id);
 
-static bool         is_compound_assignment_op(TokenKind op);
-static TokenKind    get_compound_assignment_base_op(TokenKind op);
+static bool      is_compound_assignment_op(TokenKind op);
+static TokenKind get_compound_assignment_base_op(TokenKind op);
+
+static void defer_stack_enter(CodegenCtx* ctx);
+static void defer_stack_exit(CodegenCtx* ctx);
+static void defer_stack_append(CodegenCtx* ctx, AstNodeId id);
+static bool codegen_all_defers(CodegenCtx* ctx);
+static bool codegen_defers_until(CodegenCtx* ctx, DeferStack* boundary);
+static bool codegen_block_defers(CodegenCtx* ctx);
+
 
 void codegen() {
     CodegenCtx ctx = {0};
@@ -75,7 +84,8 @@ void codegen() {
     u32 string_size = string_count * sizeof(LLVMValueRef);
 
     arena_init(&ctx.map_arena, symbol_size + string_size, ALIGN_DEFAULT);
-    arena_init(&ctx.scratch, ARENA_KB(4), ALIGN_DEFAULT);
+    arena_init(&ctx.scratch, ARENA_KB(2), ALIGN_DEFAULT);
+    arena_init(&ctx.defer_list.arena, ARENA_KB(1), ALIGN_DEFAULT);
 
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmParser();
@@ -98,6 +108,7 @@ void codegen() {
 
     arena_destroy(&ctx.scratch);
     arena_destroy(&ctx.map_arena);
+    arena_destroy(&ctx.defer_list.arena);
 }
 
 static void codegen_file(CodegenCtx* ctx, FileId id) {
@@ -176,6 +187,7 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
     ) != 0) {
         diagnostic_add_generic(DIAG_ERROR, "LLVM: %s", msg);
         LLVMDisposeMessage(msg);
+        LLVMDisposeTargetMachine(target_machine);
         goto cleanup;
     }
 
@@ -190,6 +202,8 @@ cleanup:
 static bool codegen_ast(CodegenCtx* ctx) {
     Ast* ast = &ctx -> file -> ast;
 
+    bool result = true;
+
     for (u32 i = 0; i < ast -> count; i++) {
         AstNode* node = &ast -> nodes[i];
 
@@ -199,7 +213,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
 
         switch (node -> kind) {
             case AST_FUNCTION_DECL:
-                if (!codegen_function_declaration(ctx, node)) return false;
+                if (!codegen_function_declaration(ctx, node)) result = false;
                 break;
 
             case AST_VARIABLE_DECL:
@@ -209,6 +223,8 @@ static bool codegen_ast(CodegenCtx* ctx) {
             default:
                 break;
         }
+
+        arena_reset(&ctx -> defer_list.arena);
     }
 
     if (driver.flags & DRIVER_FLAGS_EMIT_LLVM_IR) {
@@ -220,7 +236,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
 
         FILE* file = fopen(path, "w+");
         if (!file) {
-            diagnostic_add_generic(DIAG_ERROR, "Unable to dump LLVM IR to %s", path);
+            diagnostic_add_generic(DIAG_ERROR, "LLVM: Unable to dump LLVM IR to %s", path);
             return false;
         }
 
@@ -230,7 +246,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
         fclose(file);
     }
 
-    return true;
+    return result;
 }
 
 static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node) {
@@ -292,6 +308,9 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
     ctx -> symbol_values[symbol_id] = fn;
     ctx -> fn = fn;
 
+    ctx -> loop_ctx = null;
+    ctx -> defer_list.stack = null;
+
     if (node -> flags & AST_FLAGS_IS_EXTERNAL || symbol -> flags & AST_FLAGS_IS_EXTERNAL) {
         return fn;
     }
@@ -311,7 +330,7 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
         LLVMTypeRef type = type_id_to_llvm(ctx, param -> as.parameter_symbol.type_id);
         assert(type != null);
 
-        LLVMValueRef address = LLVMBuildAlloca(ctx -> builder, type, ""); 
+        LLVMValueRef address = LLVMBuildAlloca(ctx -> builder, type, "");
         assert(address != null);
 
         LLVMValueRef parameter = LLVMGetParam(fn, i);
@@ -355,114 +374,117 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
         };
     }
 
-    bool did_fn_return = false;
+    CodegenResult result = codegen_block(ctx, node -> as.function_decl.block);
 
-    if (!codegen_function_body(ctx, node, symbol, &did_fn_return)) {
+    if (result == CODEGEN_ERROR) {
         return null;
     }
 
-    if (symbol -> name_id == string_lookup_cstr("main")) {
-        if (!did_fn_return) {
+    if (result == CODEGEN_FALLTHROUGH) {
+        bool is_main = symbol -> name_id == string_lookup_cstr("main");
+        bool is_void = is_type_void(symbol -> as.function_symbol.return_type_id);
+
+        if (is_main) {
+            if (ctx -> va_ctx.state == VA_LIST_END && !codegen_va_end(ctx)) {
+                return null;
+            }
+
             LLVMBuildRet(ctx -> builder, LLVMConstInt(LLVMInt32TypeInContext(ctx -> ctx), 0, 0));
+        } else if (is_void) {
+            if (ctx -> va_ctx.state == VA_LIST_END && !codegen_va_end(ctx)) {
+                return null;
+            }
 
-            did_fn_return = true;
+            LLVMBuildRetVoid(ctx -> builder);
+        } else {
+            return null;
         }
-    }
-
-    if (!did_fn_return && is_type_void(symbol -> as.function_symbol.return_type_id)) {
-        if (ctx -> va_ctx.state == VA_LIST_END) {
-            codegen_va_end(ctx);
-        }
-
-        LLVMBuildRetVoid(ctx -> builder);
     }
 
     return fn;
 }
 
-static bool codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol, bool* did_fn_return) {
-    UNUSED(symbol);
-
-    AstNode* block = &ctx -> file -> ast.nodes[node -> as.function_decl.block];
-
-    u32 stmt_count = block -> as.block.statements.count;
-
-    for (u32 i = 0; i < stmt_count; i++) {
-        AstNode* stmt = &ctx -> file -> ast.nodes[block -> as.block.statements.ids[i]];
-
-        switch (stmt -> kind) {
-            case AST_VARIABLE_DECL: {
-                codegen_variable_declaration(ctx, stmt);
-            } break;
-
-            case AST_FOR_LOOP: {
-                codegen_for_loop(ctx, stmt);
-            } break;
-
-            case AST_WHILE_LOOP: {
-                codegen_while_loop(ctx, stmt);
-            } break;
-
-            case AST_RETURN_STMT: {
-                codegen_return_statement(ctx, stmt);
-                *did_fn_return = true;
-            } break;
-
-            case AST_UNARY_OP: 
-            case AST_BINARY_OP: 
-            case AST_FUNCTION_CALL: {
-                codegen_expression(ctx, stmt -> id);
-            } break;
-
-            default: {
-            } break;
-        }
-
-        arena_reset(&ctx -> scratch);
-    }
-
-    return true;
-}
-
-static bool codegen_block(CodegenCtx* ctx, AstNodeId id) {
+static CodegenResult codegen_block(CodegenCtx* ctx, AstNodeId id) {
     AstNode* node = &ctx -> file -> ast.nodes[id];
 
+    defer_stack_enter(ctx);
+
+    CodegenResult result = CODEGEN_FALLTHROUGH;
+
     u32 stmt_count = node -> as.block.statements.count;
-    
+
     for (u32 i = 0; i < stmt_count; i++) {
         AstNode* stmt = &ctx -> file -> ast.nodes[node -> as.block.statements.ids[i]];
 
-        switch (stmt -> kind) {
-            case AST_VARIABLE_DECL: {
-                codegen_variable_declaration(ctx, stmt);
-            } break;
-
-            case AST_FOR_LOOP: {
-                codegen_for_loop(ctx, stmt);
-            } break;
-
-            case AST_WHILE_LOOP: {
-                codegen_while_loop(ctx, stmt);
-            } break;
-
-            case AST_RETURN_STMT: {
-                codegen_return_statement(ctx, stmt);
-            } break;
-
-            case AST_UNARY_OP: 
-            case AST_BINARY_OP: 
-            case AST_FUNCTION_CALL: {
-                codegen_expression(ctx, stmt -> id);
-            } break;
-
-            default: {
-            } break;
-        }
+        result = codegen_statement(ctx, stmt);
 
         arena_reset(&ctx -> scratch);
+
+        if (result != CODEGEN_FALLTHROUGH) {
+            break;
+        }
     }
 
-    return true;
+    if (result == CODEGEN_FALLTHROUGH) {
+        if (!codegen_block_defers(ctx)) {
+            result = CODEGEN_ERROR;
+        }
+    }
+
+    defer_stack_exit(ctx);
+    return result;
+}
+
+static CodegenResult codegen_statement(CodegenCtx* ctx, AstNode* node) {
+    switch (node -> kind) {
+        case AST_BLOCK:
+            return codegen_block(ctx, node -> id);
+
+        case AST_VARIABLE_DECL:
+            return codegen_variable_declaration(ctx, node) != null ? CODEGEN_FALLTHROUGH : CODEGEN_ERROR;
+
+        case AST_FOR_LOOP:
+            return codegen_for_loop(ctx, node);
+
+        case AST_WHILE_LOOP:
+            return codegen_while_loop(ctx, node);
+
+        case AST_DEFER_STMT: {
+            defer_stack_append(ctx, node -> as.defer_stmt.stmt);
+            return CODEGEN_FALLTHROUGH;
+        }
+
+        case AST_RETURN_STMT:
+            return codegen_return_statement(ctx, node);
+
+        case AST_BREAK_STMT: {
+            if (!codegen_defers_until(ctx, ctx -> loop_ctx -> defer_boundary)) {
+                return CODEGEN_ERROR;
+            }
+
+            LLVMBuildBr(ctx -> builder, ctx -> loop_ctx -> break_target);
+
+            return CODEGEN_TERMINATED;
+        }
+
+        case AST_CONTINUE_STMT: {
+            if (!codegen_defers_until(ctx, ctx -> loop_ctx -> defer_boundary)) {
+                return CODEGEN_ERROR;
+            }
+
+            LLVMBuildBr(ctx -> builder, ctx -> loop_ctx -> continue_target);
+
+            return CODEGEN_TERMINATED;
+        }
+
+        case AST_UNARY_OP:
+        case AST_BINARY_OP:
+        case AST_FUNCTION_CALL:
+            return codegen_expression(ctx, node -> id) != null ? CODEGEN_FALLTHROUGH : CODEGEN_ERROR;
+
+        default:
+            return CODEGEN_ERROR;
+    }
 }
 
 static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node) {
@@ -477,16 +499,22 @@ static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node)
     }
 
     LLVMValueRef value = codegen_expression(ctx, node -> as.variable_decl.value_expr);
+
+    if (value == null) {
+        return null;
+    }
+
     LLVMBuildStore(ctx -> builder, value, address);
 
     return address;
 }
 
-static bool codegen_for_loop(CodegenCtx* ctx, AstNode* node) {
+static CodegenResult codegen_for_loop(CodegenCtx* ctx, AstNode* node) {
     AstNode* init = &ctx -> file -> ast.nodes[node -> as.for_loop.init];
 
-    LLVMValueRef iterator = codegen_variable_declaration(ctx, init);
-    UNUSED(iterator);
+    if (codegen_variable_declaration(ctx, init) == null) {
+        return CODEGEN_ERROR;
+    }
 
     LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
     LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
@@ -498,27 +526,54 @@ static bool codegen_for_loop(CodegenCtx* ctx, AstNode* node) {
     LLVMPositionBuilderAtEnd(ctx -> builder, cond_block);
 
     LLVMValueRef condition = codegen_expression(ctx, node -> as.for_loop.cond);
+
+    if (condition == null) {
+        return CODEGEN_ERROR;
+    }
+
     LLVMBuildCondBr(ctx -> builder, condition, body_block, exit_block);
 
     // Body
     LLVMPositionBuilderAtEnd(ctx -> builder, body_block);
-    codegen_block(ctx, node -> as.for_loop.block);
-    LLVMBuildBr(ctx -> builder, step_block);
+
+    LoopCtx loop_ctx = {
+        .break_target = exit_block,
+        .continue_target = step_block,
+        .defer_boundary = ctx -> defer_list.stack,
+        .previous = ctx -> loop_ctx
+    };
+
+    ctx -> loop_ctx = &loop_ctx;
+    
+    CodegenResult result = codegen_block(ctx, node -> as.for_loop.block);
+    
+    ctx -> loop_ctx = loop_ctx.previous;
+
+    if (result == CODEGEN_ERROR) {
+        return CODEGEN_ERROR;
+    }
+
+    if (result == CODEGEN_FALLTHROUGH) {
+        LLVMBuildBr(ctx -> builder, step_block);
+    }
 
     // Step
     LLVMPositionBuilderAtEnd(ctx -> builder, step_block);
     LLVMValueRef step = codegen_expression(ctx, node -> as.for_loop.step);
-    LLVMBuildBr(ctx -> builder, cond_block);
 
-    UNUSED(step);
+    if (step == null) {
+        return CODEGEN_ERROR;
+    }
+
+    LLVMBuildBr(ctx -> builder, cond_block);
 
     // Exit
     LLVMPositionBuilderAtEnd(ctx -> builder, exit_block);
 
-    return true;
+    return CODEGEN_FALLTHROUGH;
 }
 
-static bool codegen_while_loop(CodegenCtx* ctx, AstNode* node) {
+static CodegenResult codegen_while_loop(CodegenCtx* ctx, AstNode* node) {
     LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
     LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
     LLVMBasicBlockRef exit_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
@@ -528,32 +583,71 @@ static bool codegen_while_loop(CodegenCtx* ctx, AstNode* node) {
     LLVMPositionBuilderAtEnd(ctx -> builder, cond_block);
 
     LLVMValueRef condition = codegen_expression(ctx, node -> as.while_loop.cond);
+
+    if (condition == null) {
+        return CODEGEN_ERROR;
+    }
+
     LLVMBuildCondBr(ctx -> builder, condition, body_block, exit_block);
 
     // Body
     LLVMPositionBuilderAtEnd(ctx -> builder, body_block);
-    codegen_block(ctx, node -> as.while_loop.block);
-    LLVMBuildBr(ctx -> builder, cond_block);
+
+    LoopCtx loop_ctx = {
+        .break_target = exit_block,
+        .continue_target = cond_block,
+        .defer_boundary = ctx -> defer_list.stack,
+        .previous = ctx -> loop_ctx
+    };
+
+    ctx -> loop_ctx = &loop_ctx;
+    
+    CodegenResult result = codegen_block(ctx, node -> as.while_loop.block);
+    
+    ctx -> loop_ctx = loop_ctx.previous;
+
+    if (result == CODEGEN_ERROR) {
+        return CODEGEN_ERROR;
+    }
+
+    if (result == CODEGEN_FALLTHROUGH) {
+        LLVMBuildBr(ctx -> builder, cond_block);
+    }
 
     // Exit
     LLVMPositionBuilderAtEnd(ctx -> builder, exit_block);
 
-    return true;
+    return CODEGEN_FALLTHROUGH;
 }
 
-static bool codegen_return_statement(CodegenCtx* ctx, AstNode* node) {
+static CodegenResult codegen_return_statement(CodegenCtx* ctx, AstNode* node) {
+    LLVMValueRef value = null;
+
+    if (node -> resolved_type != driver.type_table.builtins.type_void) {
+        value = codegen_expression(ctx, node -> as.return_stmt.expr);
+
+        if (value == null) {
+            return CODEGEN_ERROR;
+        }
+    }
+
+    if (!codegen_all_defers(ctx)) {
+        return CODEGEN_ERROR;
+    }
+
     if (ctx -> va_ctx.state == VA_LIST_END) {
-        codegen_va_end(ctx);
+        if (!codegen_va_end(ctx)) {
+            return CODEGEN_ERROR;
+        }
     }
 
     if (node -> resolved_type == driver.type_table.builtins.type_void) {
         LLVMBuildRetVoid(ctx -> builder);
-        return true;
+    } else {
+        LLVMBuildRet(ctx -> builder, value);
     }
 
-    LLVMValueRef value = codegen_expression(ctx, node -> as.return_stmt.expr);
-    LLVMBuildRet(ctx -> builder, value);
-    return true;
+    return CODEGEN_TERMINATED;
 }
 
 static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
@@ -1131,4 +1225,108 @@ static TokenKind get_compound_assignment_base_op(TokenKind op) {
         default:
             UNREACHABLE("get_compound_assignment_base_op()");
     }
+}
+
+static void defer_stack_enter(CodegenCtx* ctx) {
+    DeferStack* current_stack = ctx -> defer_list.stack;
+    DeferStack* new_stack = arena_alloc(&ctx -> defer_list.arena, sizeof(DeferStack));
+
+    new_stack -> previous = current_stack;
+    new_stack -> ids = arena_alloc(&ctx -> defer_list.arena, sizeof(AstNodeId) * defer_stack_init_cap);
+    new_stack -> count = 0;
+    new_stack -> capacity = defer_stack_init_cap;
+
+    ctx -> defer_list.stack = new_stack;
+}
+
+static void defer_stack_exit(CodegenCtx* ctx) {
+    DeferStack* stack = ctx -> defer_list.stack;
+
+    assert(stack != null);
+
+    ctx -> defer_list.stack = stack -> previous;
+}
+
+static void defer_stack_append(CodegenCtx* ctx, AstNodeId id) {
+    DeferStack* stack = ctx -> defer_list.stack;
+
+    assert(stack != null);
+
+    if (UNLIKELY(stack -> count >= stack -> capacity)) {
+        u64 old_size = stack -> capacity * sizeof(AstNodeId);
+        u64 new_size = old_size * 2;
+
+        stack -> ids = arena_realloc(&ctx -> defer_list.arena, stack -> ids, old_size, new_size);
+        stack -> capacity *= 2;
+    }
+
+    stack -> ids[stack -> count++] = id;
+}
+
+static bool codegen_all_defers(CodegenCtx* ctx) {
+    return codegen_defers_until(ctx, null);
+}
+
+static bool codegen_defers_until(CodegenCtx* ctx, DeferStack* boundary) {
+    for (DeferStack* stack = ctx -> defer_list.stack; stack != boundary; stack = stack -> previous) {
+        for (u32 i = stack -> count; i > 0; i--) {
+            AstNodeId id = stack -> ids[i - 1];
+            AstNode* node = &ctx -> file -> ast.nodes[id];
+
+            printf("until() Got ID = %u\n", id);
+
+            CodegenResult result = codegen_statement(ctx, node);
+
+            if (result == CODEGEN_ERROR) {
+                return false;
+            }
+
+            if (result == CODEGEN_TERMINATED) {
+                diagnostic_add_token_span(
+                    ctx -> file -> id,
+                    DIAG_ERROR,
+                    node -> tokens,
+                    "control flow statement is not allowed in defers",
+                    null
+                );
+
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool codegen_block_defers(CodegenCtx* ctx) {
+    DeferStack* stack = ctx -> defer_list.stack;
+
+    assert(stack != null);
+
+    for (u32 i = stack -> count; i > 0; i--) {
+        AstNodeId id = stack -> ids[i - 1];
+        AstNode* node = &ctx -> file -> ast.nodes[id];
+
+        printf("block() Got ID = %u\n", id);
+
+        CodegenResult result = codegen_statement(ctx, node);
+
+        if (result == CODEGEN_ERROR) {
+            return false;
+        }
+
+        if (result == CODEGEN_TERMINATED) {
+            diagnostic_add_token_span(
+                ctx -> file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                "control flow statement is not allowed in defers",
+                null
+            );
+
+            return false;
+        }
+    }
+
+    return true;
 }
