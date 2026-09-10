@@ -40,7 +40,6 @@ AstNodeId parse_top_level_decl(Parser* p) {
 
         case TOK_KW_UNION:
             return parse_union_decl(p, name_id);
-            break;
 
         default:
             diagnostic_add_token(

@@ -13,7 +13,6 @@
 #include "utils/types.h"
 
 #include <assert.h>
-#include <stdio.h>
 
 static constexpr u8 type_modifier_max = U8_MAX;
 
@@ -50,8 +49,24 @@ AstNodeId parse_type_expr(Parser* p) {
     u32 start_index = p -> cursor;
     u32 flags = AST_FLAGS_NONE;
 
-    // NOTE: caller must set its identifier to const as well
+    // NOTE: caller must set its flags
     if (parser_check(p, TOK_KW_EXTERNAL)) {
+        if (!p -> is_external_allowed) {
+            Token token = parser_peek(p);
+
+            diagnostic_add_token(
+                p -> current_file -> id,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_WHOLE_TOK,
+                "linkage is not allowed to be set here",
+                "remove 'external'"
+            );
+
+            AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
+            return parser_error(p, id, RECOVERY_TYPE);
+        }
+
         parser_advance(p);
 
         flags |= AST_FLAGS_IS_EXTERNAL;

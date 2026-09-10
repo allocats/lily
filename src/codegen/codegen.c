@@ -31,6 +31,8 @@ extern DriverCtx driver;
 static void codegen_file(CodegenCtx* ctx, FileId id);
 static bool codegen_ast(CodegenCtx* ctx);
 
+static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node);
+
 static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id);
 static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node);
 static bool         codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol, bool* did_fn_return);
@@ -110,6 +112,7 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
     assert(ctx -> builder != null);
 
     if (!codegen_ast(ctx)) {
+        diagnostic_add_generic(DIAG_ERROR, "Failed to create LLVM IR");
         goto cleanup;
     }
 
@@ -190,9 +193,17 @@ static bool codegen_ast(CodegenCtx* ctx) {
     for (u32 i = 0; i < ast -> count; i++) {
         AstNode* node = &ast -> nodes[i];
 
+        if (!(node -> flags & AST_FLAGS_IS_TOP_DECL)) {
+            continue;
+        } 
+
         switch (node -> kind) {
             case AST_FUNCTION_DECL:
                 if (!codegen_function_declaration(ctx, node)) return false;
+                break;
+
+            case AST_VARIABLE_DECL:
+                if (!codegen_global_variable(ctx, node)) return false;
                 break;
 
             default:
@@ -220,6 +231,24 @@ static bool codegen_ast(CodegenCtx* ctx) {
     }
 
     return true;
+}
+
+static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node) {
+    LLVMTypeRef type = type_id_to_llvm(ctx, node -> resolved_type);
+    LLVMValueRef var = LLVMAddGlobal(ctx -> module, type, "");
+
+    // TODO: ADD COMPILE TIME INTERPRETER FOR TO ENABLE FUNCTION CALLS AS VALUES FOR GLOBALS
+    if (node -> as.variable_decl.value_expr != AST_NODE_ID_NONE) {
+        LLVMSetInitializer(var, codegen_expression(ctx, node -> as.variable_decl.value_expr));
+    }
+
+    LLVMSetGlobalConstant(var, node -> flags & AST_FLAGS_IS_CONSTANT);
+
+    if (node -> flags & AST_FLAGS_IS_EXTERNAL) {
+        LLVMSetLinkage(var, LLVMExternalLinkage);
+    }
+
+    return var;
 }
 
 static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
@@ -860,7 +889,7 @@ static LLVMValueRef codegen_binary_arithmetic(
                 return LLVMBuildGEP2(ctx -> builder, elem_type, rhs, indices, 1, "");
             }
 
-            return LLVMBuildAdd(ctx -> builder, lhs, rhs, "add");
+            return LLVMBuildAdd(ctx -> builder, lhs, rhs, "");
         }
 
         case TOK_MINUS: {
@@ -883,11 +912,11 @@ static LLVMValueRef codegen_binary_arithmetic(
                 return LLVMBuildGEP2(ctx -> builder, elem_type, lhs, indices, 1, "");
             }
 
-            return LLVMBuildSub(ctx -> builder, lhs, rhs, "sub");
+            return LLVMBuildSub(ctx -> builder, lhs, rhs, "");
         }
 
         case TOK_STAR:
-            return LLVMBuildMul(ctx -> builder, lhs, rhs, "mul");
+            return LLVMBuildMul(ctx -> builder, lhs, rhs, "");
 
         case TOK_SLASH:
             if (is_type_float(lhs_type) || is_type_float(rhs_type)) {

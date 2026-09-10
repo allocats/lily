@@ -14,7 +14,6 @@
 #include "files/files.h"
 #include "files/types.h"
 #include "ids.h"
-#include "symbols/table/table.h"
 #include "token/types.h"
 #include "utils/debug.h"
 #include "utils/types.h"
@@ -40,10 +39,14 @@ void parse_file(FileId id) {
         .tokens_array = &file -> tokens,
         .token_count = file -> tokens.count,
         .cursor = 0,
-        .parsing_type = false
+        .parsing_type = false,
+        .is_external_allowed = true
     };
 
     while (p.cursor < p.token_count) {
+        // set incase of error return
+        p.is_external_allowed = true;
+
         Token token = parser_peek(&p);
 
         if (token.kind == TOK_EOF) {

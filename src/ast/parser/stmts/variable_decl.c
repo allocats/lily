@@ -30,12 +30,29 @@ AstNodeId parse_variable_decl(Parser* p) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
+    AstNode* type_expr_node = parser_get_node(p, type_expr_id);
+
     node = parser_get_node(p, id);
 
     node -> as.variable_decl.type_expr = type_expr_id;
 
-    if (is_node_constant(&p -> current_file -> ast, type_expr_id)) {
-        node -> flags |= AST_FLAGS_IS_CONSTANT;
+    node -> flags = type_expr_node -> flags;
+
+    if (node -> flags & AST_FLAGS_IS_EXTERNAL) {
+        if (!parser_check(p, TOK_SEMI)) {
+            Token token = parser_peek_previous(p);
+
+            diagnostic_add_token(
+                p -> current_file -> id,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_END_OF_TOK,
+                "expected ';'",
+                "add a ';' here" 
+            );
+
+            return parser_error(p, id, RECOVERY_DECL);
+        }
     }
 
     if (parser_check(p, TOK_SEMI)) {

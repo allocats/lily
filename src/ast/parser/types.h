@@ -14,6 +14,7 @@ typedef struct {
     u32 token_count;
 
     bool parsing_type;
+    bool is_external_allowed;
 } Parser;
 
 #endif // !LILY_PARSER_TYPES_H
