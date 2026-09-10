@@ -131,3 +131,15 @@ bool can_type_cast_to(TypeId to, TypeId from) {
 
     return false;
 }
+
+bool can_type_offset_pointer(TypeId ptr, TypeId offset) {
+    if (ptr == TYPE_ID_NONE || offset == TYPE_ID_NONE) {
+        return false;
+    }
+
+    if (!is_type(ptr, TYPE_POINTER)) {
+        return false;
+    }
+
+    return is_type_unsigned_int(offset);
+}

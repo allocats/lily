@@ -8,7 +8,9 @@
 #include "string_interner/interner.h"
 #include "symbols/symbols/types.h"
 #include "symbols/table/table.h"
+#include "token/types.h"
 #include "types/entries/entries.h"
+#include "types/entries/types.h"
 #include "types/table/table.h"
 #include "utils/macros.h"
 
@@ -23,7 +25,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <threads.h>
 
 extern DriverCtx driver;
 
@@ -44,11 +45,23 @@ static bool         codegen_return_statement(CodegenCtx* ctx, AstNode* node);
 static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id);
 static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id);
 
+static LLVMValueRef codegen_binary_arithmetic(
+    CodegenCtx* ctx,
+    TokenKind op,
+    LLVMValueRef lhs,
+    LLVMValueRef rhs,
+    TypeId lhs_type,
+    TypeId rhs_type
+);
+
 static bool         codegen_va_end(CodegenCtx* ctx);
 
 static LLVMTypeRef  type_id_to_llvm(CodegenCtx* ctx, TypeId id);
 
 static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id);
+
+static bool         is_compound_assignment_op(TokenKind op);
+static TokenKind    get_compound_assignment_base_op(TokenKind op);
 
 void codegen() {
     CodegenCtx ctx = {0};
@@ -330,6 +343,8 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
 }
 
 static bool codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol, bool* did_fn_return) {
+    UNUSED(symbol);
+
     AstNode* block = &ctx -> file -> ast.nodes[node -> as.function_decl.block];
 
     u32 stmt_count = block -> as.block.statements.count;
@@ -694,10 +709,13 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
             TypeId lhs_type = lhs_node -> resolved_type;
             TypeId rhs_type = rhs_node -> resolved_type;
 
+            TokenKind op = node -> as.binary_op.op;
+            bool needs_lvalue = (op == TOK_EQ) || (is_compound_assignment_op(op));
+
             LLVMValueRef lhs;
             LLVMValueRef rhs;
 
-            if (node -> as.binary_op.op == TOK_EQ || node -> as.binary_op.op == TOK_PLUS_EQ) {
+            if (needs_lvalue) {
                 lhs = codegen_lvalue(ctx, node -> as.binary_op.left);
                 rhs = codegen_expression(ctx, node -> as.binary_op.right);
             } else {
@@ -705,64 +723,35 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                 rhs = codegen_expression(ctx, node -> as.binary_op.right);
             }
 
+            if (op == TOK_EQ) {
+                return LLVMBuildStore(ctx -> builder, rhs, lhs);
+            }
+
+            if (is_compound_assignment_op(op)) {
+                LLVMTypeRef  type    = type_id_to_llvm(ctx, lhs_type);
+                LLVMValueRef current = LLVMBuildLoad2(ctx -> builder, type, lhs, "");
+
+                TokenKind base_op = get_compound_assignment_base_op(op);
+                LLVMValueRef result = codegen_binary_arithmetic(ctx, base_op, current, rhs, lhs_type, rhs_type);
+
+                return LLVMBuildStore(ctx -> builder, result, lhs);
+            }
+
             switch (node -> as.binary_op.op) {
                 case TOK_PLUS:
-                    return LLVMBuildAdd(ctx -> builder, lhs, rhs, "add");
-
                 case TOK_MINUS:
-                    return LLVMBuildSub(ctx -> builder, lhs, rhs, "sub");
-
                 case TOK_STAR:
-                    return LLVMBuildMul(ctx -> builder, lhs, rhs, "mul");
-
                 case TOK_SLASH:
-                    if (is_type_float(lhs_type) || is_type_float(rhs_type)) {
-                        return LLVMBuildFDiv(ctx -> builder, lhs, rhs, "");
-                    } else if (is_type_signed_int(lhs_type) || is_type_signed_int(rhs_type)) {
-                        return LLVMBuildSDiv(ctx -> builder, lhs, rhs, "");
-                    } else {
-                        return LLVMBuildUDiv(ctx -> builder, lhs, rhs, "");
-                    }
-
                 case TOK_PERCENT:
-                    if (is_type_float(lhs_type) || is_type_float(rhs_type)) {
-                        return LLVMBuildFRem(ctx -> builder, lhs, rhs, "");
-                    } else if (is_type_signed_int(lhs_type) || is_type_signed_int(rhs_type)) {
-                        return LLVMBuildSRem(ctx -> builder, lhs, rhs, "");
-                    } else {
-                        return LLVMBuildURem(ctx -> builder, lhs, rhs, "");
-                    }
-
                 case TOK_AMP:
-                    return LLVMBuildAnd(ctx -> builder, lhs, rhs, "");
-
                 case TOK_PIPE:
-                    return LLVMBuildOr(ctx -> builder, lhs, rhs, "");
-
                 case TOK_CARET:
-                    return LLVMBuildXor(ctx -> builder, lhs, rhs, "");
-
                 case TOK_SHL:
-                    return LLVMBuildShl(ctx -> builder, lhs, rhs, "");
-
                 case TOK_SHR:
-                    if (is_type_signed_int(lhs_type)) {
-                        return LLVMBuildAShr(ctx -> builder, lhs, rhs, "");
-                    } else {
-                        return LLVMBuildLShr(ctx -> builder, lhs, rhs, "");
-                    }
+                    return codegen_binary_arithmetic(ctx, op, lhs, rhs, lhs_type, rhs_type);
 
                 case TOK_EQ:
                     return LLVMBuildStore(ctx -> builder, rhs, lhs);
-
-                // TODO: other compound assignments
-                case TOK_PLUS_EQ: {
-                    LLVMTypeRef type = type_id_to_llvm(ctx, lhs_type);
-                    LLVMValueRef value = LLVMBuildLoad2(ctx -> builder, type, lhs, "");
-                    LLVMValueRef result = LLVMBuildAdd(ctx -> builder, value, LLVMConstInt(type, 1, 0), "");
-
-                    return LLVMBuildStore(ctx -> builder, result, lhs);
-                }
 
                 case TOK_EQ_EQ:
                     if (is_type_int(lhs_type)) {
@@ -834,6 +823,102 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
     }
 }
 
+static LLVMValueRef codegen_binary_arithmetic(
+    CodegenCtx* ctx,
+    TokenKind op,
+    LLVMValueRef lhs,
+    LLVMValueRef rhs,
+    TypeId lhs_type,
+    TypeId rhs_type
+) {
+    switch (op) {
+        case TOK_PLUS: {
+            if (is_type(lhs_type, TYPE_POINTER) && !is_type(rhs_type, TYPE_POINTER)) {
+                TypeEntry* entry = TYPE_ID_LOOKUP_REF(lhs_type);
+                LLVMTypeRef elem_type = type_id_to_llvm(ctx, entry -> as.pointer_type.base);
+
+                LLVMValueRef indices[1] = { rhs };
+                return LLVMBuildGEP2(ctx -> builder, elem_type, lhs, indices, 1, "");
+            }
+
+            if (is_type(rhs_type, TYPE_POINTER) && !is_type(lhs_type, TYPE_POINTER)) {
+                TypeEntry* entry = TYPE_ID_LOOKUP_REF(rhs_type);
+                LLVMTypeRef elem_type = type_id_to_llvm(ctx, entry -> as.pointer_type.base);
+
+                LLVMValueRef indices[1] = { lhs };
+                return LLVMBuildGEP2(ctx -> builder, elem_type, rhs, indices, 1, "");
+            }
+
+            return LLVMBuildAdd(ctx -> builder, lhs, rhs, "add");
+        }
+
+        case TOK_MINUS: {
+            if (is_type(lhs_type, TYPE_POINTER) && is_type(rhs_type, TYPE_POINTER)) {
+                LLVMTypeRef isize_type = type_id_to_llvm(ctx, driver.type_table.builtins.type_isize);
+
+                LLVMValueRef lhs_int = LLVMBuildPtrToInt(ctx -> builder, lhs, isize_type, "");
+                LLVMValueRef rhs_int = LLVMBuildPtrToInt(ctx -> builder, rhs, isize_type, "");
+
+                return LLVMBuildSub(ctx -> builder, lhs_int, rhs_int, "");
+            }
+
+            if (is_type(lhs_type, TYPE_POINTER) && !is_type(rhs_type, TYPE_POINTER)) {
+                TypeEntry* entry = TYPE_ID_LOOKUP_REF(lhs_type);
+                LLVMTypeRef elem_type = type_id_to_llvm(ctx, entry -> as.pointer_type.base);
+
+                LLVMValueRef neg_rhs = LLVMBuildNeg(ctx -> builder, rhs, "");
+                LLVMValueRef indices[1] = { neg_rhs };
+
+                return LLVMBuildGEP2(ctx -> builder, elem_type, lhs, indices, 1, "");
+            }
+
+            return LLVMBuildSub(ctx -> builder, lhs, rhs, "sub");
+        }
+
+        case TOK_STAR:
+            return LLVMBuildMul(ctx -> builder, lhs, rhs, "mul");
+
+        case TOK_SLASH:
+            if (is_type_float(lhs_type) || is_type_float(rhs_type)) {
+                return LLVMBuildFDiv(ctx -> builder, lhs, rhs, "");
+            } else if (is_type_signed_int(lhs_type) || is_type_signed_int(rhs_type)) {
+                return LLVMBuildSDiv(ctx -> builder, lhs, rhs, "");
+            } else {
+                return LLVMBuildUDiv(ctx -> builder, lhs, rhs, "");
+            }
+
+        case TOK_PERCENT:
+            if (is_type_float(lhs_type) || is_type_float(rhs_type)) {
+                return LLVMBuildFRem(ctx -> builder, lhs, rhs, "");
+            } else if (is_type_signed_int(lhs_type) || is_type_signed_int(rhs_type)) {
+                return LLVMBuildSRem(ctx -> builder, lhs, rhs, "");
+            } else {
+                return LLVMBuildURem(ctx -> builder, lhs, rhs, "");
+            }
+
+        case TOK_AMP:
+            return LLVMBuildAnd(ctx -> builder, lhs, rhs, "");
+
+        case TOK_PIPE:
+            return LLVMBuildOr(ctx -> builder, lhs, rhs, "");
+
+        case TOK_CARET:
+            return LLVMBuildXor(ctx -> builder, lhs, rhs, "");
+
+        case TOK_SHL:
+            return LLVMBuildShl(ctx -> builder, lhs, rhs, "");
+
+        case TOK_SHR:
+            if (is_type_signed_int(lhs_type)) {
+                return LLVMBuildAShr(ctx -> builder, lhs, rhs, "");
+            } else {
+                return LLVMBuildLShr(ctx -> builder, lhs, rhs, "");
+            }
+
+        default:
+            UNREACHABLE("codegen_binary_arith_op()");
+    }
+}
 
 static bool codegen_va_end(CodegenCtx* ctx) {
     u32 id = LLVMLookupIntrinsicID("llvm.va_end", 11);
@@ -967,4 +1052,41 @@ static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id) {
     ctx -> string_values[id] = value;
 
     return value;
+}
+
+static bool is_compound_assignment_op(TokenKind op) {
+    switch (op) {
+        case TOK_PLUS_EQ:
+        case TOK_MINUS_EQ:
+        case TOK_STAR_EQ:
+        case TOK_SLASH_EQ:
+        case TOK_PERCENT_EQ:
+        case TOK_AMP_EQ:
+        case TOK_PIPE_EQ:
+        case TOK_CARET_EQ:
+        case TOK_SHL_EQ:
+        case TOK_SHR_EQ:
+            return true;
+        
+        default:
+            return false;
+    }
+}
+
+static TokenKind get_compound_assignment_base_op(TokenKind op) {
+    switch (op) {
+        case TOK_PLUS_EQ:    return TOK_PLUS;
+        case TOK_MINUS_EQ:   return TOK_MINUS;
+        case TOK_STAR_EQ:    return TOK_STAR;
+        case TOK_SLASH_EQ:   return TOK_SLASH;
+        case TOK_PERCENT_EQ: return TOK_PERCENT;
+        case TOK_AMP_EQ:     return TOK_AMP;
+        case TOK_PIPE_EQ:    return TOK_PIPE;
+        case TOK_CARET_EQ:   return TOK_CARET;
+        case TOK_SHL_EQ:     return TOK_SHL;
+        case TOK_SHR_EQ:     return TOK_SHR;
+
+        default:
+            UNREACHABLE("get_compound_assignment_base_op()");
+    }
 }

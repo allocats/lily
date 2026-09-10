@@ -62,7 +62,7 @@ static BinaryOpKind binary_op_kind(TokenKind kind);
 static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_id);
 
 static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, AstNode* r, TokenKind op);
-static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
+static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TokenKind op, TypeId expected_type);
 static TypeId resolve_multiplicative(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
@@ -1403,7 +1403,7 @@ static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id,
             break;
 
         case BINARY_OP_ADDITIVE:
-            id = resolve_additive(scope_id, file_id, lhs, rhs, expected_type);
+            id = resolve_additive(scope_id, file_id, lhs, rhs, op, expected_type);
             break;
 
         case BINARY_OP_MULTIPLICATIVE:
@@ -2120,17 +2120,91 @@ static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, A
     }
 }
 
-static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
+static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TokenKind op, TypeId expected_type) {
     TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
-    
+
     if (lhs_type == TYPE_ID_NONE) {
         return TYPE_ID_NONE;
     }
 
-    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+    bool lhs_is_pointer = is_type(lhs_type, TYPE_POINTER);
+
+    TypeId rhs_expected_type = lhs_is_pointer ? driver.type_table.builtins.type_usize : lhs_type;
+
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, rhs_expected_type);
 
     if (rhs_type == TYPE_ID_NONE) {
         return TYPE_ID_NONE;
+    }
+
+    bool rhs_is_pointer = is_type(rhs_type, TYPE_POINTER);
+
+    // ptr + int -> ptr / ptr - int -> ptr
+    if (lhs_is_pointer && !rhs_is_pointer) {
+        if (can_type_offset_pointer(lhs_type, rhs_type)) {
+            return lhs_type;
+        }
+
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            rhs -> tokens,
+            "invalid operand for pointer arithmetic",
+            "pointer arithmetic requires an unsigned integer offset"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    // int + ptr -> ptr
+    if (rhs_is_pointer && !lhs_is_pointer) {
+        if (op != TOK_PLUS) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                lhs -> tokens,
+                "invalid operand for pointer arithmetic",
+                "cannot subtract a pointer from a non-pointer"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        if (can_type_offset_pointer(rhs_type, lhs_type)) {
+            return rhs_type;
+        }
+
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            lhs -> tokens,
+            "invalid operand for pointer arithmetic",
+            "pointer arithmetic requires an unsigned integer offset"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    // ptr - ptr -> isize
+    if (lhs_is_pointer && rhs_is_pointer) {
+        if (op != TOK_MINUS) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                rhs -> tokens,
+                "invalid operand for pointer arithmetic",
+                "cannot add two pointers together"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        if (!are_types_compatible(lhs_type, rhs_type)) {
+            diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
+            return TYPE_ID_NONE;
+        }
+
+        return driver.type_table.builtins.type_isize;
     }
 
     if (!are_types_compatible(lhs_type, rhs_type)) {
