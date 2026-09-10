@@ -106,7 +106,9 @@ void lex_file(FileId id) {
         cursor   = fn ? fn(file, cursor) : lex_invalid(file, cursor);
     }
 
-    file -> stage = FILE_LEXED;
+    if (file -> stage != FILE_ERROR) {
+        file -> stage = FILE_LEXED;
+    }
 
     if (delimiter_stack.top != 0) {
         u32 index = delimiter_stack.items[delimiter_stack.top - 1];
@@ -327,6 +329,27 @@ static const char* lex_operator(File* file, const char* cursor) {
                 break;
             }
 
+            if (*cursor == '+') {
+                cursor++;
+
+                token -> kind = TOK_ERROR;
+                token -> start  = start - file -> buffer.ptr;
+                token -> length = cursor - start;
+
+                diagnostic_add_token(
+                    file -> id,
+                    DIAG_ERROR,
+                    token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "invalid operator '++'",
+                    "use '+= 1' instead"
+                );
+
+                file -> stage = FILE_ERROR;
+
+                break;
+            }
+
             token -> kind = TOK_PLUS;
         } break;
 
@@ -334,6 +357,27 @@ static const char* lex_operator(File* file, const char* cursor) {
             if (*cursor == '=') {
                 token -> kind = TOK_MINUS_EQ;
                 cursor++;
+                break;
+            }
+
+            if (*cursor == '-') {
+                cursor++;
+
+                token -> kind = TOK_ERROR;
+                token -> start  = start - file -> buffer.ptr;
+                token -> length = cursor - start;
+
+                diagnostic_add_token(
+                    file -> id,
+                    DIAG_ERROR,
+                    token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "invalid operator '--'",
+                    "use '-= 1' instead"
+                );
+
+                file -> stage = FILE_ERROR;
+
                 break;
             }
 
