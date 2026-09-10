@@ -28,6 +28,8 @@ typedef struct {
     LLVMModuleRef module;
     LLVMBuilderRef builder;
 
+    LLVMValueRef fn;
+
     LLVMValueRef* symbol_values;
     LLVMValueRef* string_values;
 

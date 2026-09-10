@@ -34,7 +34,11 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id);
 static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node);
 static bool         codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol, bool* did_fn_return);
 
-static bool         codegen_variable_declaration(CodegenCtx* ctx, AstNode* node);
+static bool         codegen_block(CodegenCtx* ctx, AstNodeId id);
+
+static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node);
+static bool         codegen_for_loop(CodegenCtx* ctx, AstNode* node);
+static bool         codegen_while_loop(CodegenCtx* ctx, AstNode* node);
 static bool         codegen_return_statement(CodegenCtx* ctx, AstNode* node);
 
 static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id);
@@ -121,7 +125,12 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
 
     LLVMPassBuilderOptionsRef pb_options = LLVMCreatePassBuilderOptions();
 
-    LLVMErrorRef error = LLVMRunPasses(ctx -> module, "globaldce,dce,adce,default<O2>", target_machine, pb_options);
+    LLVMErrorRef error = LLVMRunPasses(
+        ctx -> module,
+        "globaldce,dce,adce,mem2reg,default<O2>",
+        target_machine,
+        pb_options
+    );
 
     if (error != null) {
         msg = LLVMGetErrorMessage(error);
@@ -230,6 +239,7 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
     assert(fn != null);
 
     ctx -> symbol_values[symbol_id] = fn;
+    ctx -> fn = fn;
 
     if (node -> flags & AST_FLAGS_IS_EXTERNAL || symbol -> flags & AST_FLAGS_IS_EXTERNAL) {
         return fn;
@@ -332,6 +342,14 @@ static bool codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol
                 codegen_variable_declaration(ctx, stmt);
             } break;
 
+            case AST_FOR_LOOP: {
+                codegen_for_loop(ctx, stmt);
+            } break;
+
+            case AST_WHILE_LOOP: {
+                codegen_while_loop(ctx, stmt);
+            } break;
+
             case AST_RETURN_STMT: {
                 codegen_return_statement(ctx, stmt);
                 *did_fn_return = true;
@@ -351,7 +369,46 @@ static bool codegen_function_body(CodegenCtx* ctx, AstNode* node, Symbol* symbol
     return true;
 }
 
-static bool codegen_variable_declaration(CodegenCtx* ctx, AstNode* node) {
+static bool codegen_block(CodegenCtx* ctx, AstNodeId id) {
+    AstNode* node = &ctx -> file -> ast.nodes[id];
+
+    u32 stmt_count = node -> as.block.statements.count;
+    
+    for (u32 i = 0; i < stmt_count; i++) {
+        AstNode* stmt = &ctx -> file -> ast.nodes[node -> as.block.statements.ids[i]];
+
+        switch (stmt -> kind) {
+            case AST_VARIABLE_DECL: {
+                codegen_variable_declaration(ctx, stmt);
+            } break;
+
+            case AST_FOR_LOOP: {
+                codegen_for_loop(ctx, stmt);
+            } break;
+
+            case AST_WHILE_LOOP: {
+                codegen_while_loop(ctx, stmt);
+            } break;
+
+            case AST_RETURN_STMT: {
+                codegen_return_statement(ctx, stmt);
+            } break;
+
+            case AST_UNARY_OP: 
+            case AST_BINARY_OP: 
+            case AST_FUNCTION_CALL: {
+                codegen_expression(ctx, stmt -> id);
+            } break;
+
+            default: {
+            } break;
+        }
+    }
+
+    return true;
+}
+
+static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node) {
     LLVMTypeRef type = type_id_to_llvm(ctx, node -> resolved_type);
     LLVMValueRef address = LLVMBuildAlloca(ctx -> builder, type, "");
     assert(address != null);
@@ -359,11 +416,71 @@ static bool codegen_variable_declaration(CodegenCtx* ctx, AstNode* node) {
     ctx -> symbol_values[node -> resolved_symbol] = address;
 
     if (node -> as.variable_decl.value_expr == AST_NODE_ID_NONE) {
-        return true;
+        return address;
     }
 
     LLVMValueRef value = codegen_expression(ctx, node -> as.variable_decl.value_expr);
     LLVMBuildStore(ctx -> builder, value, address);
+
+    return address;
+}
+
+static bool codegen_for_loop(CodegenCtx* ctx, AstNode* node) {
+    AstNode* init = &ctx -> file -> ast.nodes[node -> as.for_loop.init];
+
+    LLVMValueRef iterator = codegen_variable_declaration(ctx, init);
+    UNUSED(iterator);
+
+    LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef step_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef exit_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+
+    // Condition
+    LLVMBuildBr(ctx -> builder, cond_block);
+    LLVMPositionBuilderAtEnd(ctx -> builder, cond_block);
+
+    LLVMValueRef condition = codegen_expression(ctx, node -> as.for_loop.cond);
+    LLVMBuildCondBr(ctx -> builder, condition, body_block, exit_block);
+
+    // Body
+    LLVMPositionBuilderAtEnd(ctx -> builder, body_block);
+    codegen_block(ctx, node -> as.for_loop.block);
+    LLVMBuildBr(ctx -> builder, step_block);
+
+    // Step
+    LLVMPositionBuilderAtEnd(ctx -> builder, step_block);
+    LLVMValueRef step = codegen_expression(ctx, node -> as.for_loop.step);
+    LLVMBuildBr(ctx -> builder, cond_block);
+
+    UNUSED(step);
+
+    // Exit
+    LLVMPositionBuilderAtEnd(ctx -> builder, exit_block);
+
+    return true;
+}
+
+static bool codegen_while_loop(CodegenCtx* ctx, AstNode* node) {
+    LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef exit_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+
+    // Condition
+    LLVMBuildBr(ctx -> builder, cond_block);
+    LLVMPositionBuilderAtEnd(ctx -> builder, cond_block);
+
+    LLVMValueRef condition = codegen_expression(ctx, node -> as.while_loop.cond);
+    LLVMBuildCondBr(ctx -> builder, condition, body_block, exit_block);
+
+    // Body
+    LLVMPositionBuilderAtEnd(ctx -> builder, body_block);
+    codegen_block(ctx, node -> as.while_loop.block);
+    LLVMBuildBr(ctx -> builder, cond_block);
+
+    // Exit
+    LLVMPositionBuilderAtEnd(ctx -> builder, exit_block);
+
     return true;
 }
 
@@ -638,6 +755,7 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                 case TOK_EQ:
                     return LLVMBuildStore(ctx -> builder, rhs, lhs);
 
+                // TODO: other compound assignments
                 case TOK_PLUS_EQ: {
                     LLVMTypeRef type = type_id_to_llvm(ctx, lhs_type);
                     LLVMValueRef value = LLVMBuildLoad2(ctx -> builder, type, lhs, "");

@@ -13,6 +13,8 @@
 
 #define STR8_FMT(s) (s).len, (s).ptr
 
+#define UNUSED(n) ((void) n)
+
 #define UNREACHABLE(msg)                            \
     do {                                            \
         fprintf(stderr, "UNREACHABLE: %s\n", msg);  \
