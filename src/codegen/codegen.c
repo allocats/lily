@@ -1271,8 +1271,6 @@ static bool codegen_defers_until(CodegenCtx* ctx, DeferStack* boundary) {
             AstNodeId id = stack -> ids[i - 1];
             AstNode* node = &ctx -> file -> ast.nodes[id];
 
-            printf("until() Got ID = %u\n", id);
-
             CodegenResult result = codegen_statement(ctx, node);
 
             if (result == CODEGEN_ERROR) {
@@ -1304,8 +1302,6 @@ static bool codegen_block_defers(CodegenCtx* ctx) {
     for (u32 i = stack -> count; i > 0; i--) {
         AstNodeId id = stack -> ids[i - 1];
         AstNode* node = &ctx -> file -> ast.nodes[id];
-
-        printf("block() Got ID = %u\n", id);
 
         CodegenResult result = codegen_statement(ctx, node);
 
