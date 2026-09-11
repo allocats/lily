@@ -24,6 +24,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 extern DriverCtx driver;
@@ -41,6 +42,7 @@ static CodegenResult codegen_statement(CodegenCtx* ctx, AstNode* node);
 
 static LLVMValueRef  codegen_variable_declaration(CodegenCtx* ctx, AstNode* node);
 
+static CodegenResult codegen_if_statement(CodegenCtx* ctx, AstNode* node);
 static CodegenResult codegen_for_loop(CodegenCtx* ctx, AstNode* node);
 static CodegenResult codegen_while_loop(CodegenCtx* ctx, AstNode* node);
 static CodegenResult codegen_return_statement(CodegenCtx* ctx, AstNode* node);
@@ -48,6 +50,7 @@ static CodegenResult codegen_return_statement(CodegenCtx* ctx, AstNode* node);
 static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id);
 static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id);
 
+static LLVMValueRef codegen_binary_logical(CodegenCtx* ctx, AstNode* node);
 static LLVMValueRef codegen_binary_arithmetic(
     CodegenCtx* ctx,
     TokenKind op,
@@ -441,6 +444,9 @@ static CodegenResult codegen_statement(CodegenCtx* ctx, AstNode* node) {
         case AST_VARIABLE_DECL:
             return codegen_variable_declaration(ctx, node) != null ? CODEGEN_FALLTHROUGH : CODEGEN_ERROR;
 
+        case AST_IF_STMT:
+            return codegen_if_statement(ctx, node);
+
         case AST_FOR_LOOP:
             return codegen_for_loop(ctx, node);
 
@@ -505,6 +511,96 @@ static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node)
     LLVMBuildStore(ctx -> builder, value, address);
 
     return address;
+}
+
+static CodegenResult codegen_if_statement(CodegenCtx* ctx, AstNode* node) {
+    LLVMBasicBlockRef exit_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef else_block = null;
+    
+    if (node -> as.if_stmt.else_block != AST_NODE_ID_NONE) {
+        else_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    }
+
+    u32 branch_count = node -> as.if_stmt.branches.count;
+
+    LLVMBasicBlockRef* cond_blocks = calloc(branch_count, sizeof(LLVMBasicBlockRef));
+    LLVMBasicBlockRef* body_blocks = calloc(branch_count, sizeof(LLVMBasicBlockRef));
+
+    for (u32 i = 0; i < branch_count; i++) {
+        cond_blocks[i] = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+        body_blocks[i] = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    }
+
+    for (u32 i = 0; i < branch_count; i++) {
+        AstNodeId branch_id  = node -> as.if_stmt.branches.ids[i];
+        AstNode* branch_node = &ctx -> file -> ast.nodes[branch_id];
+
+        LLVMBasicBlockRef cond_block = cond_blocks[i];
+        LLVMBasicBlockRef body_block = body_blocks[i];
+
+        LLVMBuildBr(ctx -> builder, cond_block);
+        LLVMPositionBuilderAtEnd(ctx -> builder, cond_block);
+
+        LLVMValueRef condition = codegen_expression(ctx, branch_node -> as.branch.condition);
+
+        if (condition == null) {
+            free(cond_blocks);
+            free(body_blocks);
+
+            return CODEGEN_ERROR;
+        }
+
+        LLVMBasicBlockRef next_block = exit_block;
+
+        if (i < branch_count - 1) {
+            next_block = body_blocks[i + 1];
+        } else if (else_block != null) {
+            next_block = else_block;
+        }
+
+        LLVMBuildCondBr(ctx -> builder, condition, body_block, next_block);
+
+        // Body
+        LLVMPositionBuilderAtEnd(ctx -> builder, body_block);
+
+        CodegenResult result = codegen_block(ctx, branch_node -> as.branch.block);
+
+        if (result == CODEGEN_ERROR) {
+            free(cond_blocks);
+            free(body_blocks);
+
+            return CODEGEN_ERROR;
+        }
+
+        if (result == CODEGEN_FALLTHROUGH) {
+            LLVMBuildBr(ctx -> builder, exit_block);
+        }
+    }
+
+    if (else_block != null) {
+        LLVMPositionBuilderAtEnd(ctx -> builder, else_block);
+
+        CodegenResult result = codegen_block(ctx, node -> as.if_stmt.else_block);
+
+        if (result == CODEGEN_ERROR) {
+            free(cond_blocks);
+            free(body_blocks);
+
+            return CODEGEN_ERROR;
+        }
+
+        if (result == CODEGEN_FALLTHROUGH) {
+            LLVMBuildBr(ctx -> builder, exit_block);
+        }
+    }
+
+    // Exit
+    LLVMPositionBuilderAtEnd(ctx -> builder, exit_block);
+
+    free(cond_blocks);
+    free(body_blocks);
+
+    return CODEGEN_FALLTHROUGH;
 }
 
 static CodegenResult codegen_for_loop(CodegenCtx* ctx, AstNode* node) {
@@ -837,13 +933,18 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
         } break;
 
         case AST_BINARY_OP: {
+            TokenKind op = node -> as.binary_op.op;
+
+            if (op == TOK_AMP_AMP || op == TOK_PIPE_PIPE) {
+                return codegen_binary_logical(ctx, node);
+            }
+
             AstNode* lhs_node = &ctx -> file -> ast.nodes[node -> as.binary_op.left];
             AstNode* rhs_node = &ctx -> file -> ast.nodes[node -> as.binary_op.right];
 
             TypeId lhs_type = lhs_node -> resolved_type;
             TypeId rhs_type = rhs_node -> resolved_type;
 
-            TokenKind op = node -> as.binary_op.op;
             bool needs_lvalue = (op == TOK_EQ) || (is_compound_assignment_op(op));
 
             LLVMValueRef lhs;
@@ -948,13 +1049,63 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                 default:
                     UNREACHABLE("binary_op");
             }
-
-            // TODO: Logical, not sure about how this will link into blocks tho
         } break;
 
         default:
             UNREACHABLE("codegen_expression() not yet added")
     }
+}
+
+static LLVMValueRef codegen_binary_logical(CodegenCtx* ctx, AstNode* node) {
+    bool is_and = node -> as.binary_op.op == TOK_AMP_AMP;
+
+    LLVMValueRef lhs = codegen_expression(ctx, node -> as.binary_op.left);
+
+    if (lhs == null) {
+        return null;
+    }
+
+    // get where LHS ended because LHS itself could be nested blocks
+    LLVMBasicBlockRef lhs_exit_block = LLVMGetInsertBlock(ctx -> builder);
+
+    LLVMBasicBlockRef rhs_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+
+    if (is_and) {
+        LLVMBuildCondBr(ctx -> builder, lhs, rhs_block, merge_block);
+    } else {
+        LLVMBuildCondBr(ctx -> builder, lhs, merge_block, rhs_block);
+    }
+
+    LLVMPositionBuilderAtEnd(ctx -> builder, rhs_block);
+
+    LLVMValueRef rhs = codegen_expression(ctx, node -> as.binary_op.right);
+
+    if (rhs == null) {
+        return null;
+    }
+
+    // get where RHS ended because RHS itself could be nested blocks
+    LLVMBasicBlockRef rhs_exit_block = LLVMGetInsertBlock(ctx -> builder);
+
+    LLVMBuildBr(ctx -> builder, merge_block);
+    LLVMPositionBuilderAtEnd(ctx -> builder, merge_block);
+
+    LLVMTypeRef bool_type = LLVMInt1TypeInContext(ctx -> ctx);
+    LLVMValueRef phi = LLVMBuildPhi(ctx -> builder, bool_type, "");
+
+    // if it was AND and we came from LHS it means LHS failed, therefore false
+    // inverse for OR, if we came from LHS in an OR it means it was true and the
+    // LHS expression succeeded
+    LLVMValueRef short_circuit_value = LLVMConstInt(bool_type, is_and ? false : true, 0);
+
+    LLVMValueRef        incoming_values[2] = { short_circuit_value, rhs };
+    LLVMBasicBlockRef   incoming_blocks[2] = { lhs_exit_block, rhs_exit_block };
+
+    // THIS IS SO FREAKING COOL, i love programming PHI is really cool :3
+    LLVMAddIncoming(phi, incoming_values, incoming_blocks, 2);
+
+    return phi;
 }
 
 static LLVMValueRef codegen_binary_arithmetic(
