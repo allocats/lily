@@ -91,6 +91,8 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
                         driver -> flags |= DRIVER_FLAGS_DUMP_AST;
                     } else if (FLAG_MATCHES(arg_len, arg, "-dump-types")) {
                         driver -> flags |= DRIVER_FLAGS_DUMP_TYPES;
+                    } else if (FLAG_MATCHES(arg_len, arg, "-dump-symbols")) {
+                        driver -> flags |= DRIVER_FLAGS_DUMP_SYMBOLS;
                     } 
                 } break;
 

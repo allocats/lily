@@ -514,7 +514,7 @@ static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node)
 }
 
 static CodegenResult codegen_if_statement(CodegenCtx* ctx, AstNode* node) {
-    LLVMBasicBlockRef exit_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+    LLVMBasicBlockRef exit_block = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "if.exit");
     LLVMBasicBlockRef else_block = null;
     
     if (node -> as.if_stmt.else_block != AST_NODE_ID_NONE) {
@@ -527,9 +527,11 @@ static CodegenResult codegen_if_statement(CodegenCtx* ctx, AstNode* node) {
     LLVMBasicBlockRef* body_blocks = calloc(branch_count, sizeof(LLVMBasicBlockRef));
 
     for (u32 i = 0; i < branch_count; i++) {
-        cond_blocks[i] = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
-        body_blocks[i] = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "");
+        cond_blocks[i] = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "if.cond");
+        body_blocks[i] = LLVMAppendBasicBlockInContext(ctx -> ctx, ctx -> fn, "if.body");
     }
+
+    LLVMBuildBr(ctx -> builder, cond_blocks[0]);
 
     for (u32 i = 0; i < branch_count; i++) {
         AstNodeId branch_id  = node -> as.if_stmt.branches.ids[i];
@@ -538,7 +540,6 @@ static CodegenResult codegen_if_statement(CodegenCtx* ctx, AstNode* node) {
         LLVMBasicBlockRef cond_block = cond_blocks[i];
         LLVMBasicBlockRef body_block = body_blocks[i];
 
-        LLVMBuildBr(ctx -> builder, cond_block);
         LLVMPositionBuilderAtEnd(ctx -> builder, cond_block);
 
         LLVMValueRef condition = codegen_expression(ctx, branch_node -> as.branch.condition);
@@ -552,8 +553,8 @@ static CodegenResult codegen_if_statement(CodegenCtx* ctx, AstNode* node) {
 
         LLVMBasicBlockRef next_block = exit_block;
 
-        if (i < branch_count - 1) {
-            next_block = body_blocks[i + 1];
+        if (i + 1 < branch_count) {
+            next_block = cond_blocks[i + 1];
         } else if (else_block != null) {
             next_block = else_block;
         }
@@ -819,6 +820,22 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                     return codegen_function_signature(ctx, symbol_id);
                 } break;
 
+                case SYMBOL_VARIANT: {
+                    if (ctx -> symbol_values[symbol_id] != null) {
+                        return ctx -> symbol_values[symbol_id];
+                    }
+
+                    TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.variant_symbol.type_id);
+                    assert(entry -> kind == TYPE_ENUM);
+
+                    LLVMTypeRef type = type_id_to_llvm(ctx, entry -> as.enum_type.underlying_type);
+                    LLVMValueRef value = LLVMConstInt(type, symbol -> as.variant_symbol.value, 0);
+
+                    ctx -> symbol_values[symbol_id] = value;
+
+                    return value;
+                } break;
+
                 default:
                     UNREACHABLE("codegen_expression() | switch on symbol -> kind");
             }
@@ -887,6 +904,10 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
             return LLVMBuildCall2(ctx -> builder, fn_type, fn, args, arg_count, "");
         } break;
 
+        case AST_MEMBER_ACCESS: {
+            return codegen_expression(ctx, node -> as.member_access.member);
+        } break;
+
         case AST_UNARY_OP: {
             AstNodeId operand = node -> as.unary_op.operand;
 
@@ -944,6 +965,18 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
 
             TypeId lhs_type = lhs_node -> resolved_type;
             TypeId rhs_type = rhs_node -> resolved_type;
+
+            if (is_type(lhs_type, TYPE_ENUM)) {
+                TypeEntry* entry = TYPE_ID_LOOKUP_REF(lhs_type);
+
+                lhs_type = entry -> as.enum_type.underlying_type;
+            }
+
+            if (is_type(rhs_type, TYPE_ENUM)) {
+                TypeEntry* entry = TYPE_ID_LOOKUP_REF(rhs_type);
+
+                rhs_type = entry -> as.enum_type.underlying_type;
+            }
 
             bool needs_lvalue = (op == TOK_EQ) || (is_compound_assignment_op(op));
 

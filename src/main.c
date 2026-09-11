@@ -139,6 +139,10 @@ lily_done:
         print_type_table(&driver.type_table);
     }
 
+    if (driver.flags & DRIVER_FLAGS_DUMP_SYMBOLS) {
+        symbol_table_print("symbols.txt", &driver.symbol_table);
+    }
+
     bool has_errors = diagnostics_print();
 
     cli_print_compiler_stats(&frontend_timer, &backend_timer, &linker_timer);

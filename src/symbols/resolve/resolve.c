@@ -467,6 +467,7 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
         underlying_type_id = resolve_type_expr(file -> id, node -> as.enum_decl.type_expr);
 
         if (underlying_type_id == TYPE_ID_NONE) {
+            underlying_type_id = driver.type_table.builtins.type_i32;
             result = false;
         }
     } else {
