@@ -42,9 +42,9 @@ typedef struct ArenaBlock {
     u8 data[]; 
 } ArenaBlock;
 
-#define ARENA_KB(n) (n * 1024)
-#define ARENA_MB(n) (n * 1024 * 1024)
-#define ARENA_GB(n) (n * 1024 * 1024 * 1024)
+#define ARENA_KB(n) ((n) * 1024)
+#define ARENA_MB(n) ((n) * 1024 * 1024)
+#define ARENA_GB(n) ((n) * 1024 * 1024 * 1024)
 
 #define arena_alloc_array(arena, type, n) \
     arena_alloc(arena, sizeof(type) * (n))
@@ -96,6 +96,7 @@ void arena_init(Arena* arena, u64 default_capacity, Alignment arena_alignment) {
 
 void* arena_alloc(Arena* arena, u64 size) {
     assert(size != 0 && "Passed in 0 size request to arena_alloc(arena, size)\n");
+    assert(size < (U64_MAX / 2));
 
     u64 aligned_size = ARENA_ALIGN_UP(arena -> byte_alignment, size);
 
