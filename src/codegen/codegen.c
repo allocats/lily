@@ -12,6 +12,7 @@
 #include "types/entries/entries.h"
 #include "types/entries/types.h"
 #include "types/table/table.h"
+#include "utils/debug.h"
 #include "utils/macros.h"
 
 #include <llvm-c/Analysis.h>
@@ -82,20 +83,27 @@ void codegen() {
 
     u32 symbol_count = driver.symbol_table.symbol_count;
     u32 string_count = driver.string_interner.count;
+    u32 type_count = driver.type_table.entry_count;
 
     u32 symbol_size = symbol_count * sizeof(LLVMValueRef);
     u32 string_size = string_count * sizeof(LLVMValueRef);
+    u32 type_size = type_count * sizeof(LLVMTypeRef);
 
     arena_init(&ctx.map_arena, symbol_size + string_size, ALIGN_DEFAULT);
     arena_init(&ctx.scratch, ARENA_KB(2), ALIGN_DEFAULT);
     arena_init(&ctx.defer_list.arena, ARENA_KB(1), ALIGN_DEFAULT);
 
+    debug_printf("Init arena Map Arena (%p)", &ctx.map_arena);
+    debug_printf("Init arena Scratch Arena (%p)", &ctx.scratch);
+    debug_printf("Init arena Defer List Arena (%p)", &ctx.defer_list.arena);
+
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmParser();
     LLVMInitializeNativeAsmPrinter();
 
-    ctx.symbol_values = arena_calloc(&ctx.map_arena, symbol_size);
-    ctx.string_values = arena_calloc(&ctx.map_arena, string_size);
+    ctx.symbol_map = arena_calloc(&ctx.map_arena, symbol_size);
+    ctx.string_map = arena_calloc(&ctx.map_arena, string_size);
+    ctx.type_map = arena_calloc(&ctx.map_arena, type_size);
 
     u32 file_count = driver.file_interner.count;
 
@@ -103,10 +111,14 @@ void codegen() {
         codegen_file(&ctx, i);
 
         arena_reset(&ctx.scratch);
+        arena_reset(&ctx.defer_list.arena);
+
+        ctx.defer_list.stack = null;
 
         // reset to get rid of dangling pointers
-        arena_memset(ctx.symbol_values, 0, symbol_size);
-        arena_memset(ctx.string_values, 0, string_size);
+        arena_memset(ctx.symbol_map, 0, symbol_size);
+        arena_memset(ctx.string_map, 0, string_size);
+        arena_memset(ctx.type_map, 0, type_size);
     }
 
     arena_destroy(&ctx.scratch);
@@ -121,6 +133,9 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
     ctx -> module  = LLVMModuleCreateWithNameInContext(ctx -> file -> path.ptr, ctx -> ctx);
     ctx -> builder = LLVMCreateBuilderInContext(ctx -> ctx);
 
+    ctx -> defer_list.stack = null;
+    ctx -> loop_ctx = null;
+
     assert(ctx -> ctx != null);
     assert(ctx -> module != null);
     assert(ctx -> builder != null);
@@ -132,11 +147,14 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
 
     char* msg = null;
 
+#ifdef DEBUG_MODE
+    printf("Verifying module\n");
     if (LLVMVerifyModule(ctx -> module, LLVMReturnStatusAction, &msg) != 0) {
         diagnostic_add_generic(DIAG_ERROR, "LLVM: module verification failed: %s", msg);
         LLVMDisposeMessage(msg);
         goto cleanup;
     }
+#endif //DEBUG_MODE
 
     char* host_triple = LLVMGetDefaultTargetTriple();
     LLVMSetTarget(ctx -> module, host_triple);
@@ -163,7 +181,7 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
 
     LLVMErrorRef error = LLVMRunPasses(
         ctx -> module,
-        "globaldce,dce,adce,mem2reg,default<O2>",
+        "default<O2>",
         target_machine,
         pb_options
     );
@@ -212,13 +230,15 @@ static bool codegen_ast(CodegenCtx* ctx) {
             continue;
         } 
 
+        bool result = true;
+
         switch (node -> kind) {
             case AST_FUNCTION_DECL:
-                if (!codegen_function_declaration(ctx, node)) return false;
+                if (!codegen_function_declaration(ctx, node)) result = false;
                 break;
 
             case AST_VARIABLE_DECL:
-                if (!codegen_global_variable(ctx, node)) return false;
+                if (!codegen_global_variable(ctx, node)) result = false;
                 break;
 
             default:
@@ -226,6 +246,12 @@ static bool codegen_ast(CodegenCtx* ctx) {
         }
 
         arena_reset(&ctx -> defer_list.arena);
+
+        ctx -> defer_list.stack = null;
+
+        if (!result) {
+            return false;
+        }
     }
 
     if (driver.flags & DRIVER_FLAGS_EMIT_LLVM_IR) {
@@ -265,7 +291,7 @@ static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node) {
         LLVMSetLinkage(var, LLVMExternalLinkage);
     }
 
-    ctx -> symbol_values[node -> resolved_symbol] = var;
+    ctx -> symbol_map[node -> resolved_symbol] = var;
 
     return var;
 }
@@ -306,7 +332,7 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
     LLVMValueRef fn = codegen_function_signature(ctx, symbol_id);
     assert(fn != null);
 
-    ctx -> symbol_values[symbol_id] = fn;
+    ctx -> symbol_map[symbol_id] = fn;
     ctx -> fn = fn;
 
     ctx -> loop_ctx = null;
@@ -339,7 +365,7 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
 
         LLVMBuildStore(ctx -> builder, parameter, address);
 
-        ctx -> symbol_values[param_id] = address;
+        ctx -> symbol_map[param_id] = address;
     }
 
     if (is_variadic) {
@@ -496,7 +522,7 @@ static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node)
     LLVMValueRef address = LLVMBuildAlloca(ctx -> builder, type, "");
     assert(address != null);
 
-    ctx -> symbol_values[node -> resolved_symbol] = address;
+    ctx -> symbol_map[node -> resolved_symbol] = address;
 
     if (node -> as.variable_decl.value_expr == AST_NODE_ID_NONE) {
         return address;
@@ -756,7 +782,7 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
             switch (symbol -> kind) {
                 case SYMBOL_PARAMETER:
                 case SYMBOL_VARIABLE: {
-                    LLVMValueRef address = ctx -> symbol_values[symbol_id];
+                    LLVMValueRef address = ctx -> symbol_map[symbol_id];
                     assert(address != null);
 
                     return address;
@@ -791,7 +817,7 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
 
             switch (symbol -> kind) {
                 case SYMBOL_VARIABLE: {
-                    LLVMValueRef address = ctx -> symbol_values[symbol_id];
+                    LLVMValueRef address = ctx -> symbol_map[symbol_id];
                     assert(address != null);
 
                     LLVMTypeRef type = type_id_to_llvm(ctx, symbol -> as.variable_symbol.type_id);
@@ -804,7 +830,7 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                         return ctx -> va_ctx.ap;
                     }
 
-                    LLVMValueRef address = ctx -> symbol_values[symbol_id];
+                    LLVMValueRef address = ctx -> symbol_map[symbol_id];
                     assert(address != null);
 
                     LLVMTypeRef type = type_id_to_llvm(ctx, symbol -> as.parameter_symbol.type_id);
@@ -813,16 +839,20 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                 } break;
 
                 case SYMBOL_FUNCTION: {
-                    if (ctx -> symbol_values[symbol_id] != null) {
-                        return ctx -> symbol_values[symbol_id];
+                    if (ctx -> symbol_map[symbol_id] != null) {
+                        return ctx -> symbol_map[symbol_id];
                     }
 
-                    return codegen_function_signature(ctx, symbol_id);
+                    LLVMValueRef fn = codegen_function_signature(ctx, symbol_id);
+
+                    ctx -> symbol_map[symbol_id] = fn;
+
+                    return fn;
                 } break;
 
                 case SYMBOL_VARIANT: {
-                    if (ctx -> symbol_values[symbol_id] != null) {
-                        return ctx -> symbol_values[symbol_id];
+                    if (ctx -> symbol_map[symbol_id] != null) {
+                        return ctx -> symbol_map[symbol_id];
                     }
 
                     TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.variant_symbol.type_id);
@@ -831,7 +861,7 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                     LLVMTypeRef type = type_id_to_llvm(ctx, entry -> as.enum_type.underlying_type);
                     LLVMValueRef value = LLVMConstInt(type, symbol -> as.variant_symbol.value, 0);
 
-                    ctx -> symbol_values[symbol_id] = value;
+                    ctx -> symbol_map[symbol_id] = value;
 
                     return value;
                 } break;
@@ -1003,6 +1033,14 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                 LLVMValueRef result = codegen_binary_arithmetic(ctx, base_op, current, rhs, lhs_type, rhs_type);
 
                 return LLVMBuildStore(ctx -> builder, result, lhs);
+            }
+
+            if (!is_type(lhs_type, TYPE_POINTER) && !is_type(rhs_type, TYPE_POINTER)) {
+                if (lhs_type > rhs_type) {
+                    rhs = LLVMBuildZExt(ctx -> builder, rhs, type_id_to_llvm(ctx, lhs_type), "");
+                } else if (lhs_type < rhs_type) {
+                    lhs = LLVMBuildZExt(ctx -> builder, lhs, type_id_to_llvm(ctx, rhs_type), "");
+                }
             }
 
             switch (node -> as.binary_op.op) {
@@ -1327,6 +1365,10 @@ static LLVMTypeRef struct_to_llvm(CodegenCtx* ctx, TypeEntry* entry) {
 }
 
 static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
+    if (ctx -> type_map[id] != null) {
+        return ctx -> type_map[id];
+    }
+
     TypeEntry* entry = TYPE_ID_LOOKUP_REF(id);
 
     switch (entry -> kind) {
@@ -1349,8 +1391,8 @@ static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
 }
 
 static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id) {
-    if (ctx -> string_values[id] != null) {
-        return ctx -> string_values[id];
+    if (ctx -> string_map[id] != null) {
+        return ctx -> string_map[id];
     }
 
     StringEntry entry = STRING_ID_LOOKUP(id);
@@ -1367,7 +1409,7 @@ static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id) {
 
     LLVMValueRef value = LLVMBuildGlobalString(ctx -> builder, copy, name);
 
-    ctx -> string_values[id] = value;
+    ctx -> string_map[id] = value;
 
     return value;
 }
@@ -1411,10 +1453,10 @@ static TokenKind get_compound_assignment_base_op(TokenKind op) {
 
 static void defer_stack_enter(CodegenCtx* ctx) {
     DeferStack* current_stack = ctx -> defer_list.stack;
-    DeferStack* new_stack = arena_alloc(&ctx -> defer_list.arena, sizeof(DeferStack));
+    DeferStack* new_stack = arena_calloc(&ctx -> defer_list.arena, sizeof(DeferStack));
 
     new_stack -> previous = current_stack;
-    new_stack -> ids = arena_alloc(&ctx -> defer_list.arena, sizeof(AstNodeId) * defer_stack_init_cap);
+    new_stack -> ids = arena_calloc(&ctx -> defer_list.arena, sizeof(AstNodeId) * defer_stack_init_cap);
     new_stack -> count = 0;
     new_stack -> capacity = defer_stack_init_cap;
 

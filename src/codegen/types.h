@@ -67,8 +67,9 @@ typedef struct {
     LoopCtx* loop_ctx;
     DeferList defer_list;
 
-    LLVMValueRef* symbol_values;
-    LLVMValueRef* string_values;
+    LLVMValueRef* symbol_map;
+    LLVMValueRef* string_map;
+    LLVMTypeRef*  type_map;
 
     VaListCtx va_ctx;
 } CodegenCtx;

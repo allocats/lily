@@ -1,6 +1,7 @@
 .cache/
 .build/
 build/
+tests/
 
 compile_commands.json
 

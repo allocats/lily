@@ -69,6 +69,8 @@ static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, A
 static TypeId resolve_comparison(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type);
 
+static bool is_literal_polymorphic(AstNode* node);
+
 static u32 get_arg_count(u32 params, u32 args, bool is_variadic);
 
 inline void resolve_symbols(void) {
@@ -704,17 +706,19 @@ static bool resolve_block(Resolver* r, AstNodeId id) {
                 result = resolve_return_stmt(r, stmt_node);
                 break;
 
-            case AST_FOR_LOOP:
+            case AST_FOR_LOOP: {
+                bool prev_ctx = r -> in_loop_ctx;
                 r -> in_loop_ctx = true;
                 result = resolve_for_loop(r, stmt_node);
-                r -> in_loop_ctx = false;
-                break;
+                r -> in_loop_ctx = prev_ctx;
+            } break;
 
-            case AST_WHILE_LOOP:
+            case AST_WHILE_LOOP: {
+                bool prev_ctx = r -> in_loop_ctx;
                 r -> in_loop_ctx = true;
                 result = resolve_while_loop(r, stmt_node);
-                r -> in_loop_ctx = false;
-                break;
+                r -> in_loop_ctx = prev_ctx;
+            } break;
 
             case AST_IF_STMT:
                 result = resolve_if_stmt(r, stmt_node);
@@ -2122,22 +2126,47 @@ static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, A
 }
 
 static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TokenKind op, TypeId expected_type) {
-    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+    bool is_lhs_literal = is_literal_polymorphic(lhs);;
+    bool is_rhs_literal = is_literal_polymorphic(rhs);;
 
-    if (lhs_type == TYPE_ID_NONE) {
-        return TYPE_ID_NONE;
+    TypeId lhs_type = TYPE_ID_NONE;
+    TypeId rhs_type = TYPE_ID_NONE;
+
+    if (is_lhs_literal&& !is_rhs_literal) {
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, expected_type);
+
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        bool rhs_is_pointer = is_type(rhs_type, TYPE_POINTER);
+
+        TypeId lhs_expected_type = rhs_is_pointer ? driver.type_table.builtins.type_usize : rhs_type;
+
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, lhs_expected_type);
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+    } else {
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        bool lhs_is_pointer = is_type(lhs_type, TYPE_POINTER);
+
+        TypeId rhs_expected_type = lhs_is_pointer ? driver.type_table.builtins.type_usize : lhs_type;
+
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, rhs_expected_type);
+
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
     }
 
     bool lhs_is_pointer = is_type(lhs_type, TYPE_POINTER);
-
-    TypeId rhs_expected_type = lhs_is_pointer ? driver.type_table.builtins.type_usize : lhs_type;
-
-    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, rhs_expected_type);
-
-    if (rhs_type == TYPE_ID_NONE) {
-        return TYPE_ID_NONE;
-    }
-
     bool rhs_is_pointer = is_type(rhs_type, TYPE_POINTER);
 
     // ptr + int -> ptr / ptr - int -> ptr
@@ -2222,16 +2251,42 @@ static TypeId resolve_additive(ScopeId scope_id, FileId file_id, AstNode* lhs, A
 }
 
 static TypeId resolve_multiplicative(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
-    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
-    
-    if (lhs_type == TYPE_ID_NONE) {
-        return TYPE_ID_NONE;
-    }
+    bool is_lhs_literal = is_literal_polymorphic(lhs);
+    bool is_rhs_literal = is_literal_polymorphic(rhs);
 
-    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+    TypeId lhs_type = TYPE_ID_NONE;
+    TypeId rhs_type = TYPE_ID_NONE;
 
-    if (rhs_type == TYPE_ID_NONE) {
-        return TYPE_ID_NONE;
+    TypeId result = TYPE_ID_NONE;
+
+    if (is_lhs_literal && !is_rhs_literal) {
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, expected_type); 
+
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, rhs_type); 
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        result = rhs_type;
+    } else {
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type); 
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type); 
+
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        result = lhs_type;
     }
 
     if (!are_types_compatible(lhs_type, rhs_type)) {
@@ -2244,52 +2299,111 @@ static TypeId resolve_multiplicative(ScopeId scope_id, FileId file_id, AstNode* 
         return TYPE_ID_NONE;
     }
 
-    return lhs_type;
+    return result;
 }
 
 static TypeId resolve_bitwise(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
-    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+    bool is_lhs_literal = is_literal_polymorphic(lhs); 
+    bool is_rhs_literal = is_literal_polymorphic(rhs); 
 
-    if (lhs_type == TYPE_ID_NONE) {
-        return TYPE_ID_NONE;
-    }
+    TypeId lhs_type = TYPE_ID_NONE;
+    TypeId rhs_type = TYPE_ID_NONE;
 
-    if (!is_type_int(lhs_type)) {
-        diagnostic_add_token_span(
-            file_id,
-            DIAG_ERROR,
-            lhs -> tokens,
-            "invalid bitwise target",
-            "bitwise operations can only be performed on integers"
-        );
+    TypeId result = TYPE_ID_NONE;
 
-        return TYPE_ID_NONE;
-    }
+    if (is_lhs_literal && !is_rhs_literal) {
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, expected_type);
 
-    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, TYPE_ID_NONE);
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
 
-    if (rhs_type == TYPE_ID_NONE) {
-        return TYPE_ID_NONE;
-    }
-    
-    if (!is_type_int(rhs_type)) {
-        if (can_type_cast_to(lhs_type, rhs_type)) {
-            // check this
-            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
-        } else {
+        if (!is_type_int(rhs_type)) {
             diagnostic_add_token_span(
                 file_id,
                 DIAG_ERROR,
                 rhs -> tokens,
+                "invalid bitwise target",
+                "bitwise operations can only be performed on integers"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, rhs_type);
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        if (!is_type_int(lhs_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                lhs -> tokens,
                 "invalid bitwise value",
                 "bitwise operations requires an integer"
             );
+
+            return TYPE_ID_NONE;
+        }
+
+        result = rhs_type;
+    } else {
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        if (!is_type_int(lhs_type)) {
+            diagnostic_add_token_span(
+                file_id,
+                DIAG_ERROR,
+                lhs -> tokens,
+                "invalid bitwise target",
+                "bitwise operations can only be performed on integers"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        if (!is_type_int(rhs_type)) {
+            if (can_type_cast_to(lhs_type, rhs_type)) {
+                diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
+            } else {
+                diagnostic_add_token_span(
+                    file_id,
+                    DIAG_ERROR,
+                    rhs -> tokens,
+                    "invalid bitwise value",
+                    "bitwise operations requires an integer"
+                );
+            }
+
+            return TYPE_ID_NONE;
+        }
+
+        result = lhs_type;
+    }
+
+    if (!are_types_compatible(lhs_type, rhs_type)) {
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
+        } else {
+            diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
         }
 
         return TYPE_ID_NONE;
     }
 
-    return lhs_type;
+    return result;
 }
 
 static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
@@ -2311,7 +2425,7 @@ static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, A
         return TYPE_ID_NONE;
     }
 
-    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, TYPE_ID_NONE);
+    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
 
     if (rhs_type == TYPE_ID_NONE) {
         return TYPE_ID_NONE;
@@ -2319,7 +2433,6 @@ static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, A
     
     if (!is_type_int(rhs_type)) {
         if (can_type_cast_to(lhs_type, rhs_type)) {
-            // check this
             diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
         } else {
             diagnostic_add_token_span(
@@ -2334,29 +2447,70 @@ static TypeId resolve_bitshift(ScopeId scope_id, FileId file_id, AstNode* lhs, A
         return TYPE_ID_NONE;
     }
 
+    if (!are_types_compatible(lhs_type, rhs_type)) {
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
+        } else {
+            diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
+        }
+
+        return TYPE_ID_NONE;
+    }
+
     return lhs_type;
 }
 
 static TypeId resolve_comparison(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
-    TypeId lhs_type = resolve_expression(scope_id, file_id, lhs -> id, expected_type);
-    
-    if (lhs_type == TYPE_ID_NONE) {
+    TypeId bool_id = driver.type_table.builtins.type_bool;
+
+    bool is_lhs_literal = is_literal_polymorphic(lhs);
+    bool is_rhs_literal = is_literal_polymorphic(rhs);
+
+    TypeId lhs_type = TYPE_ID_NONE;
+    TypeId rhs_type = TYPE_ID_NONE;
+
+    if (is_lhs_literal && !is_rhs_literal) {
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, TYPE_ID_NONE);
+
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, rhs_type);
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+    } else {
+        lhs_type = resolve_expression(scope_id, file_id, lhs -> id, TYPE_ID_NONE);
+
+        if (lhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
+
+        if (rhs_type == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+    }
+
+    if (!are_types_compatible(lhs_type, rhs_type)) {
+        if (can_type_cast_to(lhs_type, rhs_type)) {
+            diagnostic_add_try_cast_to(file_id, rhs -> id, lhs_type, rhs_type);
+        } else {
+            diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
+        }
+
         return TYPE_ID_NONE;
     }
 
-    TypeId rhs_type = resolve_expression(scope_id, file_id, rhs -> id, lhs_type);
-
-    if (rhs_type == TYPE_ID_NONE) {
+    if (expected_type != TYPE_ID_NONE && !are_types_compatible(expected_type, bool_id)) {
+        diagnostic_add_mismatched_types(file_id, rhs -> id, expected_type, bool_id);
         return TYPE_ID_NONE;
     }
 
-    if (are_types_compatible(lhs_type, rhs_type)) {
-        return driver.type_table.builtins.type_bool;
-    }
-
-    diagnostic_add_mismatched_types(file_id, rhs -> id, lhs_type, rhs_type);
-
-    return TYPE_ID_NONE;
+    return bool_id;
 }
 
 static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, AstNode* rhs, TypeId expected_type) {
@@ -2399,6 +2553,22 @@ static TypeId resolve_logical(ScopeId scope_id, FileId file_id, AstNode* lhs, As
     }
 
     return bool_id;
+}
+
+static bool is_literal_polymorphic(AstNode* node) {
+    if (node -> kind != AST_LITERAL) {
+        return false;
+    }
+
+    switch (node -> as.literal.kind) {
+        case LITERAL_INTEGER:
+        case LITERAL_FLOAT:
+        case LITERAL_NULL:
+            return true;
+
+        default:
+            return false;
+    }
 }
 
 static u32 get_arg_count(u32 params, u32 args, bool is_variadic) {

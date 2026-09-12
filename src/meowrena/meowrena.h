@@ -112,13 +112,26 @@ void* arena_alloc(Arena* arena, u64 size) {
     assert(block -> used <= block -> capacity);
 
     if (aligned_size > block -> capacity - block -> used) {
-        ArenaBlock* new_block = __arena_new_block(arena, aligned_size);
+        ArenaBlock* current = block -> next;
 
-        arena -> end = new_block;
-        arena -> current = new_block;
+        while (current != null) {
+            if (aligned_size <= current -> capacity - current -> used) {
+                block = current;
+                arena -> current = current;
+                break;
+            }
 
-        block -> next = new_block;
-        block = new_block;
+            current = current -> next;
+        }
+
+        if (current == null) {
+            ArenaBlock* new_block = __arena_new_block(arena, aligned_size);
+
+            arena -> end -> next = new_block;
+            arena -> current = new_block;
+
+            block = new_block;
+        }
     }
 
     void* ptr = (u8*) block -> data + block -> used; 
@@ -233,14 +246,14 @@ u64 arena_total_capacity(Arena* arena) {
 // Internal
 
 static ArenaBlock* __arena_new_block(Arena* arena, u64 size) {
-    u64 capacity = arena -> total_capacity > arena -> default_capacity 
-                 ? arena -> total_capacity 
-                 : arena -> default_capacity;
+    u64 capacity = arena -> default_capacity;
 
     while (size > capacity) capacity *= 2;
 
     u64 aligned_capacity = ARENA_ALIGN_UP(arena -> byte_alignment, capacity);
     u64 total_size       = ARENA_ALIGN_UP(arena -> byte_alignment, sizeof(ArenaBlock) + aligned_capacity);
+
+    debug_printf("new_block() requesting %zu bytes, %p", total_size, arena);
 
     ArenaBlock* block = (ArenaBlock*) aligned_alloc(arena -> byte_alignment, total_size);
     assert(block != null && "aligned_alloc() failed! Buy more ram silly :3!\n");

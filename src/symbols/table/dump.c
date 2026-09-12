@@ -44,8 +44,6 @@ static void symbol_print_string_id(FILE *out, char *label, StringId id) {
     fprintf(out, "\n");
 }
 
-// NOTE: `flags` on Symbol is documented as copied verbatim from AstNode's
-// flags field, so we decode it with the same AST_FLAGS_* bits.
 static void symbol_print_flags(FILE *out, u16 flags) {
     fprintf(out, "flags:          0x%04x", (unsigned)flags);
 
@@ -97,11 +95,7 @@ static void symbol_print_header(FILE *out, Symbol *symbol, u32 index) {
     fprintf(out, "│ id:             %u\n", (u32)symbol -> id);
     fprintf(out, "│ kind:           %u (%s)\n", (u32)symbol -> kind, kind_name);
     fprintf(out, "│ sizeof(symbol): %zu\n", sizeof(*symbol));
-
-    // ResolveState's named values live in resolver_stack/types.h, which
-    // wasn't available when this was generated, so it's printed raw here.
     fprintf(out, "│ state:          %u (ResolveState, raw)\n", (u32)symbol -> state);
-
     fprintf(out, "│ ");
     symbol_print_flags(out, symbol -> flags);
 
