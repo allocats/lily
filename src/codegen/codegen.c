@@ -89,7 +89,7 @@ void codegen() {
     u32 string_size = string_count * sizeof(LLVMValueRef);
     u32 type_size = type_count * sizeof(LLVMTypeRef);
 
-    arena_init(&ctx.map_arena, symbol_size + string_size, ALIGN_DEFAULT);
+    arena_init(&ctx.map_arena, symbol_size + string_size + type_size, ALIGN_DEFAULT);
     arena_init(&ctx.scratch, ARENA_KB(2), ALIGN_DEFAULT);
     arena_init(&ctx.defer_list.arena, ARENA_KB(1), ALIGN_DEFAULT);
 

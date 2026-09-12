@@ -128,6 +128,7 @@ void* arena_alloc(Arena* arena, u64 size) {
             ArenaBlock* new_block = __arena_new_block(arena, aligned_size);
 
             arena -> end -> next = new_block;
+            arena -> end = new_block;
             arena -> current = new_block;
 
             block = new_block;
