@@ -13,6 +13,16 @@ u32 types_hash_pointer(TypeId base) {
     return hash;
 }
 
+u32 types_hash_array(TypeId base, u64 size) {
+    u32 hash = 0xFFFFFFFF;
+
+    hash = hash_crc32_u32_with_u32_base(hash, TYPE_ARRAY);
+    hash = hash_crc32_u32_with_u32_base(hash, base);
+    hash = hash_crc32_u32_with_u32_base(hash, size);
+
+    return hash;
+}
+
 u32 types_hash_slice(TypeId base) {
     u32 hash = 0xFFFFFFFF;
 

@@ -1,0 +1,147 @@
+#include "ast/nodes/types.h"
+#include "driver/types.h"
+#include "token/types.h"
+#include "utils/macros.h"
+#include "vm/types.h"
+#include "vm/vm.h"
+
+extern DriverCtx driver;
+
+static const VmOpCode operator_op_code_lut[TOKEN_KIND_COUNT] = {
+    [TOK_PLUS]      = OP_ADD,
+    [TOK_MINUS]     = OP_SUB,
+    [TOK_STAR]      = OP_MUL,
+    [TOK_SLASH]     = OP_DIV,
+    [TOK_PERCENT]   = OP_MOD,
+
+    [TOK_EQ_EQ]     = OP_EQ,
+    [TOK_BANG_EQ]   = OP_NEQ,
+    [TOK_LT]        = OP_LT,
+    [TOK_LT_EQ]     = OP_LTE,
+    [TOK_GT]        = OP_GT,
+    [TOK_GT_EQ]     = OP_GTE,
+};;
+
+static bool compile_expr(VirtualMachine* vm, VmChunk* chunk, File* file, AstNodeId id);
+static bool compile_binary_op(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
+static bool compile_unary_op(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
+static bool compile_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
+
+static void emit_u16_operand(VirtualMachine* vm, VmChunk* chunk, u16 value, AstNodeId node_id) {
+    vm_emit_u16(vm, chunk, (u8)(value >> 8), (u8)(value & 0xFF), node_id);
+}
+
+VmResult evaluate_const_expr(File* file, AstNodeId id) {
+    VmChunk chunk = {0};
+
+    vm_chunk_init(&driver.vm, &chunk);
+
+    if (!compile_expr(&driver.vm, &chunk, file, id)) {
+        return vm_error(VM_ERR_NOT_CONST_EVALUABLE);
+    }
+
+    vm_emit_u8(&driver.vm, &chunk, OP_RETURN, id);
+
+    if (!vm_push_frame(&driver.vm, &chunk)) {
+        return vm_error(VM_ERR_STACK_OVERFLOW);
+    }
+
+    return vm_run(&driver.vm);
+}
+
+static bool compile_expr(VirtualMachine* vm, VmChunk* chunk, File* file, AstNodeId id) {
+    AstNode* node = &file -> ast.nodes[id];
+
+    switch (node -> kind) {
+        case AST_BINARY_OP:
+            return compile_binary_op(vm, chunk, file, node);
+
+        case AST_UNARY_OP:
+            return compile_unary_op(vm, chunk, file, node);
+
+        case AST_LITERAL:
+            return compile_literal(vm, chunk, file, node);
+
+        // TODO: a lot. need identifiers, calls etc. need a globals map as well
+
+        default:
+            return false;
+    }
+}
+
+static bool compile_binary_op(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node) {
+    if (!compile_expr(vm, chunk, file, node -> as.binary_op.left)) {
+        return false;
+    }
+
+    if (!compile_expr(vm, chunk, file, node -> as.binary_op.right)) {
+        return false;
+    }
+
+    VmOpCode op = operator_op_code_lut[node -> as.binary_op.op];
+
+    if (op == OP_INVALID) {
+        return false;
+    }
+
+    vm_emit_u8(vm, chunk, op, node -> id);
+
+    return true;
+}
+
+static bool compile_unary_op(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node) {
+    if (!compile_expr(vm, chunk, file, node -> as.unary_op.operand)) {
+        return false;
+    }
+
+    switch (node -> as.unary_op.op) {
+        case TOK_MINUS: 
+            vm_emit_u8(vm, chunk, OP_NEG, node -> id); 
+            return true;
+
+        case TOK_BANG:  
+            vm_emit_u8(vm, chunk, OP_NOT, node -> id); 
+            return true;
+
+        default:        
+            return false;
+    }
+}
+
+static bool compile_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node) {
+    UNUSED(file);
+
+    AstLiteral* literal = &node -> as.literal;
+    VmValue value;
+
+    switch (literal-> kind) {
+        // TODO: switch on the literal's type
+        case LITERAL_INTEGER:
+            value = (VmValue){ .kind = VM_VALUE_I64, .as.i64 = literal-> as.integer };
+            break;
+
+        case LITERAL_FLOAT:
+            value = (VmValue){ .kind = VM_VALUE_F64, .as.f64 = literal-> as.floating };
+            break;
+
+        case LITERAL_BOOL:
+            value = (VmValue){ .kind = VM_VALUE_BOOL, .as.boolean = literal-> as.boolean };
+            break;
+
+        case LITERAL_CHAR:
+            value = (VmValue){ .kind = VM_VALUE_CHAR, .as.character = (char) literal-> as.character };
+            break;
+
+        // TODO: strings & pointers
+        default:
+            return false;
+    }
+
+    u16 index = vm_chunk_add_constant(vm, chunk, value);
+
+    vm_emit_u8(vm, chunk, OP_PUSH_CONST, node -> id);
+
+    emit_u16_operand(vm, chunk, index, node -> id);
+
+    return true;
+}

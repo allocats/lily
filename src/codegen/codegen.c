@@ -799,6 +799,33 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
             }
         } break;
 
+        case AST_INDEX: {
+            AstNode* object_node = &ctx -> file -> ast.nodes[node -> as.index.object];
+
+            LLVMValueRef user_index = codegen_expression(ctx, node -> as.index.index_expr); 
+
+            if (is_type(object_node -> resolved_type, TYPE_POINTER)) {
+                TypeEntry* entry = TYPE_ID_LOOKUP_REF(object_node -> resolved_type);
+
+                LLVMTypeRef element_type = type_id_to_llvm(ctx, entry -> as.pointer_type.base);
+
+                LLVMValueRef indices[] = { user_index };
+
+                LLVMValueRef object = codegen_expression(ctx, node -> as.index.object);
+
+                return LLVMBuildGEP2(ctx -> builder, element_type, object, indices, 1, "");
+            }
+
+            LLVMTypeRef array_type = type_id_to_llvm(ctx, object_node -> resolved_type); 
+
+            LLVMValueRef zero_index = LLVMConstInt(LLVMInt64TypeInContext(ctx -> ctx), 0, 0); 
+            LLVMValueRef indices[] = { zero_index, user_index };
+
+            LLVMValueRef object = codegen_lvalue(ctx, node -> as.index.object);
+
+            return LLVMBuildGEP2(ctx -> builder, array_type, object, indices, 2, ""); 
+        } break;
+
         default:
             break;
     }
@@ -936,6 +963,12 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
 
         case AST_MEMBER_ACCESS: {
             return codegen_expression(ctx, node -> as.member_access.member);
+        } break;
+
+        case AST_INDEX: {
+            LLVMValueRef address = codegen_lvalue(ctx, id);
+            LLVMTypeRef element_type = type_id_to_llvm(ctx, node -> resolved_type);
+            return LLVMBuildLoad2(ctx -> builder, element_type, address, ""); 
         } break;
 
         case AST_UNARY_OP: {
@@ -1364,6 +1397,11 @@ static LLVMTypeRef struct_to_llvm(CodegenCtx* ctx, TypeEntry* entry) {
     return LLVMStructTypeInContext(ctx -> ctx, field_types, field_count, false);
 }
 
+static LLVMTypeRef array_to_llvm(CodegenCtx* ctx, TypeEntry* entry) {
+    LLVMTypeRef element_type = type_id_to_llvm(ctx, entry -> as.array_type.element);
+    return LLVMArrayType2(element_type, entry -> as.array_type.size); 
+}
+
 static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
     if (ctx -> type_map[id] != null) {
         return ctx -> type_map[id];
@@ -1376,7 +1414,6 @@ static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
             return base_to_llvm(ctx, id, entry);
 
         case TYPE_POINTER:
-            // return LLVMPointerTypeInContext(ctx -> ctx, 0);
             return LLVMPointerType(type_id_to_llvm(ctx, entry -> as.pointer_type.base), 0);
 
         case TYPE_STRUCT:
@@ -1384,6 +1421,9 @@ static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
 
         case TYPE_ENUM:
             return type_id_to_llvm(ctx, entry -> as.enum_type.underlying_type);
+
+        case TYPE_ARRAY:
+            return array_to_llvm(ctx, entry);
 
         default:
             UNREACHABLE("type_id_to_llvm()");

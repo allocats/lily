@@ -58,11 +58,12 @@ typedef struct {
 
         struct {
             TypeId element;
-            u32 size;
+            u64 size;
         } array_type;
 
         struct {
             TypeId element;
+            u64 size;
         } slice_type;
 
         struct {

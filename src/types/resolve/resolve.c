@@ -3,6 +3,7 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
+#include "interpreter/interpreter.h"
 #include "symbols/resolve/resolve.h"
 #include "symbols/symbols/symbols.h"
 #include "symbols/table/table.h"
@@ -13,6 +14,7 @@
 #include "utils/macros.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 extern DriverCtx driver;
 
@@ -65,7 +67,23 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
             if (node -> as.type_array.size_expr == AST_NODE_ID_NONE) {
                 id = type_table_intern_slice(element);
             } else {
-                // TODO: compile time interperter & intern array;
+                VmResult result = evaluate_const_expr(file, node -> as.type_array.size_expr);
+
+                if (result.kind != VM_OK) {
+                    AstNode* size_expr_node = &file -> ast.nodes[node -> as.type_array.size_expr];
+
+                    diagnostic_add_token_span(
+                        file_id,
+                        DIAG_ERROR,
+                        size_expr_node -> tokens,
+                        "array size is not constant evaluable",
+                        "array sizes must be known at compile time"
+                    );
+
+                    id = TYPE_ID_NONE;
+                } else {
+                    id = type_table_intern_array(element, result.value.as.i64);
+                }
             }
             break;
 

@@ -4,6 +4,7 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
+#include "interpreter/interpreter.h"
 #include "resolver_stack/stack.h"
 #include "resolver_stack/types.h"
 #include "string_interner/interner.h"
@@ -21,6 +22,7 @@
 #include "types/table/table.h"
 #include "utils/macros.h"
 #include "utils/types.h"
+#include "vm/types.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -336,9 +338,25 @@ static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId ty
     if (variant_node -> as.variant.value_expr == AST_NODE_ID_NONE) {
         variant_symbol -> as.variant_symbol.value = index;
     } else {
-        // TODO: compile time interpreter
-        // variant_symbol -> as.variant_symbol.value = compute_value();
-        // if type != enum type 
+        VmResult result = evaluate_const_expr(file, variant_node -> as.variant.value_expr);
+
+        // TODO: check the type, need that switch in the VmValue asap 
+
+        if (result.kind != VM_OK) {
+            AstNode* value_node = &file -> ast.nodes[variant_node -> as.variant.value_expr];
+
+            variant_symbol -> as.variant_symbol.value = index;
+
+            diagnostic_add_token_span(
+                file -> id,
+                DIAG_ERROR,
+                value_node -> tokens,
+                "enum value is not a compile time constant",
+                "enum values must be evaluable at compile time"
+            );
+        } else {
+            variant_symbol -> as.variant_symbol.value = result.value.as.i64;
+        }
     }
 
     variant_symbol -> state = RESOLVE_RESOLVED;
@@ -1552,7 +1570,6 @@ static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file
     return return_type;
 }
 
-// TODO/NOTE: need to finish ARRAYS in the TypeTable for this to function correctly
 static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
     File* file = file_lookup_id(file_id);
 
@@ -1610,6 +1627,26 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
     switch (object_type -> kind) {
         case TYPE_ARRAY:
             element_type = object_type -> as.array_type.element;
+
+            VmResult bounds_check_result = evaluate_const_expr(file, node -> as.index.index_expr);
+
+            if (bounds_check_result.kind == VM_OK) {
+                i64 value = bounds_check_result.value.as.i64;
+
+                if (value >= object_type -> as.array_type.size) {
+                    AstNode* index_expr = &file -> ast.nodes[node -> as.index.index_expr];
+
+                    diagnostic_add_token_span(
+                        file_id,
+                        DIAG_ERROR,
+                        index_expr -> tokens,
+                        "out of bounds array access",
+                        "index value is greater than the array size"
+                    );
+
+                    return TYPE_ID_NONE;
+                }
+            }
             break;
 
         case TYPE_SLICE:

@@ -6,6 +6,7 @@
 #include "string_interner/types.h"
 #include "symbols/table/types.h"
 #include "types/table/types.h"
+#include "vm/types.h"
 
 typedef struct {
     SymbolTable symbol_table;
@@ -13,6 +14,8 @@ typedef struct {
     FileInterner file_interner;
     DiagnosticEngine diagnostic_engine;
     StringInterner string_interner;
+
+    VirtualMachine vm;
 
     Arena scratch;
 

@@ -14,6 +14,7 @@
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
+#include "vm/vm.h"
 
 #include <assert.h>
 #include <dirent.h>
@@ -49,6 +50,8 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
     debug_printf("Init Driver's stdlib arena with 2KB");
 
     create_build_dir();
+
+    vm_init(&driver -> vm);
 
     diagnostic_engine_init();
     string_interner_init();
@@ -122,6 +125,8 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
 
 void driver_destroy(DriverCtx* driver) {
     destroy_build_dir(&driver -> scratch);
+
+    vm_destroy(&driver -> vm);
 
     diagnostic_engine_destroy();
 

@@ -162,6 +162,54 @@ TypeId type_table_intern_pointer(TypeId base) {
     return id;
 }
 
+TypeId type_table_intern_array(TypeId base, u64 size) {
+    TypeTable* table = &driver.type_table;
+
+    if (UNLIKELY(table -> structural_count >= table -> structural_resize_threshold_as_u32)) {
+        structural_buckets_resize();
+    }
+
+    u32 hash  = types_hash_array(base, size);
+    u32 mask  = table -> structural_capacity - 1;
+    u32 index = hash & mask; 
+
+    while (table -> structural_buckets[index].id != SYMBOL_ID_NONE) {
+        TypeBucket bucket = table -> structural_buckets[index];
+
+        if (bucket.hash == hash) {
+            return bucket.id;
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table -> entry_count >= table -> entry_resize_threshold_as_u32)) {
+        entries_resize();
+    }
+
+    TypeId id = table -> entry_count++;
+
+    table -> structural_buckets[index].id = id;
+    table -> structural_buckets[index].hash = hash;
+
+    TypeEntry* entry = &table -> entries[id];
+
+    entry -> id = id;
+    entry -> hash = hash;
+    entry -> kind = TYPE_ARRAY;
+    entry -> symbol_id = SYMBOL_ID_NONE;
+
+    TypeEntry* element = &table -> entries[base];
+
+    entry -> size = element -> size * size;
+    entry -> alignment = element -> alignment;
+
+    entry -> as.array_type.element = base;
+    entry -> as.array_type.size = size;
+
+    return id;
+}
+
 TypeId type_table_intern_slice(TypeId base) {
     TypeTable* table = &driver.type_table;
 
