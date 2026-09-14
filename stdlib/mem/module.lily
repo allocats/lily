@@ -1,4 +1,9 @@
-malloc :: external fn(size: usize) -> *void;
+calloc  :: external fn(size: usize) -> *void;
+malloc  :: external fn(size: usize) -> *void;
+realloc :: external fn(ptr: *void, size: isize) -> *void;
+
 free :: external fn(ptr: *void);
 
-memset :: external fn(p: *void, c: i32, n: isize) -> *void;
+memset  :: external fn(dest: *void, value: i32, size: isize) -> *void;
+memcpy  :: external fn(dest: *void, src: *void, size: isize) -> *void;
+memmove :: external fn(dest: *void, src: *void, size: isize) -> *void;
