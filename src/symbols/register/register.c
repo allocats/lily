@@ -220,7 +220,7 @@ static void register_enum(Registrar* r, AstNode* node) {
 SymbolId register_variable(Registrar* r, AstNode* node) {
     StringId name_id = node -> as.variable_decl.name;
 
-    SymbolId id = symbol_table_lookup_top_level(r -> scope_id, name_id);
+    SymbolId id = symbol_table_lookup(r -> scope_id, name_id, r -> file -> id);
 
     if (id != SYMBOL_ID_NONE) {
         diagnostic_add_symbol_redefined(r -> file -> id, node -> id, id, name_id);

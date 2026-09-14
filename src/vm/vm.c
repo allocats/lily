@@ -35,7 +35,9 @@ VmResult vm_run(VirtualMachine* vm) {
             case OP_ADD: 
             case OP_SUB: 
             case OP_MUL: 
-            case OP_MOD: {
+            case OP_MOD: 
+            case OP_SHL:
+            case OP_SHR: {
                 VmValue rhs = vm_pop(vm);
                 VmValue lhs = vm_pop(vm);
                 
@@ -48,10 +50,12 @@ VmResult vm_run(VirtualMachine* vm) {
                 };
 
                 switch (instr) {
-                    case OP_ADD: VM_NUMERIC_BINARY_ARITHMETIC(lhs, rhs, result, +) break;
-                    case OP_SUB: VM_NUMERIC_BINARY_ARITHMETIC(lhs, rhs, result, -) break;
-                    case OP_MUL: VM_NUMERIC_BINARY_ARITHMETIC(lhs, rhs, result, *) break;
-                    case OP_MOD: VM_INTEGER_BINARY_ARITHMETIC(lhs, rhs, result, %) break;
+                    case OP_ADD: VM_NUMERIC_BINARY_ARITHMETIC(lhs, rhs, result,  +) break;
+                    case OP_SUB: VM_NUMERIC_BINARY_ARITHMETIC(lhs, rhs, result,  -) break;
+                    case OP_MUL: VM_NUMERIC_BINARY_ARITHMETIC(lhs, rhs, result,  *) break;
+                    case OP_MOD: VM_INTEGER_BINARY_ARITHMETIC(lhs, rhs, result,  %) break;
+                    case OP_SHL: VM_INTEGER_BINARY_ARITHMETIC(lhs, rhs, result, <<) break;
+                    case OP_SHR: VM_INTEGER_BINARY_ARITHMETIC(lhs, rhs, result, >>) break;
 
                     default:
                         UNREACHABLE("Binary airthmetic")

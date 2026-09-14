@@ -14,7 +14,6 @@
 #include "utils/macros.h"
 
 #include <assert.h>
-#include <stdio.h>
 
 extern DriverCtx driver;
 
@@ -45,7 +44,7 @@ static TypeId resolve_nominal_type_entry(TypeId id) {
     return id;
 }
 
-TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
+TypeId resolve_type_expr(ScopeId scope_id, FileId file_id, AstNodeId expr_id) {
     if (expr_id == AST_NODE_ID_NONE) {
         return driver.type_table.builtins.type_void;
     }
@@ -62,33 +61,39 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
             break;
 
         case AST_TYPE_ARRAY:
-            TypeId element = resolve_type_expr(file_id, node -> as.type_array.element);
+            TypeId element = resolve_type_expr(scope_id, file_id, node -> as.type_array.element);
 
             if (node -> as.type_array.size_expr == AST_NODE_ID_NONE) {
                 id = type_table_intern_slice(element);
             } else {
-                VmResult result = evaluate_const_expr(file, node -> as.type_array.size_expr);
-
-                if (result.kind != VM_OK) {
-                    AstNode* size_expr_node = &file -> ast.nodes[node -> as.type_array.size_expr];
-
-                    diagnostic_add_token_span(
-                        file_id,
-                        DIAG_ERROR,
-                        size_expr_node -> tokens,
-                        "array size is not constant evaluable",
-                        "array sizes must be known at compile time"
-                    );
-
+                AstNodeId size_expr_id = node -> as.type_array.size_expr;
+                
+                if (!resolve_constant_expression(scope_id, file, size_expr_id)) {
                     id = TYPE_ID_NONE;
                 } else {
-                    id = type_table_intern_array(element, result.value.as.i64);
+                    VmResult result = evaluate_const_expr(file, size_expr_id);
+
+                    if (result.kind != VM_OK) {
+                        AstNode* size_expr_node = &file -> ast.nodes[size_expr_id];
+
+                        diagnostic_add_token_span(
+                            file_id,
+                            DIAG_ERROR,
+                            size_expr_node -> tokens,
+                            "array size is not constant evaluable",
+                            "array sizes must be known at compile time"
+                        );
+
+                        id = TYPE_ID_NONE;
+                    } else {
+                        id = type_table_intern_array(element, result.value.as.i64);
+                    }
                 }
             }
             break;
 
         case AST_TYPE_POINTER:
-            TypeId base = resolve_type_expr(file_id, node -> as.type_pointer.base_type);
+            TypeId base = resolve_type_expr(scope_id, file_id, node -> as.type_pointer.base_type);
 
             if (base == TYPE_ID_NONE) {
                 break;
@@ -103,7 +108,7 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
             TypeId* arguments = arena_alloc(&driver.type_table.gpa, count * sizeof(TypeId));
 
             for (u32 i = 0; i < count; i++) {
-                TypeId arg_id = resolve_type_expr(file_id, node -> as.type_function.parameters.ids[i]);
+                TypeId arg_id = resolve_type_expr(scope_id, file_id, node -> as.type_function.parameters.ids[i]);
                 
                 if (arg_id == TYPE_ID_NONE) {
                     break;
@@ -112,7 +117,7 @@ TypeId resolve_type_expr(FileId file_id, AstNodeId expr_id) {
                 arguments[i] = id; 
             }
 
-            TypeId return_type_id = resolve_type_expr(file_id, node -> as.type_function.return_type);
+            TypeId return_type_id = resolve_type_expr(scope_id, file_id, node -> as.type_function.return_type);
 
             if (return_type_id == TYPE_ID_NONE) {
                 break;

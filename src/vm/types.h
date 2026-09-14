@@ -77,6 +77,7 @@ typedef enum {
 
     OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD,
     OP_EQ, OP_NEQ, OP_LT, OP_LTE, OP_GT, OP_GTE,
+    OP_SHL, OP_SHR,
     OP_NOT, 
     OP_NEG, 
     

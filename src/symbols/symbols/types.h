@@ -3,6 +3,7 @@
 
 #include "ids.h"
 #include "resolver_stack/types.h"
+#include "vm/types.h"
 
 typedef enum {
     SYMBOL_ENUM,
@@ -92,6 +93,7 @@ typedef struct {
 
         struct {
             TypeId type_id;
+            VmValue compile_time_const_value;
         } variable_symbol;
 
         struct {

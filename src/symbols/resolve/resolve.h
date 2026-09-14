@@ -6,6 +6,9 @@
 
 void resolve_symbols(void);
 bool resolve_symbol(SymbolId id);
+
+bool resolve_constant_expression(ScopeId scope_id, File* file, AstNodeId id);
+
 SymbolId resolve_name_expr(ScopeId scope_id, File* file, AstNodeId node_id);
 StringId resolve_name_id(File* file, AstNodeId node_id);
 

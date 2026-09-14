@@ -1,6 +1,10 @@
 #include "ast/nodes/types.h"
 #include "driver/types.h"
+#include "ids.h"
+#include "symbols/symbols/types.h"
+#include "symbols/table/table.h"
 #include "token/types.h"
+#include "types/entries/entries.h"
 #include "utils/macros.h"
 #include "vm/types.h"
 #include "vm/vm.h"
@@ -14,6 +18,9 @@ static const VmOpCode operator_op_code_lut[TOKEN_KIND_COUNT] = {
     [TOK_SLASH]     = OP_DIV,
     [TOK_PERCENT]   = OP_MOD,
 
+    [TOK_SHL]       = OP_SHL,
+    [TOK_SHR]       = OP_SHR,
+
     [TOK_EQ_EQ]     = OP_EQ,
     [TOK_BANG_EQ]   = OP_NEQ,
     [TOK_LT]        = OP_LT,
@@ -26,6 +33,7 @@ static bool compile_expr(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode
 static bool compile_binary_op(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
 static bool compile_unary_op(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
 static bool compile_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
+static bool compile_identifier(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
 
 static void emit_u16_operand(VirtualMachine* vm, VmChunk* chunk, u16 value, AstNodeId node_id) {
     vm_emit_u16(vm, chunk, (u8)(value >> 8), (u8)(value & 0xFF), node_id);
@@ -61,6 +69,9 @@ static bool compile_expr(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode
 
         case AST_LITERAL:
             return compile_literal(vm, chunk, file, node);
+
+        case AST_IDENTIFIER:
+            return compile_identifier(vm, chunk, file, node);
 
         // TODO: a lot. need identifiers, calls etc. need a globals map as well
 
@@ -112,13 +123,26 @@ static bool compile_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstN
     UNUSED(file);
 
     AstLiteral* literal = &node -> as.literal;
-    VmValue value;
+    VmValue value = {0};
 
     switch (literal-> kind) {
         // TODO: switch on the literal's type
-        case LITERAL_INTEGER:
-            value = (VmValue){ .kind = VM_VALUE_I64, .as.i64 = literal-> as.integer };
+        case LITERAL_INTEGER: {
+            value = (VmValue) { .kind = VM_VALUE_I64, .as.u64 = literal -> as.integer };
             break;
+
+            if (is_type_unsigned_int(node -> resolved_type)) {
+                value = (VmValue) {
+                    .kind = VM_VALUE_U64,
+                    .as.i64 = literal -> as.integer, // w union hack
+                };
+            } else if (is_type_signed_int(node -> resolved_type)) {
+                value = (VmValue) {
+                    .kind = VM_VALUE_I64,
+                    .as.u64 = literal -> as.integer, // w union hack
+                };
+            } 
+        } break;
 
         case LITERAL_FLOAT:
             value = (VmValue){ .kind = VM_VALUE_F64, .as.f64 = literal-> as.floating };
@@ -144,4 +168,37 @@ static bool compile_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstN
     emit_u16_operand(vm, chunk, index, node -> id);
 
     return true;
+}
+
+static bool compile_identifier(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node) {
+    UNUSED(file);
+
+    SymbolId symbol_id = node -> resolved_symbol;
+
+    if (symbol_id == SYMBOL_ID_NONE) {
+        return false;
+    }
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+    switch (symbol -> kind) {
+        case SYMBOL_VARIABLE: {
+            VmValue value = symbol -> as.variable_symbol.compile_time_const_value;
+
+            if (value.kind == VM_VALUE_VOID) {
+                return false;
+            }
+
+            u16 index = vm_chunk_add_constant(vm, chunk, value);
+
+            vm_emit_u8(vm, chunk, OP_PUSH_CONST, node -> id);
+
+            emit_u16_operand(vm, chunk, index, node -> id);
+
+            return true;
+        }
+
+        default:
+            return false;
+    }
 }

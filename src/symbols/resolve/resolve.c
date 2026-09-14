@@ -132,6 +132,95 @@ bool resolve_symbol(SymbolId id) {
     return result;
 }
 
+bool resolve_constant_expression(ScopeId scope_id, File* file, AstNodeId id) {
+    AstNode* node = &file -> ast.nodes[id];
+
+    switch (node -> kind) {
+        case AST_LITERAL: {
+            return true;
+        }
+
+        case AST_IDENTIFIER: {
+            SymbolId symbol_id = resolve_name_expr(scope_id, file, id);
+
+            if (symbol_id == SYMBOL_ID_NONE) {
+                diagnostic_add_symbol_does_not_exist(file -> id, id, node -> as.identifier.name);
+                return false;
+            }
+
+            if (!resolve_symbol(symbol_id)) {
+                return false;
+            }
+            
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+            if (symbol -> kind != SYMBOL_VARIABLE || !(symbol -> flags & AST_FLAGS_IS_CONSTANT)) {
+                diagnostic_add_token_span(
+                    file -> id,
+                    DIAG_ERROR,
+                    node -> tokens,
+                    "value is not a constant",
+                    "only constants can be used in compile time expressions"
+                );
+
+                File* symbol_file = file_lookup_id(symbol -> file_id);
+                AstNode* symbol_node = &symbol_file -> ast.nodes[symbol -> ast_node_id];
+
+                assert(symbol_node -> kind == AST_VARIABLE_DECL);
+
+                AstNode* type_node = &symbol_file -> ast.nodes[symbol_node -> as.variable_decl.type_expr];
+
+                diagnostic_add_token_span(
+                    symbol_file -> id,
+                    DIAG_NOTE,
+                    type_node -> tokens,
+                    "make this declaration constant",
+                    "add 'const' to the type, i.e. const usize"
+                );
+
+                return false;
+            }
+
+
+            TypeId type_id = resolve_expression(scope_id, file -> id, id, TYPE_ID_NONE);
+
+            if (type_id == TYPE_ID_NONE) {
+                return false;
+            }
+
+            node -> resolved_symbol = symbol_id;
+            node -> resolved_type = type_id;
+
+            return true;
+        }
+
+        // TODO: function call 
+
+        case AST_BINARY_OP: {
+            bool lhs = resolve_constant_expression(scope_id, file, node -> as.binary_op.left);
+            bool rhs = resolve_constant_expression(scope_id, file, node -> as.binary_op.right);
+
+            return lhs && rhs;
+        }
+        
+        case AST_UNARY_OP: {
+            return resolve_constant_expression(scope_id, file, node -> as.unary_op.operand);
+        }
+
+        default: {
+            diagnostic_add_token_span(
+                file -> id,
+                DIAG_ERROR,
+                node -> tokens,
+                "expression is not const evaluable",
+                "null"
+            );
+
+            return false;
+        }
+    }
+}
+
 SymbolId resolve_name_expr(ScopeId scope_id, File* file, AstNodeId node_id) {
     AstNode* node = &file -> ast.nodes[node_id];
 
@@ -264,7 +353,7 @@ static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId
 
     field_symbol_id = scope_intern_from_node(r -> scope_id, file -> id, field_name, id);
 
-    TypeId field_type_id = resolve_type_expr(file -> id, field_node -> as.field.type_expr);
+    TypeId field_type_id = resolve_type_expr(r -> scope_id, file -> id, field_node -> as.field.type_expr);
 
     if (field_type_id == TYPE_ID_NONE) {
         diagnostic_add_node_field(
@@ -484,7 +573,7 @@ static bool resolve_enum(Resolver* r, SymbolId id) {
     TypeId underlying_type_id = TYPE_ID_NONE;
 
     if (node -> as.enum_decl.type_expr != AST_NODE_ID_NONE) {
-        underlying_type_id = resolve_type_expr(file -> id, node -> as.enum_decl.type_expr);
+        underlying_type_id = resolve_type_expr(r -> scope_id, file -> id, node -> as.enum_decl.type_expr);
 
         if (underlying_type_id == TYPE_ID_NONE) {
             underlying_type_id = driver.type_table.builtins.type_i32;
@@ -533,7 +622,7 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
     File* file = file_lookup_id(symbol -> file_id);
     AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
 
-    TypeId type = resolve_type_expr(file -> id, node -> as.variable_decl.type_expr);
+    TypeId type = resolve_type_expr(r -> scope_id, file -> id, node -> as.variable_decl.type_expr);
 
     if (type == TYPE_ID_NONE) {
         result = false;
@@ -557,7 +646,31 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
         }
     }
 
+    if (result == true && node -> flags & AST_FLAGS_IS_CONSTANT) {
+        AstNodeId expr_id  = node -> as.variable_decl.value_expr;
+        AstNode* expr_node = &file -> ast.nodes[expr_id];
+
+        if (resolve_constant_expression(r -> scope_id, file, node -> as.variable_decl.value_expr)) {
+            VmResult expr = evaluate_const_expr(file, expr_id);
+
+            if (expr.kind == VM_OK) {
+                symbol -> as.variable_symbol.compile_time_const_value = expr.value;
+            } else {
+                diagnostic_add_token_span(
+                    file -> id,
+                    DIAG_ERROR,
+                    expr_node -> tokens,
+                    "failed to evaluate constant expression",
+                    null
+                );
+
+                result = false;
+            }
+        }
+    }
+
     symbol -> as.variable_symbol.type_id = type;
+
     node -> resolved_symbol = id;
     node -> resolved_type = type;
 
@@ -590,7 +703,7 @@ static bool resolve_function_signature(SymbolId id) {
         .scope_id = file -> scope_id,
     };
 
-    TypeId return_type_id = resolve_type_expr(file -> id, node -> as.function_decl.return_type_expr);
+    TypeId return_type_id = resolve_type_expr(r.scope_id, file -> id, node -> as.function_decl.return_type_expr);
 
     if (return_type_id == TYPE_ID_NONE) {
         result = false;
@@ -636,7 +749,11 @@ static bool resolve_function_signature(SymbolId id) {
         );
 
         Symbol* parameter_symbol = SYMBOL_ID_LOOKUP_REF(parameter_symbol_id);
-        TypeId parameter_type_id = resolve_type_expr(file -> id, parameter_node -> as.parameter_decl.type_expr);
+        TypeId parameter_type_id = resolve_type_expr(
+            r.scope_id,
+            file -> id,
+            parameter_node -> as.parameter_decl.type_expr
+        );
 
         if (parameter_type_id == TYPE_ID_NONE) {
             result = false;
