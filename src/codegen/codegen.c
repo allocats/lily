@@ -1,4 +1,5 @@
 #include "ast/nodes/types.h"
+#include "codegen/llvm_intrinsics/intrinsics.h"
 #include "codegen/types.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/driver.h"
@@ -35,6 +36,7 @@ static bool codegen_ast(CodegenCtx* ctx);
 
 static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node);
 
+static LLVMValueRef codegen_intrinsic(CodegenCtx* ctx, IntrinsicId id, LLVMTypeRef* params, u32 param_count);
 static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id);
 static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node);
 
@@ -81,6 +83,8 @@ static bool codegen_block_defers(CodegenCtx* ctx);
 void codegen() {
     CodegenCtx ctx = {0};
 
+    intrinsic_table_init(&ctx.intrinsics);
+
     u32 symbol_count = driver.symbol_table.symbol_count;
     u32 string_count = driver.string_interner.count;
     u32 type_count = driver.type_table.entry_count;
@@ -124,6 +128,8 @@ void codegen() {
     arena_destroy(&ctx.scratch);
     arena_destroy(&ctx.map_arena);
     arena_destroy(&ctx.defer_list.arena);
+
+    intrinsic_table_destroy(&ctx.intrinsics);
 }
 
 static void codegen_file(CodegenCtx* ctx, FileId id) {
@@ -212,6 +218,9 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
         goto cleanup;
     }
 
+    // printf("\n\n\n=== MODULE ===\n\n");
+    // printf("%s",LLVMPrintModuleToString(ctx -> module));
+
     LLVMDisposeTargetMachine(target_machine);
 
 cleanup:
@@ -296,10 +305,32 @@ static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node) {
     return var;
 }
 
+static LLVMValueRef codegen_intrinsic(CodegenCtx* ctx, IntrinsicId id, LLVMTypeRef* params, u32 param_count) {
+    IntrinsicEntry entry = ctx -> intrinsics.entries[id];
+
+    str8 base_name = STRING_ID_LOOKUP(entry.intrinsic_name).str;
+
+    u32 llvm_id = LLVMLookupIntrinsicID(base_name.ptr, base_name.len);
+    assert(llvm_id != 0);
+
+    LLVMTypeRef overload_types[3] = {0};
+
+    u32 overload_count = 0;
+
+    for (u32 i = 0; i < param_count; i++) {
+        overload_types[overload_count++] = params[i];
+    }
+
+    return LLVMGetIntrinsicDeclaration(ctx -> module, llvm_id, overload_types, overload_count);
+}
+
 static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
 
     LLVMTypeRef* param_types = null;
+    TypeId* param_type_ids = null;
+
+    TypeId ret_type_id = symbol -> as.function_symbol.return_type_id;
 
     bool is_variadic = symbol -> flags & AST_FLAGS_IS_VARIADIC;
 
@@ -308,6 +339,7 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
 
     if (param_count != 0) {
         param_types = arena_alloc(&ctx -> scratch, param_count * sizeof(LLVMTypeRef));
+        param_type_ids = arena_alloc(&ctx -> scratch, param_count * sizeof(TypeId));
     }
 
     for (u32 i = 0; i < param_count; i++) {
@@ -315,9 +347,22 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
         Symbol* param = SYMBOL_ID_LOOKUP_REF(param_id);
 
         param_types[i] = type_id_to_llvm(ctx, param -> as.parameter_symbol.type_id);
+        param_type_ids[i] = param -> as.parameter_symbol.type_id;
     }
 
-    LLVMTypeRef ret_type = type_id_to_llvm(ctx, symbol -> as.function_symbol.return_type_id);
+    IntrinsicId intrinsic_id = intrinsic_lookup(
+        &ctx -> intrinsics,
+        symbol -> name_id,
+        ret_type_id,
+        param_count,
+        param_type_ids
+    );
+
+    if (intrinsic_id != INTRINSIC_ID_NONE) {
+        return codegen_intrinsic(ctx, intrinsic_id, param_types, param_count);
+    }
+
+    LLVMTypeRef ret_type = type_id_to_llvm(ctx, ret_type_id);
     LLVMTypeRef fn_type = LLVMFunctionType(ret_type, param_types, param_count, is_variadic);
 
     str8 name = STRING_ID_LOOKUP(symbol -> name_id).str;

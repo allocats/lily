@@ -34,7 +34,7 @@ static void print_type_name(TypeTable* table, TypeId id) {
 
         case TYPE_ARRAY:
             print_type_name(table, type -> as.array_type.element);
-            printf("[%u]", type -> as.array_type.size);
+            printf("[%lu]", type -> as.array_type.size);
             break;
 
         case TYPE_SLICE:
@@ -85,7 +85,7 @@ void print_type_table(TypeTable* table) {
 
             case TYPE_ARRAY:
                 printf("    element       : %u\n", type -> as.array_type.element);
-                printf("    size          : %u\n", type -> as.array_type.size);
+                printf("    size          : %lu\n", type -> as.array_type.size);
                 break;
 
             case TYPE_SLICE:

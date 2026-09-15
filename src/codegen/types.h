@@ -1,6 +1,7 @@
 #ifndef LILY_CODEGEN_TYPES_H
 #define LILY_CODEGEN_TYPES_H
 
+#include "codegen/llvm_intrinsics/types.h"
 #include "files/types.h"
 
 #include <llvm-c/Types.h>
@@ -57,6 +58,8 @@ typedef struct {
     Arena scratch;
 
     File* file;
+
+    IntrinsicTable intrinsics;
 
     LLVMContextRef ctx;
     LLVMModuleRef module;

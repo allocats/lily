@@ -1,0 +1,4 @@
+#ifndef LILY_VM_FFI_TYPES_H
+#define LILY_VM_FFI_TYPES_H
+
+#endif // !LILY_VM_FFI_TYPES_H

@@ -4,6 +4,7 @@ realloc :: external fn(ptr: *void, size: isize) -> *void;
 
 free :: external fn(ptr: *void);
 
-memset  :: external fn(dest: *void, value: i32, size: isize) -> *void;
-memcpy  :: external fn(dest: *void, src: *void, size: isize) -> *void;
-memmove :: external fn(dest: *void, src: *void, size: isize) -> *void;
+// TODO: Make an `intrinsic` type
+set  :: fn(dest: *void, byte: i8,  size: isize)  {}
+copy :: fn(dest: *void, src: *void, size: isize) {}
+move :: fn(dest: *void, src: *void, size: isize) {}

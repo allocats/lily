@@ -194,7 +194,40 @@ bool resolve_constant_expression(ScopeId scope_id, File* file, AstNodeId id) {
             return true;
         }
 
-        // TODO: function call 
+        case AST_FUNCTION_CALL: {
+            AstNodeId identifier = node -> as.function_call.identifier;
+
+            SymbolId call_id = resolve_name_expr(file -> scope_id, file, identifier);
+
+            if (call_id == SYMBOL_ID_NONE) {
+                StringId name_id = resolve_name_id(file, identifier); 
+
+                diagnostic_add_symbol_does_not_exist(file -> id, identifier, name_id);
+
+                return false;
+            }
+
+            if (!resolve_symbol(call_id)) {
+                return false;
+            }
+
+            Symbol* call_symbol = SYMBOL_ID_LOOKUP_REF(call_id);
+
+            assert(call_symbol -> kind == SYMBOL_FUNCTION);
+
+            for (u32 i = 0; i < node -> as.function_call.arguments.count; i++) {
+                AstNodeId expr_id = node -> as.function_call.arguments.ids[i];
+
+                if (!resolve_constant_expression(scope_id, file, expr_id)) {
+                    return false;
+                }
+            }
+
+            node -> resolved_symbol = call_id;
+            node -> resolved_type = call_symbol -> as.function_symbol.return_type_id;
+
+            return true;
+        }
 
         case AST_BINARY_OP: {
             bool lhs = resolve_constant_expression(scope_id, file, node -> as.binary_op.left);
