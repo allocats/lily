@@ -13,7 +13,7 @@ i32 link_objects() {
     u32 arg_count = 0;
 
     args[arg_count++] = "cc";
-    args[arg_count++] = "-fuse-linker-plugin";
+    args[arg_count++] = "-fuse-ld=lld";
 
     for (u32 i = 0; i < file_count; i++) {
         char* path = driver.file_interner.entries[i].object_path;
