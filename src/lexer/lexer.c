@@ -251,6 +251,13 @@ static void lex_word(Lexer* lexer) {
             }
         } break;
 
+        case 9: {
+            switch (start[0]) {
+                case 'i': token -> kind = (memcmp(start, "intrinsic", 9) == 0) ? TOK_KW_INTRINSIC : TOK_IDENT; break;
+                default:  token -> kind = TOK_IDENT;
+            }
+        } break;
+
         default: {
             token -> kind = TOK_IDENT;
         } break;

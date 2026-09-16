@@ -817,7 +817,7 @@ static bool resolve_function(Resolver* r, SymbolId id) {
 
     r -> scope_id = symbol -> as.function_symbol.scope_id;
 
-    if (!(node -> flags & AST_FLAGS_IS_EXTERNAL)) {
+    if (!(node -> flags & AST_FLAGS_IS_EXTERNAL) && !(node -> flags & AST_FLAGS_IS_INTRINSIC)) {
         result = resolve_block(r, node -> as.function_decl.block);
     } 
 

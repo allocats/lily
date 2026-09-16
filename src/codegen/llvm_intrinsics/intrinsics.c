@@ -20,21 +20,21 @@ void intrinsic_table_init(IntrinsicTable* table) {
 
     IntrinsicEntry intrinsics[] = {
         {
-            .function_name = string_intern_cstr("set"),
+            .function_name = string_intern_cstr("memset"),
             .intrinsic_name = string_intern_cstr("llvm.memset"),
             .parameter_count = 3,
             .parameters = { void_ptr, i8_type, isize_type },
             .return_type = void_type,
         },
         {
-            .function_name = string_intern_cstr("copy"),
+            .function_name = string_intern_cstr("memcopy"),
             .intrinsic_name = string_intern_cstr("llvm.memcpy"),
             .parameter_count = 3,
             .parameters = { void_ptr, void_ptr, isize_type },
             .return_type = void_type,
         },
         {
-            .function_name = string_intern_cstr("move"),
+            .function_name = string_intern_cstr("memmove"),
             .intrinsic_name = string_intern_cstr("llvm.memmove"),
             .parameter_count = 3,
             .parameters = { void_ptr, void_ptr, isize_type },

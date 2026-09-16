@@ -352,16 +352,18 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
         param_type_ids[i] = param -> as.parameter_symbol.type_id;
     }
 
-    IntrinsicId intrinsic_id = intrinsic_lookup(
-        &ctx -> intrinsics,
-        symbol -> name_id,
-        ret_type_id,
-        param_count,
-        param_type_ids
-    );
+    if (symbol -> flags & AST_FLAGS_IS_INTRINSIC) {
+        IntrinsicId intrinsic_id = intrinsic_lookup(
+            &ctx -> intrinsics,
+            symbol -> name_id,
+            ret_type_id,
+            param_count,
+            param_type_ids
+        );
 
-    if (intrinsic_id != INTRINSIC_ID_NONE) {
-        return codegen_intrinsic(ctx, intrinsic_id, param_types, param_count);
+        if (intrinsic_id != INTRINSIC_ID_NONE) {
+            return codegen_intrinsic(ctx, intrinsic_id, param_types, param_count);
+        }
     }
 
     LLVMTypeRef ret_type = type_id_to_llvm(ctx, ret_type_id);
@@ -385,7 +387,7 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
     ctx -> loop_ctx = null;
     ctx -> defer_list.stack = null;
 
-    if (node -> flags & AST_FLAGS_IS_EXTERNAL || symbol -> flags & AST_FLAGS_IS_EXTERNAL) {
+    if (symbol -> flags & AST_FLAGS_IS_INTRINSIC || symbol -> flags & AST_FLAGS_IS_EXTERNAL) {
         return fn;
     }
 

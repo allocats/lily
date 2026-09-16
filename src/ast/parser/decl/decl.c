@@ -26,6 +26,9 @@ AstNodeId parse_top_level_decl(Parser* p) {
         case TOK_HASHTAG:
             return parse_directive(p, name_id);
 
+        case TOK_KW_INTRINSIC:
+            return parse_intrinsic_decl(p, name_id);
+
         case TOK_KW_EXTERNAL:
             return parse_external_decl(p, name_id);
 
