@@ -27,7 +27,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 extern DriverCtx driver;
 
@@ -1486,11 +1485,47 @@ static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id) {
     str8 str = entry.str;
 
     // Make an owning copy for the thread (when we get to multithreaded)
-    char* copy = arena_alloc(&ctx -> scratch, str.len + 1);
-    memcpy(copy, str.ptr, str.len);
-    copy[str.len] = 0;
-
+    char* copy = arena_calloc(&ctx -> scratch, str.len + 1);
     char name[64] = {0};
+
+    char* cursor = copy;
+
+    u32 i = 0;
+
+    while (i < str.len) {
+        if (str.ptr[i] == '\\') {
+            i += 1;
+
+            char c = str.ptr[i];
+
+            // at end or early break, no point in parsing rest of the string
+            if (c == '0') {
+                *cursor++ = '\0';
+                break;
+            }
+
+            switch (c) {
+                case 'a':  { *cursor++ = '\a'; } break;
+                case 'b':  { *cursor++ = '\b'; } break;
+                case 'f':  { *cursor++ = '\f'; } break;
+                case 'n':  { *cursor++ = '\n'; } break;
+                case 'r':  { *cursor++ = '\r'; } break;
+                case 't':  { *cursor++ = '\t'; } break;
+                case 'v':  { *cursor++ = '\v'; } break;
+                case '\\': { *cursor++ = '\\'; } break;
+                case '"':  { *cursor++ = '\"'; } break;
+
+                default: {
+                    *cursor++ = '\\';
+                    *cursor++ = c;
+                } break;
+            }
+        } else {
+            *cursor++ = str.ptr[i];
+        }
+
+        i++;
+    }
 
     snprintf(name, sizeof(name), "str_%u", id);
 
