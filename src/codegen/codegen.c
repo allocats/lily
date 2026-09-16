@@ -141,6 +141,8 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
     ctx -> defer_list.stack = null;
     ctx -> loop_ctx = null;
 
+    bool is_release_mode = driver.flags & DRIVER_FLAGS_RELEASE_MODE;
+    
     assert(ctx -> ctx != null);
     assert(ctx -> module != null);
     assert(ctx -> builder != null);
@@ -177,7 +179,7 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
         host_triple,
         "generic",
         "",
-        LLVMCodeGenLevelDefault,
+        is_release_mode ? LLVMCodeGenLevelDefault : LLVMCodeGenLevelNone,
         LLVMRelocPIC,
         LLVMCodeModelDefault
     );
@@ -186,7 +188,7 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
 
     LLVMErrorRef error = LLVMRunPasses(
         ctx -> module,
-        "default<O2>",
+        is_release_mode ? "default<O2>" : "default<O0>",
         target_machine,
         pb_options
     );

@@ -1074,7 +1074,7 @@ bool diagnostics_print() {
         if (diag.presentation == DIAG_PRESENTATION_GENERIC) {
             fprintf(
                 fd,
-                "%s%s:%s %s%.*s%s\n\n",
+                "%s%s:%s %s%.*s%s\n",
                 level_colour,
                 level,
                 ANSI_RESET,

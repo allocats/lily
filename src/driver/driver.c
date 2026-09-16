@@ -104,6 +104,16 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
                         driver -> flags |= DRIVER_FLAGS_EMIT_LLVM_IR;
                     }
                 } break;
+
+                case 'r': {
+                    if (FLAG_MATCHES(arg_len, arg, "-release")) {
+                        driver -> flags |= DRIVER_FLAGS_RELEASE_MODE;
+                    }
+                } break;
+
+                default: {
+                    diagnostic_add_generic(DIAG_ERROR, "unknown argument \"%s\"", arg);
+                } break;
             }
         } else {
             str8 path = {
@@ -111,7 +121,7 @@ void driver_init(DriverCtx* driver, i32 argc, char** argv, const char* home_dir)
                 .len = arg_len,
             };
 
-            if (file_intern(path) == AST_NODE_ID_NONE) {
+            if (file_intern(path) == FILE_ID_NONE) {
                 diagnostic_add_generic(
                     DIAG_ERROR,
                     "unable to open file: %.*s",

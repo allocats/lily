@@ -64,8 +64,6 @@ i32 main(i32 argc, char** argv) {
         return 1;
     }
 
-    driver_init(&driver, argc - 1, argv + 1, home_dir);
-
     // timer for the frontend (lexing -> IR generation)
     Timer frontend_timer = {0};
 
@@ -74,6 +72,12 @@ i32 main(i32 argc, char** argv) {
 
     // timer for linker (cc)
     Timer linker_timer = {0}; 
+
+    driver_init(&driver, argc - 1, argv + 1, home_dir);
+
+    if (driver.diagnostic_engine.error_count > 0) {
+        goto lily_done;
+    }
 
     timer_start(&frontend_timer);
 
