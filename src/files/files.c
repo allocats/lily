@@ -131,6 +131,8 @@ FileId file_intern(str8 input_path) {
 
     tokens_array_init(&file -> tokens);
 
+    source_locations_array_init(&file -> source_locations);
+
     ast_init(&file -> ast);
 
     debug_printf("intern() returned %d for 0x%x", id, hash);

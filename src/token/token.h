@@ -2,10 +2,13 @@
 #define LILY_TOKEN_H
 
 #include "ids.h"
+#include "lexer/types.h"
 #include "token/types.h"
 
 void tokens_array_init(TokenArray* arr);
-Token* tokens_get_new_token(TokenArray* arr);
+void source_locations_array_init(SourceLocationArray* arr);
+
+Token* tokens_get_new_token(Lexer* lexer);
 
 i64 token_get_int_literal(FileId id, Token token);
 f64 token_get_float_literal(FileId id, Token token);

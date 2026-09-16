@@ -26,6 +26,7 @@ typedef struct {
     Ast ast;
 
     TokenArray tokens;
+    SourceLocationArray source_locations;
 
     str8 buffer;
     str8 path;

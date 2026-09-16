@@ -132,4 +132,17 @@ typedef struct {
     u32 capacity;
 } TokenArray;
 
+typedef struct {
+    u32 line;
+    u32 col;
+} SourceLocation;
+
+typedef struct {
+    Arena arena;
+
+    SourceLocation* items;
+    u32 count;
+    u32 capacity;
+} SourceLocationArray;
+
 #endif // !LILY_TOKEN_TYPES_H

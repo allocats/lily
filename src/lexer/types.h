@@ -1,6 +1,7 @@
 #ifndef LILY_LEXER_TYPES_H
 #define LILY_LEXER_TYPES_H
 
+#include "files/types.h"
 #include "utils/types.h"
 
 static constexpr u32 DELIMITER_STACK_MAX_DEPTH = 2048;
@@ -9,6 +10,18 @@ typedef struct {
     u32 top;
     u32 items[DELIMITER_STACK_MAX_DEPTH];
 } DelimiterStack;
+
+typedef struct {
+    DelimiterStack stack;
+
+    File* file;
+
+    const char* cursor;
+    const char* end;
+
+    u32 line;
+    u32 col;
+} Lexer;
 
 static const char CHAR_MAP[] = {
     ['0' ... '9'] = 1,
