@@ -1462,19 +1462,19 @@ static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
 
     switch (entry -> kind) {
         case TYPE_BASE:
-            return base_to_llvm(ctx, id, entry);
+            return (ctx -> type_map[id] = base_to_llvm(ctx, id, entry));
 
         case TYPE_POINTER:
-            return LLVMPointerType(type_id_to_llvm(ctx, entry -> as.pointer_type.base), 0);
+            return (ctx -> type_map[id] = LLVMPointerType(type_id_to_llvm(ctx, entry -> as.pointer_type.base), 0));
 
         case TYPE_STRUCT:
-            return struct_to_llvm(ctx, entry);
+            return (ctx -> type_map[id] = struct_to_llvm(ctx, entry));
 
         case TYPE_ENUM:
-            return type_id_to_llvm(ctx, entry -> as.enum_type.underlying_type);
+            return (ctx -> type_map[id] = type_id_to_llvm(ctx, entry -> as.enum_type.underlying_type));
 
         case TYPE_ARRAY:
-            return array_to_llvm(ctx, entry);
+            return (ctx -> type_map[id] = array_to_llvm(ctx, entry));
 
         default:
             UNREACHABLE("type_id_to_llvm()");

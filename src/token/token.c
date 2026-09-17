@@ -101,6 +101,10 @@ Token* tokens_get_new_token(Lexer* lexer) {
     return token;
 }
 
+inline SourceLocation token_get_source_location(File* file, u32 index) {
+    return file -> source_locations.items[index];
+}
+
 i64 token_get_int_literal(FileId id, Token token) {
     assert(id < AST_NODE_ID_NONE);
 

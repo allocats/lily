@@ -9,6 +9,7 @@ void tokens_array_init(TokenArray* arr);
 void source_locations_array_init(SourceLocationArray* arr);
 
 Token* tokens_get_new_token(Lexer* lexer);
+SourceLocation token_get_source_location(File* file, u32 index);
 
 i64 token_get_int_literal(FileId id, Token token);
 f64 token_get_float_literal(FileId id, Token token);
