@@ -65,6 +65,13 @@ typedef struct {
     LLVMModuleRef module;
     LLVMBuilderRef builder;
 
+    LLVMDIBuilderRef debug_builder;
+    LLVMMetadataRef debug_unit;
+    LLVMMetadataRef debug_file_metadata;
+    LLVMMetadataRef debug_scope;
+
+    LLVMMetadataRef debug_fn;
+
     LLVMValueRef fn;
 
     LoopCtx* loop_ctx;
@@ -74,7 +81,11 @@ typedef struct {
     LLVMValueRef* string_map;
     LLVMTypeRef*  type_map;
 
+    LLVMMetadataRef* dwarf_type_map;
+
     VaListCtx va_ctx;
+
+    bool is_release_mode;
 } CodegenCtx;
 
 #endif // !LILY_CODEGEN_TYPES_H

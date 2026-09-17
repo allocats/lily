@@ -7,14 +7,18 @@
 #include "files/files.h"
 #include "ids.h"
 #include "string_interner/interner.h"
+#include "string_interner/types.h"
 #include "symbols/symbols/types.h"
 #include "symbols/table/table.h"
+#include "token/token.h"
 #include "token/types.h"
 #include "types/entries/entries.h"
 #include "types/entries/types.h"
 #include "types/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+
+#include <dwarf.h>
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/DebugInfo.h>
@@ -26,8 +30,10 @@
 #include <llvm-c/Types.h>
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 extern DriverCtx driver;
 
@@ -66,6 +72,7 @@ static LLVMValueRef codegen_binary_arithmetic(
 static bool codegen_va_end(CodegenCtx* ctx);
 
 static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id);
+static LLVMMetadataRef type_id_to_dwarf(CodegenCtx* ctx, TypeId id);
 
 static LLVMValueRef get_or_insert_string(CodegenCtx* ctx, StringId id);
 
@@ -89,11 +96,12 @@ void codegen() {
     u32 string_count = driver.string_interner.count;
     u32 type_count = driver.type_table.entry_count;
 
+    u32 dwarf_type_size = type_count * sizeof(LLVMMetadataRef);
     u32 symbol_size = symbol_count * sizeof(LLVMValueRef);
     u32 string_size = string_count * sizeof(LLVMValueRef);
     u32 type_size = type_count * sizeof(LLVMTypeRef);
 
-    arena_init(&ctx.map_arena, symbol_size + string_size + type_size, ALIGN_DEFAULT);
+    arena_init(&ctx.map_arena, symbol_size + string_size + type_size + dwarf_type_size, ALIGN_DEFAULT);
     arena_init(&ctx.scratch, ARENA_KB(2), ALIGN_DEFAULT);
     arena_init(&ctx.defer_list.arena, ARENA_KB(1), ALIGN_DEFAULT);
 
@@ -105,6 +113,7 @@ void codegen() {
     LLVMInitializeNativeAsmParser();
     LLVMInitializeNativeAsmPrinter();
 
+    ctx.dwarf_type_map = arena_calloc(&ctx.map_arena, dwarf_type_size);
     ctx.symbol_map = arena_calloc(&ctx.map_arena, symbol_size);
     ctx.string_map = arena_calloc(&ctx.map_arena, string_size);
     ctx.type_map = arena_calloc(&ctx.map_arena, type_size);
@@ -120,6 +129,7 @@ void codegen() {
         ctx.defer_list.stack = null;
 
         // reset to get rid of dangling pointers
+        arena_memset(ctx.dwarf_type_map, 0, dwarf_type_size);
         arena_memset(ctx.symbol_map, 0, symbol_size);
         arena_memset(ctx.string_map, 0, string_size);
         arena_memset(ctx.type_map, 0, type_size);
@@ -133,7 +143,9 @@ void codegen() {
 }
 
 static void codegen_file(CodegenCtx* ctx, FileId id) {
-    ctx -> file = file_lookup_id(id); 
+    File* file = file_lookup_id(id);
+
+    ctx -> file = file;
 
     ctx -> ctx     = LLVMContextCreate();
     ctx -> module  = LLVMModuleCreateWithNameInContext(ctx -> file -> path.ptr, ctx -> ctx);
@@ -142,16 +154,75 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
     ctx -> defer_list.stack = null;
     ctx -> loop_ctx = null;
 
-    bool is_release_mode = driver.flags & DRIVER_FLAGS_RELEASE_MODE;
+    ctx -> is_release_mode = driver.flags & DRIVER_FLAGS_RELEASE_MODE;
+
+    LLVMAddModuleFlag(
+        ctx -> module,
+        LLVMModuleFlagBehaviorWarning,
+        "DWARF Version",
+        sizeof("DWARF Version") - 1,
+        LLVMValueAsMetadata(LLVMConstInt(LLVMInt32TypeInContext(ctx -> ctx), 5, 0))
+    );
+
+    LLVMAddModuleFlag(
+        ctx -> module,
+        LLVMModuleFlagBehaviorWarning,
+        "Debug Info Version",
+        sizeof("Debug Info Version") - 1,
+        LLVMValueAsMetadata(LLVMConstInt(LLVMInt32TypeInContext(ctx -> ctx), LLVMDebugMetadataVersion(), 0))
+    );
+
+    ctx -> debug_builder = LLVMCreateDIBuilder(ctx -> module);
     
+    const char* last_slash = strrchr(file -> path.ptr, '/');
+    assert(last_slash);
+
+    u32 directory_len = last_slash - file -> path.ptr;
+    u32 file_len = file -> path.len - directory_len - 1;
+
+    ctx -> debug_file_metadata  = LLVMDIBuilderCreateFile(
+        ctx -> debug_builder,
+        last_slash + 1,
+        file_len,
+        file -> path.ptr,
+        directory_len
+    );
+
+    ctx -> debug_unit = LLVMDIBuilderCreateCompileUnit(
+        ctx -> debug_builder,
+        LLVMDWARFSourceLanguageC99,
+        ctx -> debug_file_metadata,
+        "lilyc", sizeof("lilyc") - 1,
+        ctx -> is_release_mode,
+        "", 0, // string, sizeof(string) - 1;
+        0,
+        "" , 0,
+        LLVMDWARFEmissionFull,
+        0,
+        0,
+        0,
+        "",0,
+        "", 0
+    );
+
+    ctx -> debug_scope = ctx -> debug_unit;
+
+    // IR
     assert(ctx -> ctx != null);
     assert(ctx -> module != null);
     assert(ctx -> builder != null);
+
+    // Debug 
+    assert(ctx -> debug_file_metadata != null);
+    assert(ctx -> debug_builder != null);
+    assert(ctx -> debug_unit != null);
 
     if (!codegen_ast(ctx)) {
         diagnostic_add_generic(DIAG_ERROR, "Failed to create LLVM IR");
         goto cleanup;
     }
+
+    LLVMDIBuilderFinalize(ctx -> debug_builder);
 
     char* msg = null;
 
@@ -180,7 +251,7 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
         host_triple,
         "generic",
         "",
-        is_release_mode ? LLVMCodeGenLevelDefault : LLVMCodeGenLevelNone,
+        ctx -> is_release_mode ? LLVMCodeGenLevelDefault : LLVMCodeGenLevelNone,
         LLVMRelocPIC,
         LLVMCodeModelDefault
     );
@@ -189,7 +260,7 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
 
     LLVMErrorRef error = LLVMRunPasses(
         ctx -> module,
-        is_release_mode ? "default<O2>" : "default<O0>",
+        ctx -> is_release_mode ? "default<O2>" : "default<O0>",
         target_machine,
         pb_options
     );
@@ -340,7 +411,7 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
     u32 param_count = is_variadic ? n - 1 : n;
 
     if (param_count != 0) {
-        param_types = arena_alloc(&ctx -> scratch, param_count * sizeof(LLVMTypeRef));
+        param_types    = arena_alloc(&ctx -> scratch, param_count * sizeof(LLVMTypeRef));
         param_type_ids = arena_alloc(&ctx -> scratch, param_count * sizeof(TypeId));
     }
 
@@ -348,8 +419,10 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
         SymbolId param_id = symbol -> as.function_symbol.parameters[i];
         Symbol* param = SYMBOL_ID_LOOKUP_REF(param_id);
 
-        param_types[i] = type_id_to_llvm(ctx, param -> as.parameter_symbol.type_id);
-        param_type_ids[i] = param -> as.parameter_symbol.type_id;
+        TypeId param_type_id = param -> as.parameter_symbol.type_id;
+
+        param_types[i] = type_id_to_llvm(ctx, param_type_id);
+        param_type_ids[i] = param_type_id;
     }
 
     if (symbol -> flags & AST_FLAGS_IS_INTRINSIC) {
@@ -387,17 +460,86 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
     ctx -> loop_ctx = null;
     ctx -> defer_list.stack = null;
 
+    // no body just return
     if (symbol -> flags & AST_FLAGS_IS_INTRINSIC || symbol -> flags & AST_FLAGS_IS_EXTERNAL) {
+        ctx -> debug_scope = ctx -> debug_unit;
+        ctx -> debug_fn = null;
         return fn;
     }
 
     bool is_variadic = symbol -> flags & AST_FLAGS_IS_VARIADIC;
 
+    u32 n = symbol -> as.function_symbol.parameter_count;
+    u32 param_count = is_variadic ? n - 1 : n;
+
+
+    // Emit debug information
+
+
+    LLVMMetadataRef dwarf_ret_type = type_id_to_dwarf(ctx, symbol -> as.function_symbol.return_type_id);
+
+    u32 dwarf_param_count = param_count;
+
+    LLVMMetadataRef* dwarf_param_types = arena_alloc(
+        &ctx -> scratch,
+        (dwarf_param_count + 1 + (is_variadic ? 1: 0)) * sizeof(LLVMMetadataRef)
+    );
+
+    dwarf_param_types[0] = dwarf_ret_type;
+
+    for (u32 i = 0; i < param_count; i++) {
+        SymbolId param_id = symbol -> as.function_symbol.parameters[i];
+        Symbol* param = SYMBOL_ID_LOOKUP_REF(param_id);
+
+        dwarf_param_types[i + 1] = type_id_to_dwarf(ctx, param -> as.parameter_symbol.type_id); 
+    }
+
+    if (is_variadic) {
+        dwarf_param_types[param_count + 1] = null;
+        dwarf_param_count += 1;
+    }
+
+    LLVMMetadataRef fn_dwarf_type = LLVMDIBuilderCreateSubroutineType(
+        ctx -> debug_builder,
+        ctx -> debug_file_metadata,
+        dwarf_param_types,
+        dwarf_param_count + 1,
+        LLVMDIFlagZero
+    );
+
+    SourceLocation location = token_get_source_location(ctx -> file, node -> tokens.start);
+
+    str8 name = STRING_ID_LOOKUP(symbol -> name_id).str;
+
+    LLVMMetadataRef sp = LLVMDIBuilderCreateFunction(
+        ctx -> debug_builder,
+        ctx -> debug_unit,
+        name.ptr,
+        name.len,
+        name.ptr,
+        name.len,
+        ctx -> debug_file_metadata,
+        location.line,
+        fn_dwarf_type,
+        0,
+        1,
+        location.line,
+        LLVMDIFlagZero,
+        ctx -> is_release_mode ? 1 : 0
+    );
+
+    LLVMSetSubprogram(fn, sp);
+    ctx -> debug_fn = sp;
+    ctx -> debug_scope = sp;
+
+
+    // End of debug information
+
+
     LLVMBasicBlockRef entry = LLVMAppendBasicBlockInContext(ctx -> ctx, fn, "entry");
     LLVMPositionBuilderAtEnd(ctx -> builder, entry);
 
-    u32 n = symbol -> as.function_symbol.parameter_count;
-    u32 param_count = is_variadic ? n - 1 : n;
+    LLVMSetCurrentDebugLocation2(ctx -> builder, null);
 
     for (u32 i = 0; i < param_count; i++) {
         SymbolId param_id = symbol -> as.function_symbol.parameters[i];
@@ -477,11 +619,29 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
         }
     }
 
+    LLVMDIBuilderFinalizeSubprogram(ctx -> debug_builder, ctx -> debug_fn);
+    ctx -> debug_scope = ctx -> debug_unit;
+
     return fn;
 }
 
 static CodegenResult codegen_block(CodegenCtx* ctx, AstNodeId id) {
     AstNode* node = &ctx -> file -> ast.nodes[id];
+
+    // Debug info
+    SourceLocation location = token_get_source_location(ctx -> file, node -> tokens.start);
+
+    LLVMMetadataRef debug_block = LLVMDIBuilderCreateLexicalBlock(
+        ctx -> debug_builder,
+        ctx -> debug_scope,
+        ctx -> debug_file_metadata,
+        location.line,
+        location.col
+    );
+
+    LLVMMetadataRef previous_debug_scope = ctx -> debug_scope;
+
+    ctx -> debug_scope = debug_block;
 
     defer_stack_enter(ctx);
 
@@ -508,10 +668,25 @@ static CodegenResult codegen_block(CodegenCtx* ctx, AstNodeId id) {
     }
 
     defer_stack_exit(ctx);
+
+    ctx -> debug_scope = previous_debug_scope;
+
     return result;
 }
 
 static CodegenResult codegen_statement(CodegenCtx* ctx, AstNode* node) {
+    SourceLocation location = token_get_source_location(ctx -> file, node -> tokens.start);
+
+    LLVMMetadataRef debug_location = LLVMDIBuilderCreateDebugLocation(
+        ctx -> ctx,
+        location.line,
+        location.col,
+        ctx -> debug_scope,
+        null
+    );
+
+    LLVMSetCurrentDebugLocation2(ctx -> builder, debug_location);
+
     switch (node -> kind) {
         case AST_BLOCK:
             return codegen_block(ctx, node -> id);
@@ -574,6 +749,16 @@ static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node)
     ctx -> symbol_map[node -> resolved_symbol] = address;
 
     if (node -> as.variable_decl.value_expr == AST_NODE_ID_NONE) {
+        if (is_type(node -> resolved_type, TYPE_POINTER)) {
+            LLVMValueRef value = LLVMConstPointerNull(type_id_to_llvm(ctx, node -> resolved_type));
+
+            if (value == null) {
+                return null;
+            }
+
+            LLVMBuildStore(ctx -> builder, value, address);
+        }
+
         return address;
     }
 
@@ -1478,6 +1663,125 @@ static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
 
         default:
             UNREACHABLE("type_id_to_llvm()");
+    }
+}
+
+static LLVMMetadataRef base_to_dwarf(CodegenCtx* ctx, TypeId id, TypeEntry* entry) {
+    TypeBuiltinIds ids = driver.type_table.builtins;
+
+    StringEntry name_entry = STRING_ID_LOOKUP(entry -> as.base_type.name);
+    str8 name = name_entry.str;
+
+    if (id == ids.type_void) {
+        return null;
+    }
+
+    if (id == ids.type_bool) {
+        return LLVMDIBuilderCreateBasicType(
+            ctx -> debug_builder,
+            name.ptr,
+            name.len,
+            8,
+            DW_ATE_boolean,
+            LLVMDIFlagZero
+        );
+    }
+
+    if (is_type_signed_int(id)) {
+        return LLVMDIBuilderCreateBasicType(
+            ctx -> debug_builder,
+            name.ptr,
+            name.len,
+            entry -> size * 8,
+            DW_ATE_signed,
+            LLVMDIFlagZero
+        );
+    }
+
+    if (is_type_unsigned_int(id)) {
+        return LLVMDIBuilderCreateBasicType(
+            ctx -> debug_builder,
+            name.ptr,
+            name.len,
+            entry -> size * 8,
+            DW_ATE_unsigned,
+            LLVMDIFlagZero
+        );
+    }
+
+    if (is_type_float(id)) {
+        return LLVMDIBuilderCreateBasicType(
+            ctx -> debug_builder,
+            name.ptr,
+            name.len,
+            entry -> size * 8,
+            DW_ATE_float,
+            LLVMDIFlagZero
+        );
+    }
+
+    return null;
+}
+
+static LLVMMetadataRef pointer_to_dwarf(CodegenCtx* ctx, TypeEntry* entry) {
+    TypeId base_type = entry -> as.pointer_type.base;
+
+    LLVMMetadataRef base_dwarf_type = null;
+
+    if (!is_type_void(base_type)) {
+        base_dwarf_type = type_id_to_dwarf(ctx, base_type);
+    }
+
+    return LLVMDIBuilderCreatePointerType(
+        ctx -> debug_builder,
+        base_dwarf_type,
+        entry -> size * 8,
+        0,
+        0,
+        null,
+        0
+    );
+}
+
+static LLVMMetadataRef array_to_dwarf(CodegenCtx* ctx, TypeEntry* entry) {
+    TypeId element_id = entry -> as.array_type.element;
+    u64 size = entry -> as.array_type.size;
+
+    LLVMMetadataRef element_dwarf_type = type_id_to_dwarf(ctx, element_id);
+    LLVMMetadataRef subrange = LLVMDIBuilderGetOrCreateSubrange(ctx -> debug_builder, 0, size);
+
+    return LLVMDIBuilderCreateArrayType(
+        ctx -> debug_builder,
+        size,
+        entry -> alignment * 8,
+        element_dwarf_type,
+        &subrange,
+        1
+    );
+}
+
+static LLVMMetadataRef type_id_to_dwarf(CodegenCtx* ctx, TypeId id) {
+    if (ctx -> dwarf_type_map[id] != null) {
+        return ctx -> dwarf_type_map[id];
+    }
+
+    TypeEntry* entry = TYPE_ID_LOOKUP_REF(id);
+
+    switch (entry -> kind) {
+        case TYPE_BASE:
+            return (ctx -> dwarf_type_map[id] = base_to_dwarf(ctx, id, entry));
+
+        case TYPE_POINTER:
+            return (ctx -> dwarf_type_map[id] = pointer_to_dwarf(ctx, entry));
+
+        case TYPE_ENUM:
+            return (ctx -> dwarf_type_map[id] = type_id_to_dwarf(ctx, entry -> as.enum_type.underlying_type));
+
+        case TYPE_ARRAY:
+            return (ctx -> dwarf_type_map[id] = array_to_dwarf(ctx, entry));
+
+        default:
+            return LLVMDIBuilderCreateUnspecifiedType(ctx -> debug_builder, "", 0);
     }
 }
 

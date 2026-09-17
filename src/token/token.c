@@ -28,7 +28,7 @@ void tokens_array_init(TokenArray* arr) {
     assert(arr != null);
 
     arena_init(&arr -> arena, ARENA_KB(tokens_arena_init_size_kb), ALIGN_DEFAULT);
-    debug_printf("Init tokens array arena with %luKB", arena_init_size_kb);
+    debug_printf("Init tokens array arena with %luKB", tokens_arena_init_size_kb);
 
     arr -> items = arena_calloc(&arr -> arena, tokens_init_alloc_size);
     arr -> count = 0;
@@ -102,6 +102,7 @@ Token* tokens_get_new_token(Lexer* lexer) {
 }
 
 inline SourceLocation token_get_source_location(File* file, u32 index) {
+    assert(index < file -> source_locations.count);
     return file -> source_locations.items[index];
 }
 
