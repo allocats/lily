@@ -558,6 +558,43 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
         LLVMBuildStore(ctx -> builder, parameter, address);
 
         ctx -> symbol_map[param_id] = address;
+
+        // Emit debug information for parameters
+        str8 param_name = STRING_ID_LOOKUP(param -> name_id).str;
+
+        AstNode* param_node = &ctx -> file -> ast.nodes[param -> ast_node_id];
+        SourceLocation param_source_loc = token_get_source_location(ctx -> file, param_node -> tokens.start);
+
+        LLVMMetadataRef debug_param = LLVMDIBuilderCreateParameterVariable(
+            ctx -> debug_builder,
+            ctx -> debug_scope,
+            param_name.ptr,
+            param_name.len,
+            i,
+            ctx -> debug_file_metadata,
+            param_source_loc.line,
+            dwarf_param_types[i + 1],
+            1,
+            LLVMDIFlagZero
+        );
+
+        LLVMMetadataRef empty_expr = LLVMDIBuilderCreateExpression(ctx -> debug_builder, null, 0);
+        LLVMMetadataRef debug_loc = LLVMDIBuilderCreateDebugLocation(
+            ctx -> ctx,
+            param_source_loc.line,
+            param_source_loc.col,
+            ctx -> debug_scope,
+            null
+        );
+
+        LLVMDIBuilderInsertDeclareRecordAtEnd(
+            ctx -> debug_builder,
+            address,
+            debug_param,
+            empty_expr,
+            debug_loc,
+            LLVMGetLastBasicBlock(ctx -> fn)
+        );
     }
 
     if (is_variadic) {
