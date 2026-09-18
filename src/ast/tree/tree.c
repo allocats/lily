@@ -43,7 +43,6 @@ void ast_init(Ast* ast) {
 AstNodeId ast_alloc_node(Ast* ast) {
     if (UNLIKELY(ast -> count >= ast -> capacity)) {
         u64 old_capacity = ast -> capacity;
-        u64 new_capacity = old_capacity * 2;
 
         u64 old_size = old_capacity * sizeof(AstNode);
         u64 new_size = old_size * 2;

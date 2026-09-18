@@ -192,7 +192,7 @@ static u32 type_to_buf(TypeId type_id, char* buf, u32 buf_size, u32 offset) {
         } break;
 
         case TYPE_ARRAY: {
-            offset += snprintf(buf + offset, buf_size - offset, "[%u]", type -> as.array_type.size);
+            offset += snprintf(buf + offset, buf_size - offset, "[%lu]", type -> as.array_type.size);
             offset = type_to_buf(type -> as.array_type.element, buf, buf_size, offset);
         } break;
 
