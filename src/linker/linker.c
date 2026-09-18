@@ -9,11 +9,12 @@ i32 link_objects() {
 
     arena_reset(&driver.scratch);
 
-    char** args = arena_alloc(&driver.scratch, (file_count + 4) * sizeof(char*));
+    char** args = arena_alloc(&driver.scratch, (file_count + 5) * sizeof(char*));
     u32 arg_count = 0;
 
     args[arg_count++] = "cc";
     args[arg_count++] = "-lc";
+    args[arg_count++] = "-lm";
     args[arg_count++] = "-fuse-ld=lld";
 
     for (u32 i = 0; i < file_count; i++) {
