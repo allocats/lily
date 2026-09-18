@@ -370,7 +370,7 @@ static LLVMValueRef codegen_global_variable(CodegenCtx* ctx, AstNode* node) {
 
     LLVMSetGlobalConstant(var, node -> flags & AST_FLAGS_IS_CONSTANT);
 
-    if (node -> flags & AST_FLAGS_IS_EXTERNAL) {
+    if (node -> flags & AST_FLAGS_IS_FOREIGN) {
         LLVMSetLinkage(var, LLVMExternalLinkage);
     }
 
@@ -462,7 +462,7 @@ static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node)
     ctx -> defer_list.stack = null;
 
     // no body just return
-    if (symbol -> flags & AST_FLAGS_IS_INTRINSIC || symbol -> flags & AST_FLAGS_IS_EXTERNAL) {
+    if (symbol -> flags & AST_FLAGS_IS_INTRINSIC || symbol -> flags & AST_FLAGS_IS_FOREIGN) {
         ctx -> debug_scope = ctx -> debug_unit;
         ctx -> debug_fn = null;
         return fn;

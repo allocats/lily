@@ -40,12 +40,12 @@ void parse_file(FileId id) {
         .token_count = file -> tokens.count,
         .cursor = 0,
         .parsing_type = false,
-        .is_external_allowed = true
+        .is_foreign_allowed = true
     };
 
     while (p.cursor < p.token_count) {
         // set incase of error return
-        p.is_external_allowed = true;
+        p.is_foreign_allowed = true;
 
         Token token = parser_peek(&p);
 

@@ -239,6 +239,7 @@ static void lex_word(Lexer* lexer) {
         case 7: {
             switch (start[0]) {
                 case 'd': token -> kind = (memcmp(start, "default", 7) == 0) ? TOK_KW_DEFAULT : TOK_IDENT; break;
+                case 'f': token -> kind = (memcmp(start, "foreign", 7) == 0) ? TOK_KW_FOREIGN : TOK_IDENT; break;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;
@@ -246,7 +247,6 @@ static void lex_word(Lexer* lexer) {
         case 8: {
             switch (start[0]) {
                 case 'c': token -> kind = (memcmp(start, "continue", 8) == 0) ? TOK_KW_CONTINUE : TOK_IDENT; break;
-                case 'e': token -> kind = (memcmp(start, "external", 8) == 0) ? TOK_KW_EXTERNAL : TOK_IDENT; break;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;

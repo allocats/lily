@@ -14,7 +14,7 @@
 #include "token/types.h"
 
 AstNodeId parse_function_decl(Parser* p, StringId name) {
-    p -> is_external_allowed = false;
+    p -> is_foreign_allowed = false;
 
     AstNodeId id = parser_create_node(p, AST_FUNCTION_DECL, AST_FLAGS_IS_TOP_DECL, -3);
     AstNode* node = parser_get_node(p, id);
@@ -184,7 +184,7 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
         node -> as.function_decl.return_type_expr = return_type_expr;
     }
 
-    p -> is_external_allowed = true;
+    p -> is_foreign_allowed = true;
 
     if (!parser_check(p, TOK_L_BRACE)) {
         Token token = parser_peek_previous(p);

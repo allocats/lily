@@ -1,4 +1,4 @@
-vprintf :: external fn(fmt: *u8, ap: va_list) -> i32;
-printf  :: external fn(fmt: *u8, args: ...) -> i32;
+vprintf :: foreign fn(fmt: *u8, ap: va_list) -> i32;
+printf  :: foreign fn(fmt: *u8, args: ...) -> i32;
 
-putchar :: external fn(c: i32) -> i32;
+putchar :: foreign fn(c: i32) -> i32;

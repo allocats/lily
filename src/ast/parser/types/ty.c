@@ -50,8 +50,8 @@ AstNodeId parse_type_expr(Parser* p) {
     u32 flags = AST_FLAGS_NONE;
 
     // NOTE: caller must set its flags
-    if (parser_check(p, TOK_KW_EXTERNAL)) {
-        if (!p -> is_external_allowed) {
+    if (parser_check(p, TOK_KW_FOREIGN)) {
+        if (!p -> is_foreign_allowed) {
             Token token = parser_peek(p);
 
             diagnostic_add_token(
@@ -60,7 +60,7 @@ AstNodeId parse_type_expr(Parser* p) {
                 &token,
                 DIAG_LOC_WHOLE_TOK,
                 "linkage is not allowed to be set here",
-                "remove 'external'"
+                "remove 'foreign'"
             );
 
             AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -(p -> cursor - start_index));
@@ -69,7 +69,7 @@ AstNodeId parse_type_expr(Parser* p) {
 
         parser_advance(p);
 
-        flags |= AST_FLAGS_IS_EXTERNAL;
+        flags |= AST_FLAGS_IS_FOREIGN;
     }
 
     if (parser_check(p, TOK_KW_CONST)) {

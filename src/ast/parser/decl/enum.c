@@ -15,7 +15,7 @@
 #include "utils/types.h"
 
 AstNodeId parse_enum_decl(Parser *p, StringId name) {
-    p -> is_external_allowed = false;
+    p -> is_foreign_allowed = false;
 
     AstNodeId id = parser_create_node(p, AST_ENUM_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_CONSTANT, -3);
     AstNode* node = parser_get_node(p, id);
@@ -138,7 +138,7 @@ AstNodeId parse_enum_decl(Parser *p, StringId name) {
     parser_advance(p); // advance past '}'
     
     p -> current_file -> ast.declaration_count += node -> as.enum_decl.variants.count;
-    p -> is_external_allowed = true;
+    p -> is_foreign_allowed = true;
 
     return id;
 }

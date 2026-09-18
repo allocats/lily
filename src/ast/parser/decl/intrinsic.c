@@ -50,7 +50,7 @@ AstNodeId parse_intrinsic_decl(Parser* p, StringId name) {
 
     parser_advance(p);
 
-    p -> is_external_allowed = false;
+    p -> is_foreign_allowed = false;
 
     while (p -> cursor < p -> token_count) {
         if (parser_check(p, TOK_R_PAREN)) {
@@ -181,7 +181,7 @@ AstNodeId parse_intrinsic_decl(Parser* p, StringId name) {
         return parser_error(p, id, RECOVERY_DECL);
     }
 
-    p -> is_external_allowed = false;
+    p -> is_foreign_allowed = false;
 
     if (parser_check(p, TOK_ARROW)) {
         parser_advance(p);

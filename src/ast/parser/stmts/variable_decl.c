@@ -1,4 +1,3 @@
-#include "ast/nodes/nodes.h"
 #include "ast/nodes/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
@@ -38,7 +37,7 @@ AstNodeId parse_variable_decl(Parser* p) {
 
     node -> flags = type_expr_node -> flags;
 
-    if (node -> flags & AST_FLAGS_IS_EXTERNAL) {
+    if (node -> flags & AST_FLAGS_IS_FOREIGN) {
         if (!parser_check(p, TOK_SEMI)) {
             Token token = parser_peek_previous(p);
 

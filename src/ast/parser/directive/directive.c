@@ -22,7 +22,7 @@
 
 extern DriverCtx driver;
 
-static constexpr u32 directive_count = 3;
+static constexpr u32 directive_count = 4;
 
 static AstNodeKind directive_lut[directive_count];
 
@@ -319,7 +319,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             break;
         }
 
-        case AST_EXECUTE_DIRECTIVE:
+        case AST_EXECUTE_DIRECTIVE: {
             if (name_id != STRING_ID_NONE) {
                 Token token = parser_peek_behind_by(p, 2);
 
@@ -340,7 +340,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             }
 
             node -> as.execute_directive.expr = target_id;
-            break;
+        } break;
 
         default:
             UNREACHABLE("Hit default case in directive kind switch statement");

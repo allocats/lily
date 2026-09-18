@@ -7,7 +7,7 @@
 #include "ids.h"
 #include "string_interner/interner.h"
 
-AstNodeId parse_external_decl(Parser* p, StringId name) {
+AstNodeId parse_foreign_decl(Parser* p, StringId name) {
     if (!parser_check(p, TOK_KW_FN)) {
         Token token = parser_peek(p);
 
@@ -17,7 +17,7 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
             &token,
             DIAG_LOC_WHOLE_TOK,
             "expected 'fn'",
-            "insert fn for external declaration"
+            "insert fn for foreign declaration"
         );
 
         AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_NONE, -3);
@@ -26,7 +26,7 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
 
     parser_advance(p); // advance past 'fn'
 
-    AstNodeId id = parser_create_node(p, AST_FUNCTION_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_EXTERNAL, -4);
+    AstNodeId id = parser_create_node(p, AST_FUNCTION_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_FOREIGN, -4);
     AstNode* node = parser_get_node(p, id);
 
     node -> as.function_decl.name = name;
@@ -50,7 +50,7 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
 
     parser_advance(p);
 
-    p -> is_external_allowed = false;
+    p -> is_foreign_allowed = false;
 
     while (p -> cursor < p -> token_count) {
         if (parser_check(p, TOK_R_PAREN)) {
@@ -181,7 +181,7 @@ AstNodeId parse_external_decl(Parser* p, StringId name) {
         return parser_error(p, id, RECOVERY_DECL);
     }
 
-    p -> is_external_allowed = false;
+    p -> is_foreign_allowed = false;
 
     if (parser_check(p, TOK_ARROW)) {
         parser_advance(p);

@@ -20,7 +20,7 @@
     X(TOK_KW_NULL)      \
                         \
     X(TOK_KW_INTRINSIC) \
-    X(TOK_KW_EXTERNAL)  \
+    X(TOK_KW_FOREIGN)   \
     X(TOK_KW_MACRO)     \
     X(TOK_KW_FN)        \
                         \
