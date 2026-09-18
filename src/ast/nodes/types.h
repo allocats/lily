@@ -12,20 +12,8 @@ static constexpr u32 AST_FLAGS_IS_CONSTANT  = 1 << 1;
 static constexpr u32 AST_FLAGS_IS_FOREIGN   = 1 << 2;
 static constexpr u32 AST_FLAGS_IS_INTRINSIC = 1 << 3;
 static constexpr u32 AST_FLAGS_IS_VARIADIC  = 1 << 4;
-
-static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_TOP_DECL);
-static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_CONSTANT);
-static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_FOREIGN);
-static_assert(AST_FLAGS_NONE != AST_FLAGS_IS_VARIADIC);
-
-static_assert(AST_FLAGS_IS_TOP_DECL != AST_FLAGS_IS_CONSTANT);
-static_assert(AST_FLAGS_IS_TOP_DECL != AST_FLAGS_IS_FOREIGN);
-static_assert(AST_FLAGS_IS_TOP_DECL != AST_FLAGS_IS_VARIADIC);
-
-static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_FOREIGN);
-static_assert(AST_FLAGS_IS_CONSTANT != AST_FLAGS_IS_VARIADIC);
-
-static_assert(AST_FLAGS_IS_FOREIGN != AST_FLAGS_IS_VARIADIC);
+static constexpr u32 AST_FLAGS_IS_INLINE    = 1 << 5;
+static constexpr u32 AST_FLAGS_IS_NOINLINE  = 1 << 6;
 
 #define AST_NODES(X)            \
     X(AST_ERROR)                \

@@ -22,7 +22,7 @@
 
 extern DriverCtx driver;
 
-static constexpr u32 directive_count = 4;
+static constexpr u32 directive_count = 3;
 
 static AstNodeKind directive_lut[directive_count];
 
@@ -39,7 +39,7 @@ void directive_ids_init() {
 }
 
 AstNodeId parse_directive(Parser* p, StringId name_id) {
-    AstNodeId id = parser_create_node(p, AST_IMPORT_DIRECTIVE, AST_FLAGS_IS_TOP_DECL, -3);
+    AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_IS_TOP_DECL, -3);
     AstNode* node = parser_get_node(p, id);
 
     Token directive = parser_advance(p); 
