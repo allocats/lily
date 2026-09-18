@@ -330,6 +330,7 @@ static bool codegen_ast(CodegenCtx* ctx) {
         arena_reset(&ctx -> defer_list.arena);
 
         ctx -> defer_list.stack = null;
+        ctx -> fn = null;
 
         if (!result) {
             return false;
@@ -747,6 +748,44 @@ static LLVMValueRef codegen_variable_declaration(CodegenCtx* ctx, AstNode* node)
     assert(address != null);
 
     ctx -> symbol_map[node -> resolved_symbol] = address;
+
+    // Emit debug information
+
+    str8 var_name = STRING_ID_LOOKUP(node -> as.variable_decl.name).str;
+    SourceLocation source_loc = token_get_source_location(ctx -> file, node -> tokens.start);
+
+    LLVMMetadataRef debug_variable = LLVMDIBuilderCreateAutoVariable(
+        ctx -> debug_builder,
+        ctx -> debug_scope,
+        var_name.ptr,
+        var_name.len,
+        ctx -> debug_file_metadata,
+        source_loc.line,
+        type_id_to_dwarf(ctx, node -> resolved_type),
+        true,
+        LLVMDIFlagZero,
+        0
+    );
+
+    LLVMMetadataRef empty_expr = LLVMDIBuilderCreateExpression(ctx -> debug_builder, null, 0);
+    LLVMMetadataRef debug_loc = LLVMDIBuilderCreateDebugLocation(
+        ctx -> ctx,
+        source_loc.line,
+        source_loc.col,
+        ctx -> debug_scope,
+        null
+    );
+
+    LLVMDIBuilderInsertDeclareRecordAtEnd(
+        ctx -> debug_builder,
+        address,
+        debug_variable,
+        empty_expr,
+        debug_loc,
+        LLVMGetLastBasicBlock(ctx -> fn)
+    );
+
+    // End of debug information
 
     if (node -> as.variable_decl.value_expr == AST_NODE_ID_NONE) {
         if (is_type(node -> resolved_type, TYPE_POINTER)) {
