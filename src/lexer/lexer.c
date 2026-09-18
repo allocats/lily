@@ -226,6 +226,7 @@ static void lex_word(Lexer* lexer) {
 
         case 6: {
             switch (start[0]) {
+                case 'i': token -> kind = (memcmp(start, "inline", 6) == 0) ? TOK_KW_INLINE : TOK_IDENT; break;
                 case 'r': token -> kind = (memcmp(start, "return", 6) == 0) ? TOK_KW_RETURN : TOK_IDENT; break;
                 case 's': 
                     if (memcmp(start, "struct", 6) == 0) { token -> kind = TOK_KW_STRUCT; break; }
@@ -247,6 +248,7 @@ static void lex_word(Lexer* lexer) {
         case 8: {
             switch (start[0]) {
                 case 'c': token -> kind = (memcmp(start, "continue", 8) == 0) ? TOK_KW_CONTINUE : TOK_IDENT; break;
+                case 'n': token -> kind = (memcmp(start, "noinline", 8) == 0) ? TOK_KW_NOINLINE : TOK_IDENT; break;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;

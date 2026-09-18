@@ -11,9 +11,17 @@ typedef struct {
     // the memory usage of the nodes array 
     Arena nodes_arena;
 
+    // used for attributes ONLY
+    Arena attributes_arena;
+
     AstNode* nodes;
-    u32 count;
-    u32 capacity;
+    u32 node_count;
+    u32 node_capacity;
+
+    // each node can have multiple attributes
+    AstNodeIdList* attributes;
+    u32 attribute_count;
+    u32 attribute_capacity;
 
     // ALL declarations, used for the global table allocation
     u32 declaration_count;

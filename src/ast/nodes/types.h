@@ -360,6 +360,8 @@ typedef struct {
     AstNodeKind kind;
     u16 flags;
 
+    AstAttributeId attribute_id;
+
     TypeId resolved_type;
 
     SymbolId resolved_symbol;

@@ -15,6 +15,8 @@
 #include "utils/types.h"
 
 AstNodeId parse_enum_decl(Parser *p, StringId name) {
+    parser_advance(p);
+
     p -> is_foreign_allowed = false;
 
     AstNodeId id = parser_create_node(p, AST_ENUM_DECL, AST_FLAGS_IS_TOP_DECL | AST_FLAGS_IS_CONSTANT, -3);

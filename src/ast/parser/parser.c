@@ -52,7 +52,6 @@ void parse_file(FileId id) {
         if (token.kind == TOK_EOF) {
             break;
         } else if (token.kind == TOK_HASHTAG) {
-            parser_advance(&p);
             parse_directive(&p, STRING_ID_NONE); 
             
             // can realloc as `#include` calls file_intern() and lex_and_parse()
@@ -113,7 +112,7 @@ void parse_file(FileId id) {
 
 // going to keep this AstNodeId for dangling lifetime issues, 
 // always get id then get the node pointer
-AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, u32 start_offset) {
+AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, i32 start_offset) {
     AstNodeId id = ast_alloc_node(&p -> current_file -> ast); 
     AstNode* node = ast_get_node(&p -> current_file -> ast, id);
 

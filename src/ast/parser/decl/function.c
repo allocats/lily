@@ -14,13 +14,119 @@
 #include "token/types.h"
 
 AstNodeId parse_function_decl(Parser* p, StringId name) {
+    u32 flags = AST_FLAGS_IS_TOP_DECL;
+    u32 start = p -> cursor;
+
+    while (!parser_check(p, TOK_KW_FN)) {
+        Token token = parser_advance(p);
+
+        u32 flag = 0;
+
+        switch (token.kind) {
+            case TOK_KW_NOINLINE: {
+                if (flags & AST_FLAGS_IS_INLINE) {
+                    diagnostic_add_token(
+                        p -> current_file -> id,
+                        DIAG_ERROR,
+                        &token,
+                        DIAG_LOC_WHOLE_TOK,
+                        "invalid function modifier",
+                        "cannot add noinline modifier to function with inline modifier"
+                    );
+
+                    break;
+                }
+
+                flag = AST_FLAGS_IS_NOINLINE;
+            } break;
+
+            case TOK_KW_INLINE: {
+                if (flags & AST_FLAGS_IS_NOINLINE) {
+                    diagnostic_add_token(
+                        p -> current_file -> id,
+                        DIAG_ERROR,
+                        &token,
+                        DIAG_LOC_WHOLE_TOK,
+                        "invalid function modifier",
+                        "cannot add inline modifier to function with noinline modifier"
+                    );
+
+                    break;
+                }
+
+                flag = AST_FLAGS_IS_INLINE;
+            } break;
+
+            case TOK_KW_INTRINSIC: {
+                if (flags & AST_FLAGS_IS_FOREIGN) {
+                    diagnostic_add_token(
+                        p -> current_file -> id,
+                        DIAG_ERROR,
+                        &token,
+                        DIAG_LOC_WHOLE_TOK,
+                        "invalid function modifier",
+                        "cannot add intrinsic modifier to function with foreign modifier"
+                    );
+
+                    break;
+                }
+
+                flag = AST_FLAGS_IS_INTRINSIC;
+            } break;
+
+            case TOK_KW_FOREIGN: {
+                if (flags & AST_FLAGS_IS_INTRINSIC) {
+                    diagnostic_add_token(
+                        p -> current_file -> id,
+                        DIAG_ERROR,
+                        &token,
+                        DIAG_LOC_WHOLE_TOK,
+                        "invalid function modifier",
+                        "cannot add foreign modifier to function with intrinsic modifier"
+                    );
+
+                    break;
+                }
+
+                flag = AST_FLAGS_IS_FOREIGN;
+            } break;
+
+            default: {
+                diagnostic_add_token(
+                    p -> current_file -> id,
+                    DIAG_ERROR,
+                    &token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "invalid function modifier or fn",
+                    "expected (inline | noinline | foreign | intrinsic | fn)"
+                );
+            } break;
+        }
+
+        if (flag != 0 && flags & flag) {
+            diagnostic_add_token(
+                p -> current_file -> id,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_WHOLE_TOK,
+                "duplicated function modifier",
+                "remove this modifier"
+            );
+        }
+
+        flags |= flag;
+    }
+
+    parser_advance(p);
+
     p -> is_foreign_allowed = false;
 
-    AstNodeId id = parser_create_node(p, AST_FUNCTION_DECL, AST_FLAGS_IS_TOP_DECL, -3);
+    AstNodeId id = parser_create_node(p, AST_FUNCTION_DECL, flags, start - p -> cursor);
     AstNode* node = parser_get_node(p, id);
 
     node -> as.function_decl.name = name;
     node -> as.function_decl.return_type_expr = AST_NODE_ID_NONE;
+    node -> as.function_decl.block = AST_NODE_ID_NONE;
 
     if (!parser_check(p, TOK_L_PAREN)) {
         Token token = parser_peek_previous(p);
@@ -185,6 +291,33 @@ AstNodeId parse_function_decl(Parser* p, StringId name) {
     }
 
     p -> is_foreign_allowed = true;
+
+    if (flags & AST_FLAGS_IS_INTRINSIC || flags & AST_FLAGS_IS_FOREIGN) {
+        if (!parser_check(p, TOK_SEMI)) {
+            Token token = parser_peek_previous(p);
+
+            diagnostic_add_token(
+                p -> current_file -> id,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_END_OF_TOK,
+                "expected ';' after function declaration",
+                "add a ';' here" 
+            );
+
+            return parser_error(p, id, RECOVERY_DECL);
+        }
+
+        node = parser_get_node(p, id);
+
+        node -> tokens.end = p -> cursor;
+
+        p -> current_file -> ast.declaration_count += node -> as.function_decl.parameters.count;
+
+        parser_advance(p);
+
+        return id;
+    }
 
     if (!parser_check(p, TOK_L_BRACE)) {
         Token token = parser_peek_previous(p);

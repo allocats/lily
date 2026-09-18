@@ -8,7 +8,7 @@
 
 void parse_file(FileId id);
 
-AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, u32 start_offset);
+AstNodeId parser_create_node(Parser* p, AstNodeKind kind, u16 flags, i32 start_offset);
 AstNode*  parser_get_node(Parser* p, AstNodeId id);
 
 Token parser_peek(Parser* p);

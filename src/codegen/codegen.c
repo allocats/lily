@@ -305,7 +305,7 @@ cleanup:
 static bool codegen_ast(CodegenCtx* ctx) {
     Ast* ast = &ctx -> file -> ast;
 
-    for (u32 i = 0; i < ast -> count; i++) {
+    for (u32 i = 0; i < ast -> node_count; i++) {
         AstNode* node = &ast -> nodes[i];
 
         if (!(node -> flags & AST_FLAGS_IS_TOP_DECL)) {
@@ -445,7 +445,25 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
 
     str8 name = STRING_ID_LOOKUP(symbol -> name_id).str;
 
-    return LLVMGetOrInsertFunction(ctx -> module, name.ptr, name.len, fn_type); 
+    LLVMValueRef fn = LLVMGetOrInsertFunction(ctx -> module, name.ptr, name.len, fn_type); 
+
+    if (symbol -> flags & AST_FLAGS_IS_INLINE) {
+        u32 attr_index = LLVMGetEnumAttributeKindForName("alwaysinline", 12);
+        assert(attr_index != 0);
+
+        LLVMAttributeRef attr = LLVMCreateEnumAttribute(ctx -> ctx, attr_index, 0);
+
+        LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, attr);
+    } else if (symbol -> flags & AST_FLAGS_IS_NOINLINE) {
+        u32 attr_index = LLVMGetEnumAttributeKindForName("noinline", 8);
+        assert(attr_index != 0);
+
+        LLVMAttributeRef attr = LLVMCreateEnumAttribute(ctx -> ctx, attr_index, 0);
+
+        LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, attr);
+    }
+
+    return fn;
 }
 
 static LLVMValueRef codegen_function_declaration(CodegenCtx* ctx, AstNode* node) {

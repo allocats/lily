@@ -3,6 +3,7 @@
 
 #include "utils/types.h"
 
+typedef u32 AstAttributeId;
 typedef u32 AstNodeId;
 typedef u32 FileId;
 typedef u32 IntrinsicId;
@@ -12,6 +13,7 @@ typedef u32 StringId;
 typedef u32 SymbolId;
 typedef u32 TypeId;
 
+static constexpr u32 AST_ATTRIBUTE_ID_NONE = U32_MAX;
 static constexpr u32 AST_NODE_ID_NONE = U32_MAX;
 static constexpr u32 FILE_ID_NONE = U32_MAX;
 static constexpr u32 INTRINSIC_ID_NONE = U32_MAX;

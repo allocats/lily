@@ -14,6 +14,8 @@
 #include "utils/types.h"
 
 AstNodeId parse_union_decl(Parser* p, StringId name) {
+    parser_advance(p);
+
     p -> is_foreign_allowed = false;
 
     AstNodeId id = parser_create_node(p, AST_UNION_DECL, AST_FLAGS_IS_TOP_DECL, -2);

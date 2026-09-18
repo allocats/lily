@@ -722,12 +722,12 @@ void ast_print(char *path, FileId file_id) {
         file -> path.ptr,
         (void*) ast,
         (void*) ast -> nodes,
-        ast -> count,
-        ast -> capacity,
+        ast -> node_count,
+        ast -> node_capacity,
         ast -> declaration_count,
         ast -> top_level_declaration_count,
         sizeof(AstNode),
-        sizeof(AstNode) * (usize)ast -> capacity,
+        sizeof(AstNode) * (usize)ast -> node_capacity,
         (void*) &ast -> gpa,
         (void*) &ast -> nodes_arena
     );
@@ -741,9 +741,9 @@ void ast_print(char *path, FileId file_id) {
         "  nodes used size:   %zu bytes\n"
         "  nodes free slots:  %u\n",
         (void*) ast -> nodes,
-        sizeof(AstNode) * (usize)ast -> capacity,
-        sizeof(AstNode) * (usize)ast -> count,
-        ast -> capacity - ast -> count
+        sizeof(AstNode) * (usize)ast -> node_capacity,
+        sizeof(AstNode) * (usize)ast -> node_count,
+        ast -> node_capacity - ast -> node_count
     );
 
     fprintf(
@@ -776,15 +776,15 @@ void ast_print(char *path, FileId file_id) {
     fprintf(
         out,
         "AST NODE ARRAY\n" "count=%u capacity=%u nodes=%p\n",
-        ast -> count,
-        ast -> capacity,
+        ast -> node_count,
+        ast -> node_capacity,
         (void*) ast -> nodes
     );
 
     ast_print_separator(out);
 
 
-    for (u32 i = 0; i < ast -> count; i++) {
+    for (u32 i = 0; i < ast -> node_count; i++) {
         AstNode *node = &ast -> nodes[i];
 
         ast_print_node_header(out, node, i);
@@ -814,12 +814,12 @@ void ast_print(char *path, FileId file_id) {
         (void*) ast -> nodes,
         (void*) &ast -> gpa,
         (void*) &ast -> nodes_arena,
-        ast -> count,
-        ast -> capacity,
+        ast -> node_count,
+        ast -> node_capacity,
         sizeof(AstNode),
-        sizeof(AstNode) * (usize)ast -> capacity,
-        sizeof(AstNode) * (usize)ast -> count,
-        ast -> capacity - ast -> count
+        sizeof(AstNode) * (usize)ast -> node_capacity,
+        sizeof(AstNode) * (usize)ast -> node_count,
+        ast -> node_capacity - ast -> node_count
     );
 
     fprintf(

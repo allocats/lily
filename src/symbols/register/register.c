@@ -66,7 +66,7 @@ ScopeId register_top_level_symbols_for_file(FileId id) {
 
     file -> scope_id = file_scope_id;
 
-    for (u32 i = 0; i < ast -> count; i++) {
+    for (u32 i = 0; i < ast -> node_count; i++) {
         AstNode* node = &ast -> nodes[i];
 
         if (!(node -> flags & AST_FLAGS_IS_TOP_DECL)) {

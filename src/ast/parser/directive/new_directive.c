@@ -1,5 +1,6 @@
 #include "ast/nodes/types.h"
 #include "ast/parser/directive/directive.h"
+#include "ast/parser/directive/types.h"
 #include "ast/parser/expr/expr.h"
 #include "ast/parser/parser.h"
 #include "ast/parser/recovery/recovery.h"
@@ -22,63 +23,159 @@
 
 extern DriverCtx driver;
 
-static constexpr u32 directive_count = 3;
+static constexpr u32 directive_count = 9;
 
-static AstNodeKind directive_lut[directive_count];
+static DirectiveInfo directive_lut[directive_count];
 
 static char scratch_relative[PATH_MAX];
 static char scratch_stdlib[PATH_MAX];
 
+static AstNodeId parse_directive_statement(Parser* p, StringId binding_name_id, u32 flags, DirectiveInfo directive, i32 start);
+
 // see note in header file
-void directive_ids_init() {
+void directive_infos_init() {
     assert(string_intern_cstr("import") == 0);
     
-    directive_lut[string_intern_cstr("import")]  = AST_IMPORT_DIRECTIVE;
-    directive_lut[string_intern_cstr("include")] = AST_INCLUDE_DIRECTIVE;
-    directive_lut[string_intern_cstr("execute")] = AST_EXECUTE_DIRECTIVE;
+    directive_lut[string_intern_cstr("import")]  = (DirectiveInfo) {
+        .kind = DIRECTIVE_STATEMENT,
+        .as.kind = AST_IMPORT_DIRECTIVE,
+    };
+
+    directive_lut[string_intern_cstr("include")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_STATEMENT,
+        .as.kind = AST_INCLUDE_DIRECTIVE,
+    };
+
+    directive_lut[string_intern_cstr("execute")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_STATEMENT,
+        .as.kind = AST_EXECUTE_DIRECTIVE,
+    };
+
+    directive_lut[string_intern_cstr("foreign")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_ATTRIBUTE_FLAG,
+        .as.flag = AST_FLAGS_IS_FOREIGN
+    };
+
+    directive_lut[string_intern_cstr("intrinsic")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_ATTRIBUTE_FLAG,
+        .as.flag = AST_FLAGS_IS_INTRINSIC
+    };
+
+    directive_lut[string_intern_cstr("inline")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_ATTRIBUTE_FLAG,
+        .as.flag = AST_FLAGS_IS_INLINE
+    };
+
+    directive_lut[string_intern_cstr("noinline")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_ATTRIBUTE_FLAG,
+        .as.flag = AST_FLAGS_IS_NOINLINE
+    };
+
+    directive_lut[string_intern_cstr("align")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_ATTRIBUTE_VALUE,
+    };
+
+    directive_lut[string_intern_cstr("deprecated")] = (DirectiveInfo) {
+        .kind = DIRECTIVE_ATTRIBUTE_VALUE,
+    };
+
+    assert(string_intern_cstr("deprecated") == directive_count - 1);
 }
 
-AstNodeId parse_directive(Parser* p, StringId name_id) {
-    parser_advance(p);
+AstNodeId parse_directives(Parser* p, StringId name_id) {
+    u32 start_index = p -> cursor - 3;
+    u32 flags = AST_FLAGS_NONE;
 
-    AstNodeId id = parser_create_node(p, AST_ERROR, AST_FLAGS_IS_TOP_DECL, -3);
+    for (;;) {
+        Token directive_tok = parser_advance(p); 
+
+        if (directive_tok.kind != TOK_IDENT) {
+            diagnostic_add_token(
+                p -> current_file -> id,
+                DIAG_ERROR,
+                &directive_tok,
+                DIAG_LOC_WHOLE_TOK,
+                "expected identifier for directive",
+                "add a valid identifier here"            
+            );
+
+            AstNodeId id = parser_create_node(
+                p,
+                AST_ERROR,
+                AST_FLAGS_NONE,
+                start_index - p -> cursor
+            );
+            return parser_error(p, id, RECOVERY_NONE);
+        }
+
+        // l;/,l. <- my dog typed this! need to preserve this, good boy Ollie <3
+
+        StringId string_id = string_intern_token(p -> current_file -> id, directive_tok);
+
+        if (string_id >= directive_count) {
+            diagnostic_add_token(
+                p -> current_file -> id,
+                DIAG_ERROR,
+                &directive_tok,
+                DIAG_LOC_WHOLE_TOK,
+                "unknown directive",
+                "add a valid directive here"            
+            );
+
+            AstNodeId id = parser_create_node(
+                p,
+                AST_ERROR,
+                AST_FLAGS_NONE,
+                start_index - p -> cursor
+            );
+            return parser_error(p, id, RECOVERY_NONE);
+        }
+
+        DirectiveInfo directive = directive_lut[string_id];
+
+        switch (directive.kind) {
+            case DIRECTIVE_STATEMENT: {
+                return parse_directive_statement(p, name_id, flags, directive, start_index);
+            } break;
+
+            case DIRECTIVE_ATTRIBUTE_FLAG: {
+                if (flags & directive.as.flag) {
+                    diagnostic_add_token(
+                        p -> current_file -> id,
+                        DIAG_ERROR,
+                        &directive_tok,
+                        DIAG_LOC_WHOLE_TOK,
+                        "duplicate attribute",
+                        "remove this duplicated attribute"
+                    );
+
+                    AstNodeId id = parser_create_node(
+                        p,
+                        AST_ERROR,
+                        AST_FLAGS_NONE,
+                        start_index - p -> cursor
+                    );
+                    return parser_error(p, id, RECOVERY_NONE);
+                }
+
+                flags |= directive.as.flag;
+
+                if (parser_check(p, TOK_HASHTAG)) {
+                    parser_advance(p);
+                }
+            } break;
+
+            default:
+                UNREACHABLE("parse_directives()");
+        }
+    }
+}
+
+static AstNodeId parse_directive_statement(Parser* p, StringId binding_name_id, u32 flags, DirectiveInfo directive, i32 start) {
+    AstNodeId id  = parser_create_node(p, directive.as.kind, flags, start - p -> cursor);
     AstNode* node = parser_get_node(p, id);
-
-    Token directive = parser_advance(p); 
-
-    if (directive.kind != TOK_IDENT) {
-        diagnostic_add_token(
-            p -> current_file -> id,
-            DIAG_ERROR,
-            &directive,
-            DIAG_LOC_WHOLE_TOK,
-            "expected directive identifier",
-            "add a valid identifier here"            
-        );
-
-        return parser_error(p, id, RECOVERY_NONE);
-    }
-
-    StringId string_id = string_intern_token(p -> current_file -> id, directive);    
-
-    if (string_id >= directive_count) {
-        diagnostic_add_token(
-            p -> current_file -> id,
-            DIAG_ERROR,
-            &directive,
-            DIAG_LOC_WHOLE_TOK,
-            "unknown directive",
-            "add a valid directive here"            
-        );
-
-        return parser_error(p, id, RECOVERY_NONE);
-    }
-
-    AstNodeKind kind = directive_lut[string_id];
-
-    node -> kind = kind;
-
-    switch (kind) {
+    
+    switch (directive.as.kind) {
         case AST_IMPORT_DIRECTIVE: {
             Token path_token = parser_advance(p);
 
@@ -117,7 +214,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
             path_token.length += 2;
 
             node -> as.import_directive.path    = path_string_id;
-            node -> as.import_directive.binding = name_id;
+            node -> as.import_directive.binding = binding_name_id;
             node -> as.import_directive.file_id = FILE_ID_NONE;
 
             str8 import_path_string = STRING_ID_LOOKUP(path_string_id).str;
@@ -183,7 +280,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
         }
 
         case AST_INCLUDE_DIRECTIVE: {
-            if (name_id != STRING_ID_NONE) {
+            if (binding_name_id != STRING_ID_NONE) {
                 Token token = parser_peek_behind_by(p, 2);
 
                 diagnostic_add_token(
@@ -272,7 +369,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
 
             node = parser_get_node(p, id);
             node -> as.include_directive.file_id = included_file_id;
-            
+
             if (UNLIKELY(included_file_id == FILE_ID_NONE)) {
                 diagnostic_add_token(
                     p -> current_file -> id,
@@ -322,7 +419,7 @@ AstNodeId parse_directive(Parser* p, StringId name_id) {
         }
 
         case AST_EXECUTE_DIRECTIVE: {
-            if (name_id != STRING_ID_NONE) {
+            if (binding_name_id != STRING_ID_NONE) {
                 Token token = parser_peek_behind_by(p, 2);
 
                 diagnostic_add_token(

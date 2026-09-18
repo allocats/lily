@@ -20,18 +20,22 @@ AstNodeId parse_top_level_decl(Parser* p) {
     parser_advance(p); // advance past identifier
     parser_advance(p); // advance past '::'
 
-    Token token = parser_advance(p);
+    Token token = parser_peek(p);
 
     switch (token.kind) {
         case TOK_HASHTAG:
             return parse_directive(p, name_id);
 
+        // case TOK_KW_INTRINSIC:
+        //     return parse_intrinsic_decl(p, name_id);
+        //
+        // case TOK_KW_FOREIGN:
+        //     return parse_foreign_decl(p, name_id);
+
+        case TOK_KW_INLINE:
+        case TOK_KW_NOINLINE:
         case TOK_KW_INTRINSIC:
-            return parse_intrinsic_decl(p, name_id);
-
         case TOK_KW_FOREIGN:
-            return parse_foreign_decl(p, name_id);
-
         case TOK_KW_FN:
             return parse_function_decl(p, name_id);
 

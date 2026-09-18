@@ -19,6 +19,9 @@
     X(TOK_KW_TRUE)      \
     X(TOK_KW_NULL)      \
                         \
+    X(TOK_KW_NOINLINE)  \
+    X(TOK_KW_INLINE)    \
+                        \
     X(TOK_KW_INTRINSIC) \
     X(TOK_KW_FOREIGN)   \
     X(TOK_KW_MACRO)     \
