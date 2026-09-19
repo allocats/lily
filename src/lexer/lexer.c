@@ -242,6 +242,7 @@ static void lex_word(Lexer* lexer) {
 
         case 7: {
             switch (start[0]) {
+                case 'a': token -> kind = (memcmp(start, "alignof", 7) == 0) ? TOK_KW_ALIGNOF : TOK_IDENT; break;
                 case 'd': token -> kind = (memcmp(start, "default", 7) == 0) ? TOK_KW_DEFAULT : TOK_IDENT; break;
                 case 'f': token -> kind = (memcmp(start, "foreign", 7) == 0) ? TOK_KW_FOREIGN : TOK_IDENT; break;
                 default:  token -> kind = TOK_IDENT;

@@ -47,6 +47,7 @@
     X(TOK_KW_BREAK)     \
     X(TOK_KW_CONTINUE)  \
                         \
+    X(TOK_KW_ALIGNOF)   \
     X(TOK_KW_TYPEOF)    \
     X(TOK_KW_SIZEOF)    \
     X(TOK_KW_CAST)      \
@@ -84,10 +85,10 @@
     X(TOK_BANG)         \
     X(TOK_BANG_EQ)      \
                         \
-    X(TOK_AT)           \
     X(TOK_HASHTAG)      \
     X(TOK_DOLLAR)       \
     X(TOK_QUESTION)     \
+    X(TOK_AT)           \
                         \
     X(TOK_AMP)          \
     X(TOK_AMP_AMP)      \

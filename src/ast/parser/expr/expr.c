@@ -210,6 +210,7 @@ static AstNodeId nud(Parser* p, Token token) {
             return id;
         }
 
+        case TOK_KW_ALIGNOF:
         case TOK_KW_SIZEOF:
         case TOK_KW_TYPEOF:
         case TOK_STAR:
