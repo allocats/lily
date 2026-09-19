@@ -51,6 +51,8 @@ static constexpr u32 AST_FLAGS_IS_NOINLINE  = 1 << 6;
     X(AST_CONTINUE_STMT)        \
     X(AST_BREAK_STMT)           \
                                 \
+    X(AST_CAST_EXPR)            \
+                                \
     X(AST_BINARY_OP)            \
     X(AST_UNARY_OP)             \
     X(AST_FUNCTION_CALL)        \

@@ -47,6 +47,10 @@
     X(TOK_KW_BREAK)     \
     X(TOK_KW_CONTINUE)  \
                         \
+    X(TOK_KW_TYPEOF)    \
+    X(TOK_KW_SIZEOF)    \
+    X(TOK_KW_CAST)      \
+                        \
     X(TOK_L_PAREN)      \
     X(TOK_R_PAREN)      \
     X(TOK_L_BRACE)      \

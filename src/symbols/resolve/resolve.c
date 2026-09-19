@@ -1574,6 +1574,16 @@ static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, 
             return id;
         }
 
+        case TOK_KW_SIZEOF: {
+            TypeEntry* entry = TYPE_ID_LOOKUP_REF(id);
+
+            node -> kind = AST_LITERAL;
+            node -> as.literal.kind = LITERAL_INTEGER;
+            node -> as.literal.as.integer = entry -> size;
+
+            return resolve_expression(scope_id, file_id, node -> id, expected_type);
+        }
+
         default:
             UNREACHABLE("resolve_unary_op()");
     }

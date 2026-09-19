@@ -187,6 +187,7 @@ static void lex_word(Lexer* lexer) {
             switch (start[0]) {
                 case 'c': 
                     if (start[1] == 'a' && start[2] == 's' && start[3] == 'e') { token -> kind = TOK_KW_CASE; break; }
+                    if (start[1] == 'a' && start[2] == 's' && start[3] == 't') { token -> kind = TOK_KW_CAST; break; }
                     token -> kind = TOK_IDENT;
                     break;
 
@@ -229,10 +230,12 @@ static void lex_word(Lexer* lexer) {
                 case 'i': token -> kind = (memcmp(start, "inline", 6) == 0) ? TOK_KW_INLINE : TOK_IDENT; break;
                 case 'r': token -> kind = (memcmp(start, "return", 6) == 0) ? TOK_KW_RETURN : TOK_IDENT; break;
                 case 's': 
+                    if (memcmp(start, "sizeof", 6) == 0) { token -> kind = TOK_KW_SIZEOF; break; }
                     if (memcmp(start, "struct", 6) == 0) { token -> kind = TOK_KW_STRUCT; break; }
                     if (memcmp(start, "switch", 6) == 0) { token -> kind = TOK_KW_SWITCH; break; }
                     token -> kind = TOK_IDENT; 
                     break;
+                case 't': token -> kind = (memcmp(start, "typeof", 6) == 0) ? TOK_KW_TYPEOF : TOK_IDENT; break;
                 default:  token -> kind = TOK_IDENT;
             }
         } break;
