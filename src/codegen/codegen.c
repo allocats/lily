@@ -147,9 +147,10 @@ static void codegen_file(CodegenCtx* ctx, FileId id) {
 
     ctx -> file = file;
 
-    ctx -> ctx     = LLVMContextCreate();
-    ctx -> module  = LLVMModuleCreateWithNameInContext(ctx -> file -> path.ptr, ctx -> ctx);
-    ctx -> builder = LLVMCreateBuilderInContext(ctx -> ctx);
+    ctx -> ctx         = LLVMContextCreate();
+    ctx -> module      = LLVMModuleCreateWithNameInContext(ctx -> file -> path.ptr, ctx -> ctx);
+    ctx -> builder     = LLVMCreateBuilderInContext(ctx -> ctx);
+    ctx -> target_data = LLVMGetModuleDataLayout(ctx -> module);
 
     ctx -> defer_list.stack = null;
     ctx -> loop_ctx = null;
@@ -1170,6 +1171,7 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
     switch (node -> kind) {
         case AST_IDENTIFIER: {
             SymbolId symbol_id = node -> resolved_symbol;
+            assert(symbol_id != SYMBOL_ID_NONE);
             Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
             switch (symbol -> kind) {
@@ -1727,6 +1729,35 @@ static LLVMTypeRef struct_to_llvm(CodegenCtx* ctx, TypeEntry* entry) {
     return LLVMStructTypeInContext(ctx -> ctx, field_types, field_count, false);
 }
 
+static LLVMTypeRef union_to_llvm(CodegenCtx* ctx, TypeEntry* entry) {
+    u32 field_count = entry -> as.union_type.field_count;
+
+    if (field_count == 0) {
+        return LLVMStructTypeInContext(ctx -> ctx, NULL, 0, false);
+    }
+
+    TypeId largest_field_id = entry -> as.union_type.largest_field_id;
+    TypeEntry* largest_field_entry = TYPE_ID_LOOKUP_REF(largest_field_id);
+
+    LLVMTypeRef body[2];
+    u32 body_count = 0;
+
+    body[body_count++] = type_id_to_llvm(ctx, largest_field_id);
+
+    u64 padding = entry -> size - largest_field_entry -> size;
+
+    if (padding > 0) {
+        body[body_count++] = LLVMArrayType2(LLVMInt8TypeInContext(ctx -> ctx), padding);
+    }
+
+    LLVMTypeRef result = LLVMStructTypeInContext(ctx -> ctx, body, body_count, false);
+
+    assert(LLVMABISizeOfType(ctx -> target_data, result) == entry -> size);
+    assert(LLVMABIAlignmentOfType(ctx -> target_data, result) == entry -> alignment);
+
+    return result;
+}
+
 static LLVMTypeRef array_to_llvm(CodegenCtx* ctx, TypeEntry* entry) {
     LLVMTypeRef element_type = type_id_to_llvm(ctx, entry -> as.array_type.element);
     return LLVMArrayType2(element_type, entry -> as.array_type.size); 
@@ -1748,6 +1779,9 @@ static LLVMTypeRef type_id_to_llvm(CodegenCtx* ctx, TypeId id) {
 
         case TYPE_STRUCT:
             return (ctx -> type_map[id] = struct_to_llvm(ctx, entry));
+
+        case TYPE_UNION:
+            return (ctx -> type_map[id] = union_to_llvm(ctx, entry));
 
         case TYPE_ENUM:
             return (ctx -> type_map[id] = type_id_to_llvm(ctx, entry -> as.enum_type.underlying_type));

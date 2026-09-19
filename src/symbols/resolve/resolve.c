@@ -54,7 +54,7 @@ static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, 
 static TypeId resolve_binary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_function_call(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
-static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type);
+static TypeId resolve_member_access(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 static TypeId resolve_struct_literal(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type);
 
 static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId id);
@@ -282,7 +282,12 @@ SymbolId resolve_name_expr(ScopeId scope_id, File* file, AstNodeId node_id) {
 
             if (object -> kind == SYMBOL_IMPORT) {
                 File* imported_file = file_lookup_id(object -> as.import_symbol.file_id);
-                return scope_lookup(imported_file -> scope_id, member_name);
+                SymbolId symbol_id = scope_lookup(imported_file -> scope_id, member_name);
+
+                member_node -> resolved_symbol = symbol_id;
+                node -> resolved_symbol = symbol_id;
+
+                return symbol_id;
             }
 
             return SYMBOL_ID_NONE;
@@ -554,7 +559,10 @@ static bool resolve_union(Resolver* r, SymbolId id) {
     AstNode* node = &file -> ast.nodes[symbol -> ast_node_id];
 
     u32 size = 0;
-    u16 align = 0; 
+    u16 align = 1; 
+
+    TypeId largest_field_id = TYPE_ID_NONE;
+    u32 largest_field_size = 0;
 
     u32 field_count = node -> as.union_decl.fields.count;
 
@@ -575,18 +583,32 @@ static bool resolve_union(Resolver* r, SymbolId id) {
         }
 
         Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
-        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_symbol -> as.field_symbol.type_id);
+        TypeId field_type_id = field_symbol -> as.field_symbol.type_id;
+        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_type_id);
 
         size  = MAX(size, field_type_entry -> size);
-        align = MAX(align, field_type_entry -> alignment);
+
+        if (
+            largest_field_id== TYPE_ID_NONE ||
+            field_type_entry -> alignment > align ||
+            (field_type_entry -> alignment == align && field_type_entry -> size > largest_field_size)
+        ) {
+            align = field_type_entry -> alignment;
+            largest_field_id = field_type_id;
+            largest_field_size = field_type_entry -> size;
+        }
     }
+
+    assert(align % 2 == 0);
 
     scope_exit(r);
 
     TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.union_symbol.resolved_type_id);
 
     entry -> as.union_type.symbol_id = id;
-    entry -> size = size;
+    entry -> as.union_type.largest_field_id = largest_field_id;
+
+    entry -> size = size + (-size & (align - 1));
     entry -> alignment = align;
 
     node -> resolved_type = symbol -> as.union_symbol.resolved_type_id;
@@ -1306,7 +1328,7 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
             break;
         
         case AST_MEMBER_ACCESS:
-            id = resolve_member_access(node, file_id, expected_type);
+            id = resolve_member_access(scope_id, node, file_id, expected_type);
             break;
 
         case AST_STRUCT_LITERAL:
@@ -1824,10 +1846,10 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
     return element_type;
 }
 
-static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expected_type) {
+static TypeId resolve_member_access(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
     File* file = file_lookup_id(file_id);
 
-    SymbolId object_symbol_id = resolve_name_expr(file -> scope_id, file, node -> as.member_access.object);
+    SymbolId object_symbol_id = resolve_name_expr(scope_id, file, node -> as.member_access.object);
 
     if (object_symbol_id == SYMBOL_ID_NONE) {
         return TYPE_ID_NONE;
@@ -1859,7 +1881,8 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
 
         member_symbol_id = scope_lookup(imported_file -> scope_id, member_name);
     } else {
-        TypeId object_type_id = get_type_from_symbol(object_symbol_id);
+        // TypeId object_type_id = get_type_from_symbol(object_symbol_id);
+        TypeId object_type_id = resolve_expression(scope_id, file_id, node -> as.member_access.object, TYPE_ID_NONE);
 
         if (object_type_id == TYPE_ID_NONE) {
             return TYPE_ID_NONE;
@@ -1929,8 +1952,6 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
         return TYPE_ID_NONE;
     }
 
-    member_node -> resolved_symbol = member_symbol_id;
-
     TypeId member_type = get_type_from_symbol(member_symbol_id);
 
     if (member_type == TYPE_ID_NONE) {
@@ -1947,7 +1968,11 @@ static TypeId resolve_member_access(AstNode* node, FileId file_id, TypeId expect
         return TYPE_ID_NONE;
     }
 
+    member_node -> resolved_type = member_type;
+    member_node -> resolved_symbol = member_symbol_id;
+
     node -> resolved_type = member_type;
+    node -> resolved_symbol = member_symbol_id;
 
     return member_type;
 }

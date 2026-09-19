@@ -4,6 +4,7 @@
 #include "codegen/llvm_intrinsics/types.h"
 #include "files/types.h"
 
+#include <llvm-c/Target.h>
 #include <llvm-c/Types.h>
 
 static constexpr u32 defer_stack_init_cap = 4;
@@ -64,6 +65,7 @@ typedef struct {
     LLVMContextRef ctx;
     LLVMModuleRef module;
     LLVMBuilderRef builder;
+    LLVMTargetDataRef target_data;
 
     LLVMDIBuilderRef debug_builder;
     LLVMMetadataRef debug_unit;

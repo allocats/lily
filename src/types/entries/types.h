@@ -78,6 +78,8 @@ typedef struct {
             u32 field_count;
 
             SymbolId symbol_id;
+
+            TypeId largest_field_id;
         } union_type;
 
         struct {

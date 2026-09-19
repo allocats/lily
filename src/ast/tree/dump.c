@@ -107,6 +107,12 @@ static void ast_print_node_header(FILE *out, const AstNode *node, u32 index) {
         (u32)node -> resolved_type
     );
 
+    fprintf(
+        out,
+        "│ resolved_symbol:  %u\n",
+        (u32)node -> resolved_symbol
+    );
+
     fprintf(out, "│ ");
 
     ast_print_flags(out, node -> flags);
