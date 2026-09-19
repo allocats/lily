@@ -1425,7 +1425,7 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
                     return LLVMBuildStore(ctx -> builder, rhs, lhs);
 
                 case TOK_EQ_EQ:
-                    if (is_type_int(lhs_type)) {
+                    if (is_type_int(lhs_type) || is_type(lhs_type, TYPE_POINTER)) {
                         return LLVMBuildICmp(ctx -> builder, LLVMIntEQ, lhs, rhs, "");
                     } else {
                         return LLVMBuildFCmp(ctx -> builder, LLVMRealOEQ, lhs, rhs, "");
