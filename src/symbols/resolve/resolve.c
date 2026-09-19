@@ -61,6 +61,9 @@ static SymbolId resolve_field(Resolver* r, File* file, AstNode* owner, AstNodeId
 static SymbolId resolve_variant(Resolver* r, File* file, AstNodeId id, TypeId type_id, u32 index);
 
 static BinaryOpKind binary_op_kind(TokenKind kind);
+
+static bool is_lvalue_constant(File* file, AstNodeId id);
+static bool is_expr_addressable(File* file, AstNodeId expr_id);
 static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_id);
 
 static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, AstNode* r, TokenKind op);
@@ -240,13 +243,33 @@ bool resolve_constant_expression(ScopeId scope_id, File* file, AstNodeId id) {
             return resolve_constant_expression(scope_id, file, node -> as.unary_op.operand);
         }
 
+        case AST_FIELD_INIT: {
+            return resolve_constant_expression(scope_id, file, node -> as.field_init.value);
+        }
+
+        case AST_STRUCT_LITERAL: {
+            if (!resolve_struct_literal(scope_id, node, file -> id, node -> resolved_type)) {
+                return false;
+            }
+
+            for (u32 i = 0; i < node -> as.struct_literal.inits.count; i++) {
+                AstNodeId init_id = node -> as.struct_literal.inits.ids[i];
+
+                if (!resolve_constant_expression(scope_id, file, init_id)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         default: {
             diagnostic_add_token_span(
                 file -> id,
                 DIAG_ERROR,
                 node -> tokens,
                 "expression is not const evaluable",
-                "null"
+                null
             );
 
             return false;
@@ -506,6 +529,11 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
 
     u32 field_count = node -> as.struct_decl.fields.count;
 
+    TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.struct_symbol.resolved_type_id);
+
+    entry -> as.struct_type.fields = arena_alloc(&driver.type_table.gpa, sizeof(TypeId) * field_count);
+    entry -> as.struct_type.field_count = field_count;
+
     scope_enter(r);
 
     for (u32 i = 0; i < field_count; i++) {
@@ -516,14 +544,13 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
         symbol -> as.struct_symbol.fields[i] = field_symbol_id;
 
         if (field_symbol_id == SYMBOL_ID_NONE) {
-
             result = false;
-
             continue;
         }
 
         Symbol* field_symbol = SYMBOL_ID_LOOKUP_REF(field_symbol_id);
-        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_symbol -> as.field_symbol.type_id);
+        TypeId field_type_id = field_symbol -> as.field_symbol.type_id;
+        TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_type_id);
 
         u16 field_alignment = field_type_entry -> alignment;
 
@@ -532,15 +559,16 @@ static bool resolve_struct(Resolver* r, SymbolId id) {
 
         size += padding;
 
-        field_symbol -> as.field_symbol.offset = size;
+        field_symbol -> as.field_symbol.type_id = field_type_id;
+        field_symbol -> as.field_symbol.index = i;
 
         size += field_type_entry -> size;
         align = MAX(align, field_alignment);
+
+        entry -> as.struct_type.fields[i] = field_type_id;
     }
 
     scope_exit(r);
-
-    TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.struct_symbol.resolved_type_id);
 
     entry -> as.struct_type.symbol_id = id;
     entry -> size = size;
@@ -566,6 +594,11 @@ static bool resolve_union(Resolver* r, SymbolId id) {
 
     u32 field_count = node -> as.union_decl.fields.count;
 
+    TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.struct_symbol.resolved_type_id);
+
+    entry -> as.union_type.fields = arena_alloc(&driver.type_table.gpa, sizeof(TypeId) * field_count);
+    entry -> as.union_type.field_count = field_count;
+
     scope_enter(r);
 
     for (u32 i = 0; i < field_count; i++) {
@@ -586,7 +619,10 @@ static bool resolve_union(Resolver* r, SymbolId id) {
         TypeId field_type_id = field_symbol -> as.field_symbol.type_id;
         TypeEntry* field_type_entry = TYPE_ID_LOOKUP_REF(field_type_id);
 
-        size  = MAX(size, field_type_entry -> size);
+        field_symbol -> as.field_symbol.type_id = field_type_id;
+        field_symbol -> as.field_symbol.index = i;
+
+        size = MAX(size, field_type_entry -> size);
 
         if (
             largest_field_id== TYPE_ID_NONE ||
@@ -597,13 +633,13 @@ static bool resolve_union(Resolver* r, SymbolId id) {
             largest_field_id = field_type_id;
             largest_field_size = field_type_entry -> size;
         }
+
+        entry -> as.union_type.fields[i] = field_type_id;
     }
 
     assert(align % 2 == 0);
 
     scope_exit(r);
-
-    TypeEntry* entry = TYPE_ID_LOOKUP_REF(symbol -> as.union_symbol.resolved_type_id);
 
     entry -> as.union_type.symbol_id = id;
     entry -> as.union_type.largest_field_id = largest_field_id;
@@ -683,6 +719,8 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
         result = false;
     }
 
+    node -> resolved_type = type;
+
     if (node -> as.variable_decl.value_expr != AST_NODE_ID_NONE) {
         TypeId expr_type = resolve_expression(r -> scope_id, file -> id, node -> as.variable_decl.value_expr, type);
 
@@ -699,6 +737,18 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
                 result = false;
             }
         }
+    }
+
+    if (node -> flags & AST_FLAGS_IS_CONSTANT && node -> as.variable_decl.value_expr == AST_NODE_ID_NONE) {
+        diagnostic_add_token_span(
+            r -> file -> id,
+            DIAG_ERROR,
+            node -> tokens,
+            "constant is not initialized",
+            "constants need to be initialized else they lowkey useless"
+        );
+
+        result = false;
     }
 
     if (result == true && node -> flags & AST_FLAGS_IS_CONSTANT) {
@@ -727,7 +777,6 @@ static bool resolve_variable(Resolver* r, SymbolId id) {
     symbol -> as.variable_symbol.type_id = type;
 
     node -> resolved_symbol = id;
-    node -> resolved_type = type;
 
     return result;
 }
@@ -1451,6 +1500,67 @@ static TypeId resolve_identifier(ScopeId scope_id, AstNode* node, FileId file_id
     return get_type_from_symbol(symbol_id);
 }
 
+static bool is_expr_addressable(File* file, AstNodeId expr_id) {
+    AstNode* expr = &file -> ast.nodes[expr_id];
+
+    switch (expr -> kind) {
+        case AST_IDENTIFIER: {
+            if (expr -> resolved_symbol == SYMBOL_ID_NONE) {
+                return false;
+            }
+
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(expr -> resolved_symbol);
+
+            return symbol -> kind == SYMBOL_VARIABLE || symbol -> kind == SYMBOL_PARAMETER;
+        }
+
+        case AST_MEMBER_ACCESS: {
+            if (expr -> resolved_symbol == SYMBOL_ID_NONE) {
+                return false;
+            }
+
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(expr -> resolved_symbol);
+
+            switch (symbol -> kind) {
+                case SYMBOL_VARIABLE:
+                    return true;
+
+                case SYMBOL_FIELD: {
+                    AstNodeId object_id = expr -> as.member_access.object;
+                    AstNode* object = &file -> ast.nodes[object_id];
+
+                    if (object -> resolved_type != TYPE_ID_NONE && is_type(object -> resolved_type, TYPE_POINTER)) {
+                        return true;
+                    }
+
+                    return is_expr_addressable(file, object_id);
+                }
+
+                default:
+                    return false;
+            }
+        }
+
+        case AST_INDEX: {
+            AstNodeId object_id = expr -> as.index.object;
+            AstNode* object = &file -> ast.nodes[object_id];
+
+            if (object -> resolved_type != TYPE_ID_NONE &&
+                (is_type(object -> resolved_type, TYPE_SLICE) || is_type(object -> resolved_type, TYPE_POINTER))) {
+                return true;
+            }
+
+            return is_expr_addressable(file, object_id);
+        }
+
+        case AST_UNARY_OP:
+            return expr -> as.unary_op.op == TOK_STAR;
+
+        default:
+            return false;
+    }
+}
+
 static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, TypeId expected_type) {
     File* file = file_lookup_id(file_id);
 
@@ -1483,11 +1593,7 @@ static TypeId resolve_unary_op(ScopeId scope_id, AstNode* node, FileId file_id, 
 
     switch (op) {
         case TOK_AMP: {
-            if (
-                operand_node -> kind != AST_IDENTIFIER &&
-                operand_node -> kind != AST_MEMBER_ACCESS &&
-                operand_node -> kind != AST_INDEX
-            ) {
+            if (!is_expr_addressable(file, operand_id)) {
                 diagnostic_add_cannot_reference_rvalue(file_id, operand_id);
                 return TYPE_ID_NONE;
             }
@@ -1889,6 +1995,18 @@ static TypeId resolve_member_access(ScopeId scope_id, AstNode* node, FileId file
         return TYPE_ID_NONE;
     }
 
+    if (object_symbol -> kind == SYMBOL_STRUCT || object_symbol -> kind == SYMBOL_UNION) {
+        diagnostic_add_token_span(
+            file_id,
+            DIAG_ERROR,
+            node -> tokens,
+            "invalid member access",
+            "cannot access a field through the type, use a variable of this type"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
     AstNode* member_node = &file -> ast.nodes[node -> as.member_access.member];
     assert(member_node -> kind == AST_IDENTIFIER);
 
@@ -2116,6 +2234,7 @@ static TypeId resolve_struct_literal(ScopeId scope_id, AstNode* node, FileId fil
         }
 
         init_node -> resolved_type = field_type;
+        init_node -> resolved_symbol = field_symbol_id;
     }
 
     arena_reset(&driver.scratch);
@@ -2173,107 +2292,63 @@ static BinaryOpKind binary_op_kind(TokenKind kind) {
     return binary_op_kind_lut[kind];
 }
 
-static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_id) {
-    File* file = file_lookup_id(file_id);
-    AstNode* expr = &file -> ast.nodes[expr_id];
+static bool is_lvalue_constant(File* file, AstNodeId id) {
+    AstNode* node = &file -> ast.nodes[id];
 
-    switch (expr -> kind) {
+    if (node -> resolved_symbol == SYMBOL_ID_NONE) {
+        return false;
+    }
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(node -> resolved_symbol);
+
+    if (symbol -> flags & AST_FLAGS_IS_CONSTANT) {
+        return true;
+    }
+
+    switch (node -> kind) {
         case AST_IDENTIFIER: {
-            SymbolId id = symbol_table_lookup(scope_id, expr -> as.identifier.name, file_id);
-
-            if (id == SYMBOL_ID_NONE) {
-                diagnostic_add_symbol_does_not_exist(file_id, expr_id, expr -> as.identifier.name);
-                return false;
-            }
-
-            expr -> resolved_symbol = id;
-
-            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(id);
-
-            switch (symbol -> kind) {
-                case SYMBOL_PARAMETER: 
-                case SYMBOL_VARIABLE: 
-                case SYMBOL_FIELD: 
-                    break;
-
-                default:
-                    diagnostic_add_expression_is_not_assignable(file_id, expr_id);
-                    return false;
-            }
-
-            if (symbol -> flags & AST_FLAGS_IS_CONSTANT) {
-                diagnostic_add_cannot_reassign_constant(file_id, expr_id);
-                return false;
-            }
-
-            return true;
+            return symbol -> flags & AST_FLAGS_IS_CONSTANT;
         }
 
         case AST_MEMBER_ACCESS: {
-            // checking that the object not only exists but isnt const
-            if (!is_expr_assignable(scope_id, file_id, expr -> as.member_access.object)) {
-                return false;
-            }
+            AstNode* object = &file -> ast.nodes[node -> as.member_access.object];
 
-            // checking the field for existence and constness
-            if (!is_expr_assignable(scope_id, file_id, expr -> as.member_access.member)) {
-                return false;
-            }
-
-            return true;
-        }
-
-        case AST_UNARY_OP: {
-            if (expr -> as.unary_op.op != TOK_STAR) {
-                diagnostic_add_expression_is_not_assignable(file_id, expr_id);
-                return false;
-            }
-
-            AstNodeId operand_id = expr -> as.unary_op.operand;
-            TypeId id = resolve_expression(scope_id, file_id, operand_id, TYPE_ID_NONE);
-
-            if (id == TYPE_ID_NONE) {
-                return false;
-            }
-
-            SymbolId symbol_id = resolve_name_expr(scope_id, file, operand_id);
-            
-            // This is firing for some reason
-            assert(symbol_id != SYMBOL_ID_NONE);
-
-            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
-
-            if (symbol -> flags & AST_FLAGS_IS_CONSTANT) {
-                diagnostic_add_cannot_reassign_constant(file_id, expr_id);
-                return false;
-            }
-
-            if (!is_type(id, TYPE_POINTER)) {
-                diagnostic_add_cannot_dereference_non_pointer(file_id, operand_id);
-                return false;
-            }
-
-            return true;
+            return is_lvalue_constant(file, object -> id);
         }
 
         case AST_INDEX: {
-            // if (expr -> flags & AST_FLAGS_IS_CONSTANT) {
-            //     diagnostic_add_cannot_reassign_constant(file_id, expr_id);
-            //     return false;
-            // }
+            AstNode* object = &file -> ast.nodes[node -> as.index.object];
 
-            if (!is_expr_assignable(scope_id, file_id, expr -> as.index.object)) {
+            if (object -> resolved_type != TYPE_ID_NONE) {
                 return false;
             }
 
-            return true;
+            return is_lvalue_constant(file, object -> id);
         }
 
-        default: {
-            diagnostic_add_expression_is_not_assignable(file_id, expr_id);
+        default:
             return false;
-        }
     }
+}
+
+static bool is_expr_assignable(ScopeId scope_id, FileId file_id, AstNodeId expr_id) {
+    File* file = file_lookup_id(file_id);
+
+    if (resolve_expression(scope_id, file_id, expr_id, TYPE_ID_NONE) == TYPE_ID_NONE) {
+        return false;
+    }
+
+    if (!is_expr_addressable(file, expr_id)) {
+        diagnostic_add_expression_is_not_assignable(file_id, expr_id);
+        return false;
+    }
+
+    if (is_lvalue_constant(file, expr_id)) {
+        diagnostic_add_cannot_reassign_constant(file_id, expr_id);
+        return false;
+    }
+
+    return true;
 }
 
 static TypeId resolve_assignment(ScopeId scope_id, FileId file_id, AstNode* l, AstNode* r, TokenKind op) {

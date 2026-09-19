@@ -88,7 +88,7 @@ typedef struct {
 
         struct {
             TypeId type_id;
-            u32 offset;
+            u32 index;
         } field_symbol;
 
         struct {

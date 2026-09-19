@@ -191,7 +191,7 @@ static void symbol_print_payload(FILE *out, Symbol *symbol) {
         case SYMBOL_FIELD:
             fprintf(out, "│ payload: field_symbol\n");
             fprintf(out, "│   type_id: TypeId=%u\n", (u32)symbol -> as.field_symbol.type_id);
-            fprintf(out, "│   offset:  %u\n", symbol -> as.field_symbol.offset);
+            fprintf(out, "│   index:  %u\n", symbol -> as.field_symbol.index);
             break;
 
         case SYMBOL_VARIABLE:

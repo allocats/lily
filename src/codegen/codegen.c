@@ -1157,6 +1157,34 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
             return LLVMBuildGEP2(ctx -> builder, array_type, object, indices, 2, ""); 
         } break;
 
+        case AST_MEMBER_ACCESS: {
+            AstNodeId object_id = node -> as.member_access.object;
+            AstNode* object_node = &ctx -> file -> ast.nodes[object_id];
+
+            Symbol* field = SYMBOL_ID_LOOKUP_REF(node -> resolved_symbol);
+            assert(field -> kind == SYMBOL_FIELD);
+
+            LLVMValueRef object = codegen_lvalue(ctx, object_id);
+
+            if (is_type(object_node -> resolved_type, TYPE_STRUCT))  {
+                LLVMTypeRef object_type = type_id_to_llvm(ctx, object_node -> resolved_type);
+                LLVMTypeRef i32_type = LLVMInt32TypeInContext(ctx -> ctx);
+
+                LLVMValueRef indices[2] = {
+                    LLVMConstInt(i32_type, 0, 0),
+                    LLVMConstInt(i32_type, field -> as.field_symbol.index, 0),
+                };
+
+                return LLVMBuildGEP2(ctx -> builder, object_type, object, indices, 2, "");
+            }
+
+            if (is_type(object_node -> resolved_type, TYPE_UNION))  {
+                return object;
+            }
+
+            UNREACHABLE("codegen_lvalue() | case AST_MEMBER_ACCESS");
+        } break;
+
         default:
             break;
     }
@@ -1294,12 +1322,29 @@ static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {
         } break;
 
         case AST_MEMBER_ACCESS: {
-            return codegen_expression(ctx, node -> as.member_access.member);
+            Symbol* symbol = SYMBOL_ID_LOOKUP_REF(node -> resolved_symbol);
+
+            switch (symbol -> kind) {
+                case SYMBOL_FIELD: {
+                    LLVMValueRef address = codegen_lvalue(ctx, id);
+                    LLVMTypeRef type = type_id_to_llvm(ctx, node -> resolved_type);
+
+                    return LLVMBuildLoad2(ctx -> builder, type, address, "");
+                } break;
+
+                case SYMBOL_FUNCTION:
+                case SYMBOL_VARIANT:
+                    return codegen_expression(ctx, node -> as.member_access.member);
+
+                default:
+                    UNREACHABLE("codegen_expression() | AST_MEMBER_ACCESS symbol kind");
+            }
         } break;
 
         case AST_INDEX: {
             LLVMValueRef address = codegen_lvalue(ctx, id);
             LLVMTypeRef element_type = type_id_to_llvm(ctx, node -> resolved_type);
+
             return LLVMBuildLoad2(ctx -> builder, element_type, address, ""); 
         } break;
 
