@@ -316,6 +316,14 @@ SymbolId resolve_name_expr(ScopeId scope_id, File* file, AstNodeId node_id) {
             return SYMBOL_ID_NONE;
         }
 
+        case AST_INDEX: {
+            SymbolId symbol_id = resolve_name_expr(scope_id, file, node -> as.index.object);
+
+            node -> resolved_symbol = symbol_id;
+
+            return symbol_id;
+        }
+
         case AST_ERROR: {
             return SYMBOL_ID_NONE;
         }
@@ -1389,7 +1397,7 @@ static TypeId resolve_expression(ScopeId scope_id, FileId file_id, AstNodeId exp
             break;
 
         default:
-            printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
+            printf("Found(node id=%u): %s\n", expr_id, AST_NODE_KIND_STRINGS[node -> kind]);
             UNREACHABLE("resolve_expression()");
     }
 
@@ -1888,17 +1896,21 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
         return TYPE_ID_NONE;
     }
 
-    if (!is_type(type, TYPE_ARRAY) && !is_type(type, TYPE_SLICE)) {
+    if (!is_type(type, TYPE_ARRAY) && !is_type(type, TYPE_SLICE) && !is_type(type, TYPE_POINTER)) {
         diagnostic_add_token_span(
             file_id,
             DIAG_ERROR,
             node -> tokens,
-            "indexed object is not an array or slice",
-            "can only index slices and arrays"
+            "indexed object is not an array, pointer or slice",
+            "can only index slices, pointers and arrays"
         );
 
         return TYPE_ID_NONE;
     }
+
+    AstNode* object_node = &file -> ast.nodes[node -> as.index.object];
+
+    object_node -> resolved_type = type;
 
     if (!is_type_unsigned_int(index_type)) {
         AstNode* index_expr = &file -> ast.nodes[node -> as.index.index_expr];
@@ -1918,6 +1930,10 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
         return TYPE_ID_NONE;
     }
 
+    AstNode* index_node = &file -> ast.nodes[node -> as.index.index_expr];
+
+    index_node -> resolved_type = type;
+
     TypeEntry* object_type = TYPE_ID_LOOKUP_REF(type); 
 
     TypeId element_type = TYPE_ID_NONE;
@@ -1929,7 +1945,7 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
             VmResult bounds_check_result = evaluate_const_expr(file, node -> as.index.index_expr);
 
             if (bounds_check_result.kind == VM_OK) {
-                i64 value = bounds_check_result.value.as.i64;
+                u64 value = bounds_check_result.value.as.i64;
 
                 if (value >= object_type -> as.array_type.size) {
                     AstNode* index_expr = &file -> ast.nodes[node -> as.index.index_expr];
@@ -1945,6 +1961,10 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
                     return TYPE_ID_NONE;
                 }
             }
+            break;
+
+        case TYPE_POINTER:
+            element_type = object_type -> as.pointer_type.base;
             break;
 
         case TYPE_SLICE:
@@ -1968,6 +1988,8 @@ static TypeId resolve_index(ScopeId scope_id, AstNode* node, FileId file_id, Typ
 
         return TYPE_ID_NONE;
     }
+
+    node -> resolved_type = element_type;
 
     return element_type;
 }

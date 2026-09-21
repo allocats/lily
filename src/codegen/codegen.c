@@ -57,6 +57,7 @@ static CodegenResult codegen_while_loop(CodegenCtx* ctx, AstNode* node);
 static CodegenResult codegen_return_statement(CodegenCtx* ctx, AstNode* node);
 
 static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id);
+static LLVMValueRef codegen_auto_deref(CodegenCtx* ctx, AstNodeId object_id, TypeId* type);
 static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id);
 
 static LLVMValueRef codegen_binary_logical(CodegenCtx* ctx, AstNode* node);
@@ -439,6 +440,8 @@ static LLVMValueRef codegen_function_signature(CodegenCtx* ctx, SymbolId id) {
         if (intrinsic_id != INTRINSIC_ID_NONE) {
             return codegen_intrinsic(ctx, intrinsic_id, param_types, param_count);
         }
+
+        return null;
     }
 
     LLVMTypeRef ret_type = type_id_to_llvm(ctx, ret_type_id);
@@ -1134,18 +1137,18 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
             LLVMValueRef user_index = codegen_expression(ctx, node -> as.index.index_expr); 
 
             // TODO: decide whether I want this or not
-            //
-            // if (is_type(object_node -> resolved_type, TYPE_POINTER)) {
-            //     TypeEntry* entry = TYPE_ID_LOOKUP_REF(object_node -> resolved_type);
-            //
-            //     LLVMTypeRef element_type = type_id_to_llvm(ctx, entry -> as.pointer_type.base);
-            //
-            //     LLVMValueRef indices[] = { user_index };
-            //
-            //     LLVMValueRef object = codegen_expression(ctx, node -> as.index.object);
-            //
-            //     return LLVMBuildGEP2(ctx -> builder, element_type, object, indices, 1, "");
-            // }
+
+            if (is_type(object_node -> resolved_type, TYPE_POINTER)) {
+                TypeEntry* entry = TYPE_ID_LOOKUP_REF(object_node -> resolved_type);
+
+                LLVMTypeRef element_type = type_id_to_llvm(ctx, entry -> as.pointer_type.base);
+
+                LLVMValueRef indices[] = { user_index };
+
+                LLVMValueRef object = codegen_expression(ctx, node -> as.index.object);
+
+                return LLVMBuildGEP2(ctx -> builder, element_type, object, indices, 1, "");
+            }
 
             LLVMTypeRef array_type = type_id_to_llvm(ctx, object_node -> resolved_type); 
 
@@ -1159,15 +1162,15 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
 
         case AST_MEMBER_ACCESS: {
             AstNodeId object_id = node -> as.member_access.object;
-            AstNode* object_node = &ctx -> file -> ast.nodes[object_id];
 
             Symbol* field = SYMBOL_ID_LOOKUP_REF(node -> resolved_symbol);
             assert(field -> kind == SYMBOL_FIELD);
 
-            LLVMValueRef object = codegen_lvalue(ctx, object_id);
+            TypeId object_type_id = TYPE_ID_NONE;
+            LLVMValueRef object = codegen_auto_deref(ctx, object_id, &object_type_id);
 
-            if (is_type(object_node -> resolved_type, TYPE_STRUCT))  {
-                LLVMTypeRef object_type = type_id_to_llvm(ctx, object_node -> resolved_type);
+            if (is_type(object_type_id, TYPE_STRUCT)) {
+                LLVMTypeRef object_type = type_id_to_llvm(ctx, object_type_id);
                 LLVMTypeRef i32_type = LLVMInt32TypeInContext(ctx -> ctx);
 
                 LLVMValueRef indices[2] = {
@@ -1178,7 +1181,7 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
                 return LLVMBuildGEP2(ctx -> builder, object_type, object, indices, 2, "");
             }
 
-            if (is_type(object_node -> resolved_type, TYPE_UNION))  {
+            if (is_type(object_type_id, TYPE_UNION))  {
                 return object;
             }
 
@@ -1191,6 +1194,30 @@ static LLVMValueRef codegen_lvalue(CodegenCtx* ctx, AstNodeId id) {
 
     printf("Found: %s\n", AST_NODE_KIND_STRINGS[node -> kind]);
     UNREACHABLE("codegen_lvalue()");
+}
+
+static LLVMValueRef codegen_auto_deref(CodegenCtx* ctx, AstNodeId object_id, TypeId* type) {
+    AstNode* object_node = &ctx -> file -> ast.nodes[object_id];
+
+    *type = object_node -> resolved_type;
+
+    if (!is_type(*type, TYPE_POINTER)) {
+        return codegen_lvalue(ctx, object_id);
+    }
+
+    LLVMValueRef address = codegen_expression(ctx, object_id);
+
+    *type = TYPE_ID_LOOKUP_REF(*type) -> as.pointer_type.base;
+
+    while (is_type(*type, TYPE_POINTER)) {
+        LLVMTypeRef ptr_type = type_id_to_llvm(ctx, *type);
+
+        address = LLVMBuildLoad2(ctx -> builder, ptr_type, address, "");
+
+        *type = TYPE_ID_LOOKUP_REF(*type) -> as.pointer_type.base;
+    }
+
+    return address;
 }
 
 static LLVMValueRef codegen_expression(CodegenCtx* ctx, AstNodeId id) {

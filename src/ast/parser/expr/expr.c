@@ -280,7 +280,11 @@ static AstNodeId led(Parser* p, Token token, AstNodeId left) {
             AstNode* node = parser_get_node(p, id);
 
             node -> as.index.object = left;
-            node -> as.index.index_expr = parse_expression(p, 0);
+
+            AstNodeId index_expr = parse_expression(p, 0);
+
+            node = parser_get_node(p, id);
+            node -> as.index.index_expr = index_expr;
 
             if (!parser_check(p, TOK_R_BRACKET)) {
                 Token previous = parser_peek_previous(p);

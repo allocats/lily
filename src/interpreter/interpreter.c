@@ -34,6 +34,8 @@ static bool compile_binary_op(VirtualMachine* vm, VmChunk* chunk, File* file, As
 static bool compile_unary_op(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
 static bool compile_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
 static bool compile_identifier(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
+static bool compile_struct_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
+static bool compile_function_call(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node);
 
 static void emit_u16_operand(VirtualMachine* vm, VmChunk* chunk, u16 value, AstNodeId node_id) {
     vm_emit_u16(vm, chunk, (u8)(value >> 8), (u8)(value & 0xFF), node_id);
@@ -72,6 +74,12 @@ static bool compile_expr(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode
 
         case AST_IDENTIFIER:
             return compile_identifier(vm, chunk, file, node);
+
+        case AST_STRUCT_LITERAL:
+            return compile_struct_literal(vm, chunk, file, node);
+
+        case AST_FUNCTION_CALL:
+            return compile_function_call(vm, chunk, file, node);
 
         // TODO: a lot. need identifiers, calls etc. need a globals map as well
 
@@ -134,12 +142,12 @@ static bool compile_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstN
             if (is_type_unsigned_int(node -> resolved_type)) {
                 value = (VmValue) {
                     .kind = VM_VALUE_U64,
-                    .as.i64 = literal -> as.integer, // w union hack
+                    .as.u64 = literal -> as.integer, // w union hack
                 };
             } else if (is_type_signed_int(node -> resolved_type)) {
                 value = (VmValue) {
                     .kind = VM_VALUE_I64,
-                    .as.u64 = literal -> as.integer, // w union hack
+                    .as.i64 = literal -> as.integer, // w union hack
                 };
             } 
         } break;
@@ -181,24 +189,60 @@ static bool compile_identifier(VirtualMachine* vm, VmChunk* chunk, File* file, A
 
     Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
 
-    switch (symbol -> kind) {
-        case SYMBOL_VARIABLE: {
-            VmValue value = symbol -> as.variable_symbol.compile_time_const_value;
-
-            if (value.kind == VM_VALUE_VOID) {
-                return false;
-            }
-
-            u16 index = vm_chunk_add_constant(vm, chunk, value);
-
-            vm_emit_u8(vm, chunk, OP_PUSH_CONST, node -> id);
-
-            emit_u16_operand(vm, chunk, index, node -> id);
-
-            return true;
-        }
-
-        default:
-            return false;
+    if (symbol -> kind != SYMBOL_VARIABLE) {
+        return false;
     }
+
+    VmValue value = symbol -> as.variable_symbol.compile_time_const_value;
+
+    if (value.kind == VM_VALUE_VOID) {
+        return false;
+    }
+
+    u16 index = vm_chunk_add_constant(vm, chunk, value);
+
+    vm_emit_u8(vm, chunk, OP_PUSH_CONST, node -> id);
+
+    emit_u16_operand(vm, chunk, index, node -> id);
+
+    return true;
+}
+
+static bool compile_struct_literal(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node) {
+    for (u32 i = 0; i < node -> as.struct_literal.inits.count; i++) {
+        AstNodeId init_id  = node -> as.struct_literal.inits.ids[i];
+        AstNode* init_node = &file -> ast.nodes[init_id];
+
+        if (!compile_expr(vm, chunk, file, init_node -> as.field_init.value)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool compile_function_call(VirtualMachine* vm, VmChunk* chunk, File* file, AstNode* node) {
+    SymbolId symbol_id = node -> resolved_symbol;
+
+    if (symbol_id == SYMBOL_ID_NONE) {
+        return false;
+    }
+
+    Symbol* symbol = SYMBOL_ID_LOOKUP_REF(symbol_id);
+
+    if (symbol -> kind != SYMBOL_FUNCTION) {
+        return false;
+    }
+
+    u32 arg_count = node -> as.function_call.arguments.count;
+
+    for (u32 i = 0; i < arg_count; i++) {
+        AstNodeId arg_id = node -> as.function_call.arguments.ids[i];
+
+        if (!compile_expr(vm, chunk, file, arg_id)) {
+            return false;
+        }
+    }
+
+    return true;
 }
